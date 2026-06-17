@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #3D2F2F;
+  background: #FFF9F5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: #FFF9F5;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background: linear-gradient(135deg, #FFF9F5 0%, #FFE4D6 60%, #FFd5c8 100%);
+  color: #3D2F2F;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* ===== Glassmorphism system ===== */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.9),
+    0 6px 16px rgba(61, 47, 47, 0.08);
+  transition: all 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.glass-card:active,
+.glass-card.touch-active {
+  transform: translateY(-2px);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 1),
+    0 10px 24px rgba(61, 47, 47, 0.12);
+}
+
+.glass-nav {
+  background: rgba(255, 249, 245, 0.35);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.glass-sheet {
+  background: rgba(255, 249, 245, 0.35);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 1px 3px rgba(255, 255, 255, 0.6),
+    0 -8px 30px rgba(61, 47, 47, 0.10);
+}
+
+.glass-toast {
+  background: rgba(255, 107, 107, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.glass-dialog {
+  background: rgba(255, 249, 245, 0.40);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 1px 3px rgba(255, 255, 255, 0.7),
+    0 12px 40px rgba(61, 47, 47, 0.15);
+}
+
+/* Transparent ghost button */
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: all 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.btn-ghost:active {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.btn-primary {
+  background: rgba(255, 107, 107, 0.80);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: all 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.btn-primary:active {
+  background: rgba(255, 107, 107, 0.95);
+  transform: scale(0.98);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
