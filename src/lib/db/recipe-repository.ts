@@ -146,6 +146,7 @@ export function createRecipeRepository(db: Database.Database = getDb()) {
         cookedCount: row.cooked_count,
         tags: getTags(db, id),
         latestWifeFeedback: "",
+        wifeRating: 0,
         sourcePlatform: row.source_platform ?? "",
         sourceUrl: row.source_url ?? "",
         originalTitle: row.original_title ?? "",

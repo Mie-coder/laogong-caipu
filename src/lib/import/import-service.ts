@@ -61,6 +61,6 @@ export async function parseImport(input: ImportInput, deps: ImportServiceDeps = 
     finalUrl,
     recipe,
     imageUrls: crawledImageUrls,
-    needsSupplement: recipe.confidence < 0.65 || recipe.missingFields.length > 0 || crawlStatus === "failed"
+    needsSupplement: (recipe.confidence ?? 0) < 0.65 || recipe.missingFields.length > 0 || crawlStatus === "failed"
   };
 }
