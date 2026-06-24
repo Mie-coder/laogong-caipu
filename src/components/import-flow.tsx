@@ -114,7 +114,7 @@ export function ImportFlow() {
               <button className="mt-3 rounded-pill btn-primary px-4 py-2 text-sm font-semibold text-white" onClick={parse}>重新解析</button>
             </div>
           ) : null}
-          <RecipeConfirmForm draft={draft} imageUrls={imagesConfirmed ? filteredImageUrls : []} onChange={setDraft} />
+          <RecipeConfirmForm draft={draft} imageUrls={filteredImageUrls} onChange={setDraft} />
           <button className="w-full rounded-pill btn-primary px-5 py-4 font-semibold text-white" onClick={save}>
             保存菜谱
           </button>

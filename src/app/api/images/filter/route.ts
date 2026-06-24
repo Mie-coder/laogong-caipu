@@ -9,10 +9,10 @@ const RequestSchema = z.object({
 export async function POST(request: Request) {
   try {
     const body = RequestSchema.parse(await request.json());
+    const fallbackImages = filterLikelyRecipeImages(body.imageUrls);
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
-      // Without API key, just return all images
-      return NextResponse.json({ imageUrls: body.imageUrls });
+      return NextResponse.json({ imageUrls: fallbackImages });
     }
 
     const prompt = body.recipeName
@@ -33,16 +33,31 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
-      return NextResponse.json({ imageUrls: body.imageUrls });
+      return NextResponse.json({ imageUrls: fallbackImages });
     }
 
     const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const content = (payload.choices?.[0]?.message?.content ?? "").trim();
     const stripJson = content.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
     const parsed = JSON.parse(stripJson);
-    return NextResponse.json({ imageUrls: parsed.imageUrls ?? body.imageUrls });
+    return NextResponse.json({ imageUrls: parsed.imageUrls ?? fallbackImages });
 
   } catch {
     return NextResponse.json({ imageUrls: [] }, { status: 500 });
   }
+}
+
+function filterLikelyRecipeImages(imageUrls: string[]): string[] {
+  const primaryNoteImages = imageUrls.filter((url) =>
+    /sns-webpic[^/]*\.xhscdn\.com/.test(url) && url.includes("/notes_pre_post/")
+  );
+  if (primaryNoteImages.length > 0) {
+    return [...new Set(primaryNoteImages)];
+  }
+
+  return [...new Set(imageUrls.filter((url) =>
+    !url.includes("sns-avatar") &&
+    !url.includes("picasso-static") &&
+    !url.includes("/comment/")
+  ))];
 }
