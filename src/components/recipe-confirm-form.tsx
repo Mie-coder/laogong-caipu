@@ -1,113 +1,217 @@
 "use client";
 
+import { Pencil, Plus, ChevronUp, ChevronDown, Trash2 } from "lucide-react";
 import { RecipeDraft } from "@/lib/domain/recipe";
-import { DifficultyStars } from "@/components/difficulty-stars";
-import { ImageCarousel } from "@/components/image-carousel";
 
-const INGREDIENT_CATEGORIES: Record<string, { label: string; icon: string }> = {
-  "肉类": { label: "肉类", icon: "🥩" },
-  "禽蛋": { label: "禽蛋", icon: "🥚" },
-  "水产": { label: "水产", icon: "🐟" },
-  "蔬菜": { label: "蔬菜", icon: "🥬" },
-  "豆制品": { label: "豆制品", icon: "🫘" },
-  "主食": { label: "主食", icon: "🍚" },
-  "调料": { label: "调料", icon: "🧂" },
-  "香料": { label: "香料", icon: "🌿" },
-  "其他": { label: "其他", icon: "📦" },
+type RecipeConfirmFormProps = {
+  draft: RecipeDraft;
+  imageUrls?: string[];
+  onChange: (draft: RecipeDraft) => void;
+  coverUrl?: string | null;
+  onSaveDraft?: () => void;
+  nameError?: string;
+  stepsError?: string;
 };
 
-const MEAT_KEYWORDS = ["肉", "牛", "猪", "羊", "鸡", "鸭", "排骨", "五花", "里脊", "腿", "腩", "肠", "培根", "火腿", "腊"];
-const EGG_KEYWORDS = ["蛋", "鸡蛋", "鸭蛋", "鹌鹑蛋"];
-const SEAFOOD_KEYWORDS = ["鱼", "虾", "蟹", "贝", "蚝", "蛤", "鱿", "章鱼", "海参", "鲍", "三文鱼", "鳕", "带鱼"];
-const VEG_KEYWORDS = ["菜", "瓜", "椒", "茄", "豆", "菇", "菌", "葱", "姜", "蒜", "洋", "薯", "萝卜", "芹", "菠", "笋", "藕", "花菜", "西兰花", "生菜", "白菜", "玉米", "山药", "芋", "莲", "秋葵", "芦笋"];
-const TOFU_KEYWORDS = ["豆腐", "豆皮", "腐竹", "豆干", "豆泡", "千张", "百叶"];
-const STAPLE_KEYWORDS = ["面", "粉", "米", "饭", "馒头", "饼", "包", "饺子", "馄饨", "年糕", "粉条", "粉丝", "面条"];
-
-function categorizeIngredient(name: string): string {
-  if (MEAT_KEYWORDS.some((k) => name.includes(k))) return "肉类";
-  if (EGG_KEYWORDS.some((k) => name.includes(k))) return "禽蛋";
-  if (SEAFOOD_KEYWORDS.some((k) => name.includes(k))) return "水产";
-  if (TOFU_KEYWORDS.some((k) => name.includes(k))) return "豆制品";
-  if (STAPLE_KEYWORDS.some((k) => name.includes(k))) return "主食";
-  if (VEG_KEYWORDS.some((k) => name.includes(k))) return "蔬菜";
-  return "其他";
-}
-
-function groupByCategory(items: Array<{ name: string; amount: string; type: string }>) {
-  const groups: Record<string, Array<{ name: string; amount: string; type: string }>> = {};
-  for (const item of items) {
-    const cat = item.type === "seasoning" ? "调料" : categorizeIngredient(item.name);
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push(item);
-  }
-  return groups;
+function renumberSteps(steps: RecipeDraft["steps"]) {
+  return steps.map((step, index) => ({
+    ...step,
+    order: index + 1
+  }));
 }
 
 export function RecipeConfirmForm({
   draft,
   imageUrls,
-  onChange
-}: {
-  draft: RecipeDraft;
-  imageUrls?: string[];
-  onChange: (draft: RecipeDraft) => void;
-}) {
-  const update = <K extends keyof RecipeDraft>(key: K, value: RecipeDraft[K]) => onChange({ ...draft, [key]: value });
+  onChange,
+  coverUrl,
+  nameError,
+  stepsError
+}: RecipeConfirmFormProps) {
+  const update = (nextDraft: RecipeDraft) => onChange({ ...nextDraft, steps: renumberSteps(nextDraft.steps) });
 
-  const allItems = [...draft.ingredients, ...draft.seasonings];
-  const groups = groupByCategory(allItems);
+  const metadata = [draft.mainCategory, draft.difficulty, draft.cookTimeMinutes ? `${draft.cookTimeMinutes} 分钟` : null].filter(Boolean).join(" · ");
+
+  function updateIngredients(
+    key: "ingredients" | "seasonings",
+    updater: (items: RecipeDraft["ingredients"]) => RecipeDraft["ingredients"]
+  ) {
+    update({
+      ...draft,
+      [key]: updater(draft[key])
+    });
+  }
+
+  function updateSteps(updater: (steps: RecipeDraft["steps"]) => RecipeDraft["steps"]) {
+    update({
+      ...draft,
+      steps: updater(draft.steps)
+    });
+  }
 
   return (
-    <div className="space-y-4">
-      {imageUrls && imageUrls.length > 0 ? <ImageCarousel images={imageUrls} /> : null}
-      <div className="flex items-center gap-3">
-        <DifficultyStars difficulty={draft.difficulty} />
-      </div>
-      <label className="block">
-        <span className="text-sm text-muted">菜名</span>
-        <input className="mt-1 w-full rounded-card glass-card border border-white/30 px-4 py-3" value={draft.name} onChange={(event) => update("name", event.target.value)} />
-      </label>
-      <label className="block">
-        <span className="text-sm text-muted">主分类</span>
-        <input className="mt-1 w-full rounded-card glass-card border border-white/30 px-4 py-3" value={draft.mainCategory} onChange={(event) => update("mainCategory", event.target.value)} />
-      </label>
-      <label className="block">
-        <span className="text-sm text-muted">标签，用空格分隔</span>
-        <input className="mt-1 w-full rounded-card glass-card border border-white/30 px-4 py-3" value={draft.tags.join(" ")} onChange={(event) => update("tags", event.target.value.split(/\s+/).filter(Boolean))} />
-      </label>
-      <section className="rounded-card glass-card p-4">
-        <h3 className="font-semibold mb-3">食材与调料</h3>
-        <div className="space-y-3">
-          {Object.entries(groups).map(([cat, items]) => {
-            const info = INGREDIENT_CATEGORIES[cat] || INGREDIENT_CATEGORIES["其他"];
-            return (
-              <div key={cat}>
-                <p className="text-xs font-semibold text-muted mb-1.5">{info.icon} {info.label}</p>
-                <ul className="space-y-0.5 text-sm text-ink ml-1">
-                  {items.map((item, i) => (
-                    <li key={`${item.name}-${i}`} className="flex justify-between">
-                      <span>{item.name}</span>
-                      <span className="text-muted">{item.amount || "适量"}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
+    <div className="space-y-8">
+      <section className="border-b border-line pb-6">
+        <div className="flex items-start gap-4">
+          <div className="h-16 w-16 overflow-hidden rounded-[6px] bg-white">
+            {coverUrl ? <img src={coverUrl} alt="" className="h-full w-full object-cover" /> : null}
+          </div>
+          <div className="min-w-0 flex-1">
+            <label className="block">
+              <span className="mb-2 block text-sm text-ink">菜名</span>
+              <input
+                aria-label="菜名"
+                className="w-full border-b border-line bg-transparent pb-2 text-[28px] font-bold leading-[1.3] text-ink outline-none"
+                value={draft.name}
+                onChange={(event) => update({ ...draft, name: event.target.value })}
+              />
+            </label>
+            {nameError ? <p className="mt-2 text-sm text-[#d45b5b]">{nameError}</p> : null}
+            <p className="mt-3 text-[13px] leading-[1.45] text-muted">{metadata}</p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex gap-6 text-base text-ink">
+          <button type="button" className="border-b border-ink pb-1 font-semibold">概览</button>
+          <button type="button" className="pb-1 text-muted">食材</button>
+          <button type="button" className="pb-1 text-muted">步骤</button>
         </div>
       </section>
-      <section className="rounded-card glass-card p-4">
-        <h3 className="font-semibold">步骤</h3>
-        <ol className="mt-2 space-y-2 text-sm text-muted">
-          {draft.steps.map((step) => (
-            <li key={step.order}>{step.order}. {step.text}</li>
-          ))}
-        </ol>
+
+      <section className="space-y-4 border-b border-line pb-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[20px] font-semibold leading-[1.4] text-ink">标签</h2>
+          <Pencil className="h-4 w-4 text-ink" aria-hidden="true" />
+        </div>
+        <label className="block">
+          <span className="sr-only">标签</span>
+          <input
+            aria-label="标签"
+            className="w-full border-b border-line bg-transparent pb-2 text-base text-text outline-none"
+            value={draft.tags.join(" ")}
+            onChange={(event) => update({ ...draft, tags: event.target.value.split(/\s+/).filter(Boolean) })}
+          />
+        </label>
       </section>
-      <label className="block">
-        <span className="text-sm text-muted">小贴士</span>
-        <textarea className="mt-1 min-h-24 w-full rounded-card border border-apricot bg-white px-4 py-3" value={draft.tips} onChange={(event) => update("tips", event.target.value)} />
-      </label>
+
+      <section className="space-y-4 border-b border-line pb-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[20px] font-semibold leading-[1.4] text-ink">食材</h2>
+          <button
+            type="button"
+            className="flex min-h-[44px] items-center gap-1 text-sm font-semibold text-ink"
+            onClick={() => updateIngredients("ingredients", (items) => [...items, { name: "", amount: "", type: "ingredient" }])}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            添加
+          </button>
+        </div>
+
+        {(["ingredients", "seasonings"] as const).map((key) => (
+          <div key={key} className="space-y-3">
+            <p className="text-sm font-semibold text-muted">{key === "ingredients" ? "主食材" : "调料"}</p>
+            {draft[key].map((item, index) => (
+              <div key={`${key}-${index}`} className="grid grid-cols-[1fr_96px_auto] items-center gap-3">
+                <input
+                  aria-label={key === "ingredients" ? "食材名称" : "调料名称"}
+                  className="border-b border-line bg-transparent pb-2 text-base text-text outline-none"
+                  value={item.name}
+                  onChange={(event) => updateIngredients(key, (items) => items.map((entry, itemIndex) => itemIndex === index ? { ...entry, name: event.target.value } : entry))}
+                />
+                <input
+                  aria-label={key === "ingredients" ? "食材用量" : "调料用量"}
+                  className="border-b border-line bg-transparent pb-2 text-right text-base text-muted outline-none"
+                  value={item.amount}
+                  onChange={(event) => updateIngredients(key, (items) => items.map((entry, itemIndex) => itemIndex === index ? { ...entry, amount: event.target.value } : entry))}
+                />
+                <button
+                  type="button"
+                  aria-label={`删除${key === "ingredients" ? "食材" : "调料"} ${index + 1}`}
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
+                  onClick={() => updateIngredients(key, (items) => items.filter((_, itemIndex) => itemIndex !== index))}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[20px] font-semibold leading-[1.4] text-ink">步骤</h2>
+          <button
+            type="button"
+            className="flex min-h-[44px] items-center gap-1 text-sm font-semibold text-ink"
+            onClick={() => updateSteps((steps) => [...steps, { order: steps.length + 1, text: "" }])}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            添加
+          </button>
+        </div>
+        {stepsError ? <p className="text-sm text-[#d45b5b]">{stepsError}</p> : null}
+
+        <div className="space-y-5">
+          {draft.steps.map((step, index) => (
+            <div key={`${step.order}-${index}`} data-testid="step-row" className="border-b border-line pb-5">
+              <div className="mb-3 flex items-center justify-between">
+                <span data-testid="step-order" className="text-[28px] font-bold leading-[1.3] text-ink">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label={`上移步骤 ${index + 1}`}
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
+                    onClick={() => updateSteps((steps) => {
+                      if (index === 0) return steps;
+                      const next = [...steps];
+                      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                      return next;
+                    })}
+                  >
+                    <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`下移步骤 ${index + 1}`}
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
+                    onClick={() => updateSteps((steps) => {
+                      if (index === steps.length - 1) return steps;
+                      const next = [...steps];
+                      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                      return next;
+                    })}
+                  >
+                    <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`删除步骤 ${index + 1}`}
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
+                    onClick={() => updateSteps((steps) => steps.filter((_, stepIndex) => stepIndex !== index))}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Pencil className="mt-2 h-4 w-4 text-ink" aria-hidden="true" />
+                <textarea
+                  aria-label="步骤内容"
+                  className="min-h-20 flex-1 border-b border-line bg-transparent pb-2 text-base leading-[1.65] text-text outline-none"
+                  value={step.text}
+                  onChange={(event) => updateSteps((steps) => steps.map((entry, stepIndex) => stepIndex === index ? { ...entry, text: event.target.value } : entry))}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {imageUrls && imageUrls.length > 0 ? <div className="hidden" aria-hidden="true">{imageUrls.length}</div> : null}
     </div>
   );
 }
