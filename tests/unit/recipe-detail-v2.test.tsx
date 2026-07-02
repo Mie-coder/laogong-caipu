@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RecipeDetail } from "@/components/recipe-detail";
 
@@ -96,6 +96,14 @@ beforeEach(() => {
   mockState.getRecipeApi.mockResolvedValue({ recipe: makeRecipe() });
   mockState.addCookingLogApi.mockResolvedValue({ ok: true });
   mockState.deleteRecipeApi.mockResolvedValue({ ok: true });
+  Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: vi.fn()
+  });
+  Object.defineProperty(window, "scrollTo", {
+    configurable: true,
+    value: vi.fn()
+  });
 });
 
 describe("RecipeDetail v2", () => {
@@ -113,6 +121,7 @@ describe("RecipeDetail v2", () => {
     const beef = screen.getByLabelText("勾选食材 牛腩");
     expect(beef).toBeInTheDocument();
     expect(beef.closest("li")?.textContent).toContain("500 克");
+    expect(screen.queryByRole("button", { name: "菜谱信息" })).not.toBeInTheDocument();
   });
 
   it("keeps ingredient checks local only and never sends them to the API payload", async () => {
@@ -120,7 +129,7 @@ describe("RecipeDetail v2", () => {
 
     fireEvent.click(await screen.findByLabelText("勾选食材 牛腩"));
     fireEvent.click(screen.getByRole("button", { name: "标记做过" }));
-    fireEvent.click(screen.getByRole("button", { name: "少盐" }));
+    fireEvent.change(screen.getByLabelText("下次改进"), { target: { value: "少盐" } });
     fireEvent.click(screen.getByRole("button", { name: "保存复盘" }));
 
     await waitFor(() => expect(mockState.addCookingLogApi).toHaveBeenCalledTimes(1));
@@ -143,6 +152,42 @@ describe("RecipeDetail v2", () => {
     fireEvent.click(await screen.findByRole("button", { name: "返回菜谱列表" }));
 
     expect(mockState.push).toHaveBeenCalledWith("/recipes?query=牛腩");
+  });
+
+  it("falls back to /recipes when no saved list url exists", async () => {
+    render(<RecipeDetail id={7} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "返回菜谱列表" }));
+
+    expect(mockState.push).toHaveBeenCalledWith("/recipes");
+  });
+
+  it("uses the saved list url after successful delete", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    window.sessionStorage.setItem("recipe-list-return", JSON.stringify({ url: "/recipes?category=家常菜", scrollY: 222 }));
+
+    render(<RecipeDetail id={7} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "更多操作" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "删除菜谱" }));
+
+    await waitFor(() => expect(mockState.deleteRecipeApi).toHaveBeenCalledWith(7));
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(mockState.push).toHaveBeenCalledWith("/recipes?category=家常菜");
+  });
+
+  it("falls back to /recipes after successful delete when no saved list url exists", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    cleanup();
+    render(<RecipeDetail id={8} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "更多操作" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "删除菜谱" }));
+
+    await waitFor(() => expect(mockState.deleteRecipeApi).toHaveBeenCalledWith(8));
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(mockState.push).toHaveBeenCalledWith("/recipes");
   });
 
   it("shows latest review content and refreshes after a successful new cooking log", async () => {
@@ -171,13 +216,40 @@ describe("RecipeDetail v2", () => {
     fireEvent.click(screen.getByRole("button", { name: "标记做过" }));
     fireEvent.click(screen.getByRole("button", { name: "5 星，超好吃" }));
     fireEvent.change(screen.getByLabelText("老婆评价"), { target: { value: "更下饭了" } });
-    fireEvent.click(screen.getByRole("button", { name: "再辣一点" }));
+    fireEvent.change(screen.getByLabelText("下次改进"), { target: { value: "再辣一点" } });
     fireEvent.click(screen.getByRole("button", { name: "保存复盘" }));
 
     expect(await screen.findByText("已保存复盘")).toBeInTheDocument();
     expect(await screen.findByText("更下饭了")).toBeInTheDocument();
     expect(screen.getByText("再辣一点")).toBeInTheDocument();
     expect(screen.getByText("做过 4 次")).toBeInTheDocument();
+  });
+
+  it("retries loading after an error", async () => {
+    mockState.getRecipeApi.mockRejectedValueOnce(new Error("网络错误")).mockResolvedValueOnce({ recipe: makeRecipe() });
+
+    render(<RecipeDetail id={7} />);
+
+    expect(await screen.findByText("网络错误")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "重新加载" }));
+
+    expect(await screen.findByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
+    expect(mockState.getRecipeApi).toHaveBeenCalledTimes(2);
+  });
+
+  it("scrolls to section anchors via scrollIntoView and never uses window.scrollTo", async () => {
+    const scrollIntoView = vi.mocked(window.HTMLElement.prototype.scrollIntoView);
+    const scrollTo = vi.mocked(window.scrollTo);
+
+    render(<RecipeDetail id={7} />);
+    await screen.findByRole("heading", { name: "番茄炖牛腩" });
+
+    fireEvent.click(screen.getByRole("button", { name: "步骤" }));
+    fireEvent.click(screen.getByRole("button", { name: "备料" }));
+    fireEvent.click(screen.getByRole("button", { name: "查看复盘" }));
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(3);
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 
   it("offers delete in the more menu and keeps the detail visible when deletion fails", async () => {

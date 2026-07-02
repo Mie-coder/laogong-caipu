@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 import { BottomSheet } from "@/components/bottom-sheet";
 
 const RATING_LABELS = ["", "不太行", "一般般", "还可以", "很好吃", "超好吃"];
-const QUICK_TAGS = ["少盐", "火小一点", "时间短一点", "再辣一点"];
 
 export function CookingLogSheet({
   open,
@@ -19,8 +18,7 @@ export function CookingLogSheet({
   const [wifeFeedback, setWifeFeedback] = useState("");
   const [wifeRating, setWifeRating] = useState(0);
   const [husbandImprovementNotes, setHusbandImprovementNotes] = useState("");
-  const [notes] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,19 +27,13 @@ export function CookingLogSheet({
     setWifeFeedback("");
     setWifeRating(0);
     setHusbandImprovementNotes("");
-    setSelectedTags([]);
+    setNotes("");
     setSubmitting(false);
     setError("");
   }, [open]);
 
-  const mergedImprovementNotes = useMemo(() => {
-    const manual = husbandImprovementNotes.trim();
-    const combined = [...selectedTags, ...(manual ? [manual] : [])];
-    return combined.join("，");
-  }, [husbandImprovementNotes, selectedTags]);
-
   const canSubmit =
-    wifeRating > 0 || wifeFeedback.trim().length > 0 || husbandImprovementNotes.trim().length > 0 || selectedTags.length > 0;
+    wifeRating > 0 || wifeFeedback.trim().length > 0 || husbandImprovementNotes.trim().length > 0 || notes.trim().length > 0;
 
   async function handleSubmit() {
     if (!canSubmit || submitting) return;
@@ -51,8 +43,8 @@ export function CookingLogSheet({
     try {
       await onSubmit({
         wifeFeedback: wifeFeedback.trim(),
-        husbandImprovementNotes: mergedImprovementNotes,
-        notes,
+        husbandImprovementNotes: husbandImprovementNotes.trim(),
+        notes: notes.trim(),
         wifeRating
       });
     } catch (submitError) {
@@ -61,12 +53,13 @@ export function CookingLogSheet({
     }
   }
 
-  function toggleTag(tag: string) {
-    setSelectedTags((current) => (current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]));
+  function handleClose() {
+    if (submitting) return;
+    onClose();
   }
 
   return (
-    <BottomSheet open={open} title="这次做得怎么样？" onClose={onClose}>
+    <BottomSheet open={open} title="这次做得怎么样？" onClose={handleClose}>
       <div className="space-y-6 pb-2">
         <p className="text-sm text-muted">记录下来，下次会做得更好</p>
 
@@ -118,29 +111,29 @@ export function CookingLogSheet({
 
         <section className="space-y-4 border-b border-line pb-6">
           <h3 className="text-[17px] font-semibold text-ink">下次改进</h3>
-          <div className="flex flex-wrap gap-3">
-            {QUICK_TAGS.map((tag) => {
-              const selected = selectedTags.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  className={`min-h-[44px] rounded-[4px] border px-4 text-[16px] text-ink transition ${
-                    selected ? "border-accent" : "border-line"
-                  }`}
-                  onClick={() => toggleTag(tag)}
-                >
-                  {tag}
-                </button>
-              );
-            })}
-          </div>
           <textarea
             aria-label="下次改进"
             className="min-h-[88px] w-full resize-none border-0 border-b border-line bg-transparent px-0 py-0 text-[16px] text-ink outline-none placeholder:text-subtle focus:border-ink"
             placeholder="番茄可以再多放一个"
             value={husbandImprovementNotes}
             onChange={(event) => setHusbandImprovementNotes(event.target.value)}
+          />
+        </section>
+
+        <section className="space-y-3 border-b border-line pb-6">
+          <div className="space-y-2">
+            <label htmlFor="cooking-notes" className="text-[17px] font-semibold text-ink">
+              备注
+            </label>
+            <p className="text-sm text-muted">记下这次做菜的小发现</p>
+          </div>
+          <textarea
+            id="cooking-notes"
+            aria-label="备注"
+            className="min-h-[88px] w-full resize-none border-0 border-b border-line bg-transparent px-0 py-0 text-[16px] text-ink outline-none placeholder:text-subtle focus:border-ink"
+            placeholder="比如火候、锅具或者下次想试的变化"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
           />
         </section>
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Clock3, Ellipsis, FileText, Pencil, Star, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3, Ellipsis, FileText, Star, Trash2 } from "lucide-react";
 import { addCookingLogApi, deleteRecipeApi, getRecipeApi } from "@/lib/http/api-client";
 import { CookingLogSheet } from "@/components/cooking-log-sheet";
 import { DifficultyStars } from "@/components/difficulty-stars";
@@ -27,6 +27,9 @@ export function RecipeDetail({ id }: { id: number }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"ingredients" | "steps">("ingredients");
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const ingredientsRef = useRef<HTMLElement | null>(null);
+  const stepsRef = useRef<HTMLElement | null>(null);
+  const reviewRef = useRef<HTMLElement | null>(null);
 
   async function load() {
     try {
@@ -58,20 +61,26 @@ export function RecipeDetail({ id }: { id: number }) {
   }
 
   function handleBack() {
+    router.push(getListReturnUrl());
+  }
+
+  function getListReturnUrl() {
     try {
       const raw = window.sessionStorage.getItem(LIST_RETURN_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { url?: string };
-        if (parsed.url) {
-          router.push(parsed.url);
-          return;
-        }
-      }
+      if (!raw) return "/recipes";
+      const parsed = JSON.parse(raw) as { url?: string };
+      return parsed.url || "/recipes";
     } catch {
       // ponytail: bad sessionStorage falls back to the default list route
+      return "/recipes";
     }
+  }
 
-    router.push("/recipes");
+  function scrollToSection(section: "ingredients" | "steps" | "review") {
+    setActiveTab(section === "steps" ? "steps" : "ingredients");
+    const element =
+      section === "ingredients" ? ingredientsRef.current : section === "steps" ? stepsRef.current : reviewRef.current;
+    element?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function handleDelete() {
@@ -79,7 +88,7 @@ export function RecipeDetail({ id }: { id: number }) {
     try {
       await deleteRecipeApi(id);
       setMenuOpen(false);
-      router.push("/recipes");
+      router.push(getListReturnUrl());
     } catch (deleteError) {
       setToast(deleteError instanceof Error ? deleteError.message : "删除失败");
       setMenuOpen(false);
@@ -134,13 +143,6 @@ export function RecipeDetail({ id }: { id: number }) {
               <ChevronLeft className="h-7 w-7" aria-hidden="true" />
             </button>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                aria-label="菜谱信息"
-                className="flex min-h-[44px] min-w-[44px] items-center justify-center"
-              >
-                <Pencil className="h-6 w-6" aria-hidden="true" />
-              </button>
               <div className="relative">
                 <button
                   type="button"
@@ -208,31 +210,29 @@ export function RecipeDetail({ id }: { id: number }) {
               <button
                 type="button"
                 aria-label="备料"
-                className={`relative min-h-[52px] text-center text-[17px] ${activeTab === "ingredients" ? "font-semibold text-ink" : "text-muted"}`}
-                onClick={() => setActiveTab("ingredients")}
+                className={`min-h-[52px] text-center text-[17px] ${activeTab === "ingredients" ? "font-semibold text-ink" : "text-muted"}`}
+                onClick={() => scrollToSection("ingredients")}
               >
                 备料
-                {activeTab === "ingredients" ? <span className="absolute bottom-0 left-1/2 h-[2px] w-16 -translate-x-1/2 bg-accent" /> : null}
               </button>
               <button
                 type="button"
                 aria-label="步骤"
-                className={`relative min-h-[52px] text-center text-[17px] ${activeTab === "steps" ? "font-semibold text-ink" : "text-muted"}`}
-                onClick={() => setActiveTab("steps")}
+                className={`min-h-[52px] text-center text-[17px] ${activeTab === "steps" ? "font-semibold text-ink" : "text-muted"}`}
+                onClick={() => scrollToSection("steps")}
               >
                 步骤
-                {activeTab === "steps" ? <span className="absolute bottom-0 left-1/2 h-[2px] w-16 -translate-x-1/2 bg-accent" /> : null}
               </button>
             </div>
           </div>
 
-          <section className="space-y-6">
+          <section ref={ingredientsRef} className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-[20px] font-semibold text-ink">食材与调料</h2>
               <button
                 type="button"
                 className="inline-flex min-h-[44px] items-center gap-1 text-[16px] text-muted"
-                onClick={() => setActiveTab("ingredients")}
+                onClick={() => scrollToSection("ingredients")}
               >
                 做菜模式
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -260,7 +260,7 @@ export function RecipeDetail({ id }: { id: number }) {
             </ul>
           </section>
 
-          <section className="space-y-6">
+          <section ref={stepsRef} className="space-y-6">
             <h2 className="text-[20px] font-semibold text-ink">制作步骤</h2>
             <ol className="space-y-8">
               {recipe.steps.map((step: { order: number; text: string; imageUrl: string | null }) => (
@@ -284,7 +284,7 @@ export function RecipeDetail({ id }: { id: number }) {
           </section>
 
           {latestLog ? (
-            <section className="space-y-4 border-t border-line pt-6">
+            <section ref={reviewRef} className="space-y-4 border-t border-line pt-6">
               <h2 className="text-[20px] font-semibold text-ink">最近复盘</h2>
               <div className="space-y-3 text-[16px] text-ink">
                 {latestLog.wifeRating ? (
@@ -298,7 +298,11 @@ export function RecipeDetail({ id }: { id: number }) {
                 {latestLog.cookedAt ? <p className="text-sm text-subtle">{formatCookedAt(latestLog.cookedAt)}</p> : null}
               </div>
             </section>
-          ) : null}
+          ) : (
+            <section ref={reviewRef} className="border-t border-line pt-6">
+              <h2 className="text-[20px] font-semibold text-ink">最近复盘</h2>
+            </section>
+          )}
 
           {recipe.tips ? (
             <section className="space-y-3 border-t border-line pt-6">
@@ -314,7 +318,7 @@ export function RecipeDetail({ id }: { id: number }) {
           <button
             type="button"
             className="inline-flex min-h-[48px] items-center gap-3 text-[17px] text-ink"
-            onClick={() => setActiveTab("steps")}
+            onClick={() => scrollToSection("review")}
           >
             <FileText className="h-6 w-6" aria-hidden="true" />
             查看复盘
