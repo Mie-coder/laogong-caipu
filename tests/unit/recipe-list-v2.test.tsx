@@ -143,6 +143,83 @@ describe("RecipeList v2", () => {
     );
   });
 
+  it("keeps 最近做过 as a local quick filter instead of forwarding query", async () => {
+    mockState.listRecipesApi.mockResolvedValue({
+      recipes: [
+        makeRecipe(1, { name: "红烧肉", cookedCount: 3 }),
+        makeRecipe(2, { name: "凉拌黄瓜", cookedCount: 0 })
+      ]
+    });
+
+    render(<RecipeList />);
+    await screen.findByText("共 2 道");
+
+    fireEvent.click(screen.getByRole("button", { name: "最近做过" }));
+
+    await waitFor(() =>
+      expect(mockState.listRecipesApi).toHaveBeenLastCalledWith({
+        query: "",
+        category: "",
+        tag: "",
+        difficulty: ""
+      })
+    );
+
+    expect(screen.getByRole("button", { name: "查看菜谱 红烧肉" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "查看菜谱 凉拌黄瓜" })).not.toBeInTheDocument();
+  });
+
+  it("clears query and all filters when 全部 is selected", async () => {
+    mockState.listRecipesApi.mockResolvedValue({ recipes: [makeRecipe(1)] });
+
+    render(<RecipeList />);
+    await screen.findByText("共 1 道");
+
+    fireEvent.change(screen.getByPlaceholderText("搜索菜名"), { target: { value: "排骨" } });
+    await waitFor(() =>
+      expect(mockState.listRecipesApi).toHaveBeenLastCalledWith({
+        query: "排骨",
+        category: "",
+        tag: "",
+        difficulty: ""
+      })
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "筛选" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "分类 家常菜" }));
+    await waitFor(() =>
+      expect(mockState.listRecipesApi).toHaveBeenLastCalledWith({
+        query: "排骨",
+        category: "家常菜",
+        tag: "",
+        difficulty: ""
+      })
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "难度 中等" }));
+    await waitFor(() =>
+      expect(mockState.listRecipesApi).toHaveBeenLastCalledWith({
+        query: "排骨",
+        category: "家常菜",
+        tag: "",
+        difficulty: "medium"
+      })
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "全部" }));
+
+    await waitFor(() =>
+      expect(mockState.listRecipesApi).toHaveBeenLastCalledWith({
+        query: "",
+        category: "",
+        tag: "",
+        difficulty: ""
+      })
+    );
+    expect(screen.getByDisplayValue("")).toBeInTheDocument();
+  });
+
   it("keeps filter choices visible from the initial unfiltered snapshot", async () => {
     mockState.listRecipesApi
       .mockResolvedValueOnce({
@@ -165,6 +242,43 @@ describe("RecipeList v2", () => {
     expect(within(dialog).getByRole("button", { name: "标签 清淡" })).toBeInTheDocument();
   });
 
+  it("clears prop-derived category and tag filters from the sheet", async () => {
+    mockState.listRecipesApi.mockResolvedValue({ recipes: [makeRecipe(1, { mainCategory: "川菜", tags: ["宴客"] })] });
+
+    render(<RecipeList category="川菜" tag="宴客" />);
+    await screen.findByText("共 1 道");
+
+    expect(mockState.listRecipesApi).toHaveBeenLastCalledWith({
+      query: "",
+      category: "川菜",
+      tag: "宴客",
+      difficulty: ""
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "筛选" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "分类 全部" }));
+    await waitFor(() =>
+      expect(mockState.listRecipesApi).toHaveBeenLastCalledWith({
+        query: "",
+        category: "",
+        tag: "宴客",
+        difficulty: ""
+      })
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "标签 全部" }));
+    await waitFor(() =>
+      expect(mockState.listRecipesApi).toHaveBeenLastCalledWith({
+        query: "",
+        category: "",
+        tag: "",
+        difficulty: ""
+      })
+    );
+  });
+
   it("shows a safe-area delete bar with disabled delete when no recipes are selected", async () => {
     mockState.listRecipesApi.mockResolvedValue({ recipes: [makeRecipe(1), makeRecipe(2)] });
 
@@ -177,6 +291,21 @@ describe("RecipeList v2", () => {
     expect(deleteButton).toBeDisabled();
     expect(screen.getByText("已选 0 道")).toBeInTheDocument();
     expect(deleteButton.closest(".fixed")).not.toBeNull();
+  });
+
+  it("positions the featured selection badge inside a relative wrapper", async () => {
+    mockState.listRecipesApi.mockResolvedValue({ recipes: [makeRecipe(1, { name: "番茄炖牛腩" }), makeRecipe(2)] });
+
+    render(<RecipeList />);
+    await screen.findByText("共 2 道");
+
+    fireEvent.click(screen.getByRole("button", { name: "管理" }));
+
+    const featuredButton = screen.getByRole("button", { name: "选择菜谱 番茄炖牛腩" });
+    const featuredWrapper = featuredButton.parentElement;
+
+    expect(featuredWrapper?.className).toContain("relative");
+    expect(featuredWrapper?.querySelector(".absolute.right-0.top-4")).not.toBeNull();
   });
 
   it("confirms deletion, keeps failed selections, and shows an actionable error", async () => {

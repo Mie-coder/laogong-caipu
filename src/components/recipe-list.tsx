@@ -22,6 +22,8 @@ type SnapshotOptions = {
   tags: string[];
 };
 
+type QuickFilter = "" | "cooked";
+
 const STORAGE_KEY = "recipe-list-return";
 
 function buildListUrl(params: { query?: string; category?: string; tag?: string; difficulty?: string }) {
@@ -62,6 +64,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
     tag: tag ?? "",
     difficulty: ""
   });
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [recipes, setRecipes] = useState<RecipeCardSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,12 +75,10 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
   const [optionSnapshot, setOptionSnapshot] = useState<SnapshotOptions>({ categories: [], tags: [] });
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef(false);
-  const activeCategory = filters.category || category || "";
-  const activeTag = filters.tag || tag || "";
   const currentUrl = buildListUrl({
     query,
-    category: activeCategory,
-    tag: activeTag,
+    category: filters.category,
+    tag: filters.tag,
     difficulty: filters.difficulty
   });
 
@@ -88,8 +89,8 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
     try {
       const result = await listRecipesApi({
         query,
-        category: activeCategory,
-        tag: activeTag,
+        category: filters.category,
+        tag: filters.tag,
         difficulty: filters.difficulty
       });
       setRecipes(result.recipes);
@@ -105,7 +106,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
     } finally {
       setLoading(false);
     }
-  }, [activeCategory, activeTag, filters.difficulty, query]);
+  }, [filters.category, filters.difficulty, filters.tag, query]);
 
   useEffect(() => {
     void load();
@@ -134,17 +135,33 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
 
   useEffect(() => {
     restoredRef.current = false;
-  }, [query, filters.category, filters.tag, filters.difficulty, category, tag]);
+  }, [query, filters.category, filters.tag, filters.difficulty]);
 
-  const featuredRecipe = recipes[0];
-  const rowRecipes = recipes.slice(1);
+  const visibleRecipes = useMemo(
+    () => (quickFilter === "cooked" ? recipes.filter((recipe) => recipe.cookedCount > 0) : recipes),
+    [quickFilter, recipes]
+  );
+  const featuredRecipe = visibleRecipes[0];
+  const rowRecipes = visibleRecipes.slice(1);
   const quickFilters = useMemo(
     () => [
-      { label: "全部", active: !query && !filters.category && !filters.tag && !filters.difficulty, onClick: () => setFilters({ category: "", tag: "", difficulty: "" }) },
-      { label: "最近做过", active: query === "做过", onClick: () => setQuery("做过") },
+      {
+        label: "全部",
+        active: !query && !filters.category && !filters.tag && !filters.difficulty && !quickFilter,
+        onClick: () => {
+          setQuery("");
+          setQuickFilter("");
+          setFilters({ category: "", tag: "", difficulty: "" });
+        }
+      },
+      {
+        label: "最近做过",
+        active: quickFilter === "cooked",
+        onClick: () => setQuickFilter((current) => (current === "cooked" ? "" : "cooked"))
+      },
       { label: "简单", active: filters.difficulty === "easy", onClick: () => setFilters((current) => ({ ...current, difficulty: current.difficulty === "easy" ? "" : "easy" })) }
     ],
-    [filters.category, filters.difficulty, filters.tag, query]
+    [filters.category, filters.difficulty, filters.tag, query, quickFilter]
   );
 
   function saveReturnState() {
@@ -226,7 +243,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[30px] font-bold leading-[1.25] text-ink">我的菜谱</h1>
-          <p className="mt-3 text-[14px] leading-[1.5] text-muted">{`共 ${recipes.length} 道`}</p>
+          <p className="mt-3 text-[14px] leading-[1.5] text-muted">{`共 ${visibleRecipes.length} 道`}</p>
         </div>
         <div className="flex items-center gap-3 pt-1">
           <button
@@ -297,7 +314,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
         </div>
       ) : null}
 
-      {!error && !loading && recipes.length === 0 ? (
+      {!error && !loading && visibleRecipes.length === 0 ? (
         <div className="mt-12">
           <p className="text-[20px] font-semibold leading-[1.4] text-ink">还没有菜谱</p>
           <Link href="/" className="mt-3 inline-block text-[14px] leading-[1.5] text-ink underline underline-offset-4">
@@ -318,7 +335,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
         ) : null}
       </AnimatePresence>
 
-      {!loading && !error && recipes.length > 0 ? (
+      {!loading && !error && visibleRecipes.length > 0 ? (
         <div className="mt-12">
           <h2 className="text-[20px] font-semibold leading-[1.4] text-ink">最近更新</h2>
 
@@ -328,7 +345,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
               initial={highlightId === String(featuredRecipe.id) ? { opacity: 0 } : undefined}
               animate={{ opacity: 1 }}
               transition={highlightedTransition}
-              className="mt-6"
+              className="relative mt-6"
             >
               <button
                 type="button"
