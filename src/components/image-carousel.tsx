@@ -29,6 +29,28 @@ export function ImageCarousel({
   const [fullscreen, setFullscreen] = useState(false);
   const reviewMode = Boolean(selectedUrls && onToggleSelection && onSetCover);
 
+  function findNearestSelectedIndex(currentIndex: number, urls: string[]) {
+    let bestIndex = -1;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    filtered.forEach((url, candidateIndex) => {
+      if (!urls.includes(url)) return;
+
+      const distance = Math.abs(candidateIndex - currentIndex);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = candidateIndex;
+        return;
+      }
+
+      if (distance === bestDistance && candidateIndex > currentIndex && (bestIndex < 0 || bestIndex < currentIndex)) {
+        bestIndex = candidateIndex;
+      }
+    });
+
+    return bestIndex;
+  }
+
   useEffect(() => {
     if (!filtered.length) {
       setIndex(0);
@@ -43,7 +65,7 @@ export function ImageCarousel({
     if (selectedUrls.includes(currentUrl)) return;
     if (selectedUrls.length === 0) return;
 
-    const nearestIndex = filtered.findIndex((url) => selectedUrls.includes(url));
+    const nearestIndex = findNearestSelectedIndex(index, selectedUrls);
     if (nearestIndex >= 0) {
       setIndex(nearestIndex);
     }
@@ -167,7 +189,7 @@ export function ImageCarousel({
         )}
 
         {reviewMode && !currentSelected && (
-          <p className="text-sm text-muted">这张图当前不会保存，想保留的话再点一次缩略图右上角的勾选状态。</p>
+          <p className="text-sm text-muted">这张图当前不会保存，想保留的话点一下上面的“恢复选择”。</p>
         )}
       </div>
 

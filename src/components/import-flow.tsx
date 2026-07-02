@@ -86,6 +86,7 @@ export function ImportFlow(): JSX.Element {
   const [nameError, setNameError] = useState("");
   const [stepsError, setStepsError] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [hasParsedResult, setHasParsedResult] = useState(false);
 
   useEffect(() => {
     const savedDraft = window.sessionStorage.getItem(STORAGE_KEY);
@@ -101,6 +102,7 @@ export function ImportFlow(): JSX.Element {
       setSelectedUrls(payload.selectedUrls ?? []);
       setReviewUrls(payload.selectedUrls ?? []);
       setCoverUrl(payload.coverUrl ?? null);
+      setHasParsedResult(true);
       setStage("confirm");
       setHasUnsavedChanges(true);
     } catch {
@@ -199,6 +201,7 @@ export function ImportFlow(): JSX.Element {
     setStage("parsing");
     setParsingStep(0);
     setSaveError("");
+    setHasParsedResult(false);
     await Promise.resolve();
 
     try {
@@ -217,6 +220,7 @@ export function ImportFlow(): JSX.Element {
       setReviewUrls(filteredUrls);
       setSelectedUrls(filteredUrls);
       setCoverUrl(null);
+      setHasParsedResult(true);
       setHasUnsavedChanges(false);
       setStage("images");
     } catch (error) {
@@ -269,6 +273,11 @@ export function ImportFlow(): JSX.Element {
 
   function handleConfirmImages() {
     goToConfirm();
+  }
+
+  function handleReturnToParsedResult() {
+    setStage("home");
+    setSheetOpen(false);
   }
 
   function handleSaveDraft() {
@@ -358,6 +367,30 @@ export function ImportFlow(): JSX.Element {
             <span>从小红书导入菜谱</span>
             <ArrowRight className="h-5 w-5" aria-hidden="true" />
           </button>
+
+          {hasParsedResult && draft ? (
+            <section className="mt-8 space-y-4 border-b border-line pb-6">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-muted">解析完成</p>
+                <h3 className="text-[24px] font-bold leading-[1.3] text-ink">{draft.name || "已整理好待确认的菜谱"}</h3>
+                <p className="text-sm leading-[1.5] text-muted">
+                  {[draft.mainCategory, draft.difficulty, `${reviewUrls.length} 张待审核图片`].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  className="min-h-12 w-full rounded-[8px] bg-ink px-5 py-3 text-base font-semibold text-white"
+                  onClick={() => setStage("images")}
+                >
+                  继续审核图片
+                </button>
+                <button type="button" className="text-sm text-ink" onClick={() => goToConfirm()}>
+                  直接确认菜谱
+                </button>
+              </div>
+            </section>
+          ) : null}
 
           <section className="mt-8">
             <div className="mb-4 flex items-center justify-between">
@@ -510,7 +543,7 @@ export function ImportFlow(): JSX.Element {
       {stage === "images" && draft && (
         <section className="min-h-screen bg-bg px-5 pb-28 pt-6 text-text">
           <header className="flex items-center justify-between">
-            <button type="button" aria-label="返回首页" className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink" onClick={() => setStage("home")}>
+            <button type="button" aria-label="返回解析结果" className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink" onClick={handleReturnToParsedResult}>
               <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             </button>
             <div className="text-center">

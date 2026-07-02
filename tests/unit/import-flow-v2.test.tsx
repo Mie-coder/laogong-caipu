@@ -262,6 +262,61 @@ describe("ImportFlow v2 state flow", () => {
     expect(await screen.findByDisplayValue("改过的菜名")).toBeInTheDocument();
   });
 
+  it("returns from image review to the parsed result without re-fetching and can continue back into review", async () => {
+    mockState.parseImportApi.mockResolvedValue({
+      recipe: makeDraft({ name: "回锅肉" }),
+      imageUrls: ["a.jpg", "b.jpg"],
+      needsSupplement: false,
+      crawlStatus: "ok",
+      crawlError: ""
+    });
+    mockState.filterImages.mockResolvedValue(["a.jpg", "b.jpg"]);
+
+    render(<ImportFlow />);
+
+    await startImport();
+    expect(await screen.findByText("图片审核")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "返回解析结果" }));
+
+    expect(await screen.findByText("解析完成")).toBeInTheDocument();
+    expect(screen.getByText("回锅肉")).toBeInTheDocument();
+    expect(screen.queryByText("保存菜谱")).not.toBeInTheDocument();
+    expect(mockState.parseImportApi).toHaveBeenCalledTimes(1);
+    expect(mockState.filterImages).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "继续审核图片" }));
+
+    expect(await screen.findByText("图片审核")).toBeInTheDocument();
+    expect(screen.queryByText("解析完成")).not.toBeInTheDocument();
+    expect(screen.queryByText("保存菜谱")).not.toBeInTheDocument();
+    expect(mockState.parseImportApi).toHaveBeenCalledTimes(1);
+    expect(mockState.filterImages).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the nearest remaining preview selected when deselecting the current middle image", async () => {
+    mockState.parseImportApi.mockResolvedValue({
+      recipe: makeDraft(),
+      imageUrls: ["a.jpg", "b.jpg", "c.jpg"],
+      needsSupplement: false,
+      crawlStatus: "ok",
+      crawlError: ""
+    });
+    mockState.filterImages.mockResolvedValue(["a.jpg", "b.jpg", "c.jpg"]);
+
+    render(<ImportFlow />);
+
+    await startImport();
+    expect(await screen.findByText("图片审核")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "预览第 2 张图片" }));
+    expect(screen.getByAltText("图片 2")).toHaveAttribute("src", "b.jpg");
+
+    fireEvent.click(screen.getByRole("button", { name: "取消选择" }));
+
+    expect(screen.getByAltText("图片 3")).toHaveAttribute("src", "c.jpg");
+  });
+
   it("validates confirmation, renumbers reordered steps, persists draft, and preserves edits after save rejection", async () => {
     mockState.parseImportApi.mockResolvedValue({
       recipe: makeDraft(),
@@ -297,16 +352,18 @@ describe("ImportFlow v2 state flow", () => {
     expect(screen.getByDisplayValue("丝瓜炒蛋 Plus")).toBeInTheDocument();
   });
 
-  it("reorders ingredients and seasonings in both saved draft and save payload", async () => {
+  it("persists ingredient and seasoning edits, deletes, and reorder in both draft and save payload", async () => {
     mockState.parseImportApi.mockResolvedValue({
       recipe: makeDraft({
         ingredients: [
           { name: "丝瓜", amount: "1根", type: "ingredient" },
-          { name: "鸡蛋", amount: "2个", type: "ingredient" }
+          { name: "鸡蛋", amount: "2个", type: "ingredient" },
+          { name: "木耳", amount: "5朵", type: "ingredient" }
         ],
         seasonings: [
           { name: "盐", amount: "1勺", type: "seasoning" },
-          { name: "蒜", amount: "2瓣", type: "seasoning" }
+          { name: "蒜", amount: "2瓣", type: "seasoning" },
+          { name: "糖", amount: "半勺", type: "seasoning" }
         ]
       }),
       imageUrls: ["a.jpg"],
@@ -322,17 +379,31 @@ describe("ImportFlow v2 state flow", () => {
     await startImport();
     fireEvent.click(await screen.findByRole("button", { name: "确认图片并继续" }));
 
+    fireEvent.change(screen.getAllByLabelText("食材名称")[0], { target: { value: "嫩丝瓜" } });
+    fireEvent.change(screen.getAllByLabelText("食材用量")[0], { target: { value: "2根" } });
+    fireEvent.click(screen.getByRole("button", { name: "删除食材 2" }));
     fireEvent.click(screen.getByRole("button", { name: "下移食材 1" }));
+    fireEvent.change(screen.getAllByLabelText("调料名称")[0], { target: { value: "海盐" } });
+    fireEvent.change(screen.getAllByLabelText("调料用量")[0], { target: { value: "2勺" } });
+    fireEvent.click(screen.getByRole("button", { name: "删除调料 2" }));
     fireEvent.click(screen.getByRole("button", { name: "下移调料 1" }));
 
-    expect(screen.getAllByLabelText("食材名称").map((node) => (node as HTMLInputElement).value)).toEqual(["鸡蛋", "丝瓜"]);
-    expect(screen.getAllByLabelText("调料名称").map((node) => (node as HTMLInputElement).value)).toEqual(["蒜", "盐"]);
+    expect(screen.getAllByLabelText("食材名称").map((node) => (node as HTMLInputElement).value)).toEqual(["木耳", "嫩丝瓜"]);
+    expect(screen.getAllByLabelText("食材用量").map((node) => (node as HTMLInputElement).value)).toEqual(["5朵", "2根"]);
+    expect(screen.getAllByLabelText("调料名称").map((node) => (node as HTMLInputElement).value)).toEqual(["糖", "海盐"]);
+    expect(screen.getAllByLabelText("调料用量").map((node) => (node as HTMLInputElement).value)).toEqual(["半勺", "2勺"]);
 
     fireEvent.click(screen.getByRole("button", { name: "保存草稿" }));
 
     const savedDraft = JSON.parse(window.sessionStorage.getItem("import-flow-draft") ?? "{}");
-    expect(savedDraft.draft.ingredients.map((item: { name: string }) => item.name)).toEqual(["鸡蛋", "丝瓜"]);
-    expect(savedDraft.draft.seasonings.map((item: { name: string }) => item.name)).toEqual(["蒜", "盐"]);
+    expect(savedDraft.draft.ingredients).toEqual([
+      expect.objectContaining({ name: "木耳", amount: "5朵" }),
+      expect.objectContaining({ name: "嫩丝瓜", amount: "2根" })
+    ]);
+    expect(savedDraft.draft.seasonings).toEqual([
+      expect.objectContaining({ name: "糖", amount: "半勺" }),
+      expect.objectContaining({ name: "海盐", amount: "2勺" })
+    ]);
 
     fireEvent.click(screen.getByRole("button", { name: "保存菜谱" }));
 
@@ -340,12 +411,12 @@ describe("ImportFlow v2 state flow", () => {
       expect(mockState.saveRecipeWithImages).toHaveBeenCalledWith(
         expect.objectContaining({
           ingredients: [
-            expect.objectContaining({ name: "鸡蛋" }),
-            expect.objectContaining({ name: "丝瓜" })
+            expect.objectContaining({ name: "木耳", amount: "5朵" }),
+            expect.objectContaining({ name: "嫩丝瓜", amount: "2根" })
           ],
           seasonings: [
-            expect.objectContaining({ name: "蒜" }),
-            expect.objectContaining({ name: "盐" })
+            expect.objectContaining({ name: "糖", amount: "半勺" }),
+            expect.objectContaining({ name: "海盐", amount: "2勺" })
           ]
         }),
         ["a.jpg"]
