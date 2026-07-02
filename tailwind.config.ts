@@ -5,19 +5,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        coral: "#FF6B6B",
-        apricot: "#FFE4D6",
-        cream: "#FFF9F5",
-        ink: "#3D2F2F",
-        muted: "#8A6F6A"
+        bg: "#fff9f5",
+        surface: "#ffffff",
+        ink: "#2e2725",
+        text: "#3d3633",
+        muted: "#6f6865",
+        subtle: "#9a928e",
+        line: "#e9e3df",
+        accent: "#ff6b6b",
+        "accent-soft": "#fff0ed",
+        overlay: "rgba(24, 20, 18, 0.52)",
+        disabled: "#c9c2be"
       },
       boxShadow: {
-        soft: "0 8px 24px rgba(61, 47, 47, 0.10)",
-        lift: "0 12px 32px rgba(61, 47, 47, 0.14)"
+        sheet: "0 -8px 30px rgba(46, 39, 37, 0.10)"
       },
       borderRadius: {
-        card: "16px",
-        pill: "24px"
+        input: "8px",
+        sheet: "8px",
+        thumb: "6px"
+      },
+      fontFamily: {
+        sans: ["PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "system-ui", "sans-serif"]
       }
     }
   },

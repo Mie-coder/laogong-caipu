@@ -22,10 +22,11 @@ export function Toast({ message }: { message: string }) {
     <AnimatePresence>
       {visible ? (
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="fixed left-1/2 top-4 z-50 w-[calc(100%-32px)] max-w-[398px] -translate-x-1/2 rounded-pill glass-toast px-4 py-3 text-center text-sm text-white shadow-lift"
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="fixed left-1/2 top-4 z-50 w-[calc(100%-40px)] max-w-[390px] -translate-x-1/2 rounded-input border border-line bg-surface px-4 py-3 text-center text-sm text-ink"
         >
           {message}
         </motion.div>

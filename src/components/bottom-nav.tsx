@@ -13,8 +13,8 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-apricot/30 glass-nav px-4 pb-4 pt-2">
-      <div className="mx-auto grid max-w-[430px] grid-cols-2 gap-3 px-4">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface" aria-label="底部导航">
+      <div className="mx-auto grid max-w-[var(--app-max-width)] grid-cols-2 px-[var(--app-gutter)] pb-[calc(var(--safe-bottom)+8px)] pt-2">
         {items.map((item) => {
           const active = pathname === item.href;
           const Icon = item.icon;
@@ -22,12 +22,17 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-1 rounded-pill px-3 py-2 text-xs transition ${
-                active ? "btn-primary text-white" : "text-muted"
+              aria-current={active ? "page" : undefined}
+              className={`relative flex min-h-[44px] flex-col items-center justify-center gap-1 px-3 pb-3 pt-2 text-[13px] transition-colors ${
+                active ? "text-accent" : "text-muted"
               }`}
             >
               <Icon className="h-5 w-5" aria-hidden="true" />
               <span>{item.label}</span>
+              <span
+                aria-hidden="true"
+                className={`absolute bottom-0 h-0.5 w-7 bg-accent transition-opacity ${active ? "opacity-100" : "opacity-0"}`}
+              />
             </Link>
           );
         })}
