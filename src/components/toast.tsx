@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 export function Toast({ message }: { message: string }) {
   const [visible, setVisible] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (message) {
@@ -22,10 +23,10 @@ export function Toast({ message }: { message: string }) {
     <AnimatePresence>
       {visible ? (
         <motion.div
-          initial={{ opacity: 0, y: -8 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : -8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          exit={{ opacity: 0, y: reduceMotion ? 0 : -8 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
           className="fixed left-1/2 top-4 z-50 w-[calc(100%-40px)] max-w-[390px] -translate-x-1/2 rounded-input border border-line bg-surface px-4 py-3 text-center text-sm text-ink"
         >
           {message}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 
 export function BottomSheet({
@@ -16,6 +16,7 @@ export function BottomSheet({
   onClose: () => void;
 }) {
   const titleId = useId();
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!open) return;
@@ -42,10 +43,10 @@ export function BottomSheet({
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            initial={{ y: 24, opacity: 0 }}
+            initial={{ y: reduceMotion ? 0 : 24, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 24, opacity: 0 }}
-            transition={{ duration: 0.24, ease: "easeOut" }}
+            exit={{ y: reduceMotion ? 0 : 24, opacity: 0 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: "easeOut" }}
             className="relative z-10 flex max-h-[80vh] w-full max-w-[var(--app-max-width)] flex-col rounded-t-sheet bg-surface px-5 pb-[calc(var(--safe-bottom)+20px)] pt-3 shadow-sheet"
           >
             <span aria-hidden="true" className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-line" />

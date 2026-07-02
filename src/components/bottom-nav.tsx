@@ -11,12 +11,18 @@ const items = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const hideNav = /^\/recipes\/[^/]+$/.test(pathname);
+
+  if (hideNav) return null;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface" aria-label="底部导航">
       <div className="mx-auto grid max-w-[var(--app-max-width)] grid-cols-2 px-[var(--app-gutter)] pb-[calc(var(--safe-bottom)+8px)] pt-2">
         {items.map((item) => {
-          const active = pathname === item.href;
+          const active =
+            item.href === "/recipes"
+              ? pathname === "/recipes" || pathname === "/categories"
+              : pathname === item.href;
           const Icon = item.icon;
           return (
             <Link
