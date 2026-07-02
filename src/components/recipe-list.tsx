@@ -496,7 +496,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
       </BottomSheet>
 
       {deleteMode ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center bg-transparent px-5 pb-[calc(var(--safe-bottom)+16px)] pt-4">
+        <div className="fixed inset-x-0 bottom-0 z-[35] flex justify-center bg-transparent px-5 pb-[calc(var(--safe-bottom)+16px)] pt-4">
           <div className="flex w-full max-w-[var(--app-max-width)] items-center justify-between border-t border-line bg-surface pt-4">
             <div>
               <p className="text-[16px] font-medium leading-[1.5] text-ink">{`已选 ${selectedIds.size} 道`}</p>

@@ -306,9 +306,11 @@ describe("RecipeList v2", () => {
     fireEvent.click(screen.getByRole("button", { name: "管理" }));
 
     const deleteButton = screen.getByRole("button", { name: "删除已选" });
+    const managementBar = screen.getByRole("button", { name: "退出管理" }).closest(".fixed");
     expect(deleteButton).toBeDisabled();
     expect(screen.getByText("已选 0 道")).toBeInTheDocument();
-    expect(deleteButton.closest(".fixed")).not.toBeNull();
+    expect(managementBar).toHaveClass("z-[35]");
+    expect(managementBar).not.toHaveClass("z-40");
   });
 
   it("positions the featured selection badge inside a relative wrapper", async () => {
