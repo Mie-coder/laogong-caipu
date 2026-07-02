@@ -1,16 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import confetti from "canvas-confetti";
+import { useEffect, useMemo, useState } from "react";
+import { Star } from "lucide-react";
 import { BottomSheet } from "@/components/bottom-sheet";
 
-const WIFE_STARS = [
-  { value: 1, emoji: "😔", label: "不太行" },
-  { value: 2, emoji: "😐", label: "一般般" },
-  { value: 3, emoji: "🙂", label: "还可以" },
-  { value: 4, emoji: "😋", label: "好吃" },
-  { value: 5, emoji: "😍", label: "超好吃" },
-];
+const RATING_LABELS = ["", "不太行", "一般般", "还可以", "很好吃", "超好吃"];
+const QUICK_TAGS = ["少盐", "火小一点", "时间短一点", "再辣一点"];
 
 export function CookingLogSheet({
   open,
@@ -24,46 +19,149 @@ export function CookingLogSheet({
   const [wifeFeedback, setWifeFeedback] = useState("");
   const [wifeRating, setWifeRating] = useState(0);
   const [husbandImprovementNotes, setHusbandImprovementNotes] = useState("");
-  const [notes, setNotes] = useState("");
+  const [notes] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  async function submit() {
-    await onSubmit({ wifeFeedback, husbandImprovementNotes, notes, wifeRating });
-    confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
-    onClose();
+  useEffect(() => {
+    if (open) return;
+    setWifeFeedback("");
+    setWifeRating(0);
+    setHusbandImprovementNotes("");
+    setSelectedTags([]);
+    setSubmitting(false);
+    setError("");
+  }, [open]);
+
+  const mergedImprovementNotes = useMemo(() => {
+    const manual = husbandImprovementNotes.trim();
+    const combined = [...selectedTags, ...(manual ? [manual] : [])];
+    return combined.join("，");
+  }, [husbandImprovementNotes, selectedTags]);
+
+  const canSubmit =
+    wifeRating > 0 || wifeFeedback.trim().length > 0 || husbandImprovementNotes.trim().length > 0 || selectedTags.length > 0;
+
+  async function handleSubmit() {
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await onSubmit({
+        wifeFeedback: wifeFeedback.trim(),
+        husbandImprovementNotes: mergedImprovementNotes,
+        notes,
+        wifeRating
+      });
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "保存失败");
+      setSubmitting(false);
+    }
+  }
+
+  function toggleTag(tag: string) {
+    setSelectedTags((current) => (current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]));
   }
 
   return (
-    <BottomSheet open={open} title="这次做得怎么样" onClose={onClose}>
-      <div className="space-y-4">
-        {/* 老婆星级评分 */}
-        <div>
-          <p className="text-sm text-muted mb-2">老婆评价</p>
-          <div className="flex justify-between gap-1 mb-3">
-            {WIFE_STARS.map((star) => (
-              <button
-                key={star.value}
-                className={`flex flex-col items-center gap-0.5 rounded-xl px-1.5 py-1.5 transition flex-1 ${
-                  wifeRating === star.value ? "rounded-xl glass-card scale-105" : "opacity-50"
-                }`}
-                onClick={() => setWifeRating(star.value)}
-              >
-                <span className="text-xl">{star.emoji}</span>
-                <span className="text-[11px] text-ink font-medium whitespace-nowrap">{star.label}</span>
-              </button>
-            ))}
+    <BottomSheet open={open} title="这次做得怎么样？" onClose={onClose}>
+      <div className="space-y-6 pb-2">
+        <p className="text-sm text-muted">记录下来，下次会做得更好</p>
+
+        <section className="space-y-4 border-b border-line pb-6">
+          <div className="space-y-2">
+            <h3 className="text-[17px] font-semibold text-ink">老婆评分</h3>
+            <div className="flex items-center justify-between gap-2">
+              {Array.from({ length: 5 }, (_, index) => {
+                const value = index + 1;
+                const selected = value <= wifeRating;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-label={`${value} 星，${RATING_LABELS[value]}`}
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center text-accent"
+                    onClick={() => setWifeRating(value)}
+                  >
+                    <Star
+                      className="h-9 w-9"
+                      aria-hidden="true"
+                      fill={selected ? "currentColor" : "none"}
+                      strokeWidth={1.8}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-center text-[17px] text-ink">{RATING_LABELS[wifeRating] || "点一点星星"}</p>
+          </div>
+        </section>
+
+        <section className="space-y-3 border-b border-line pb-6">
+          <div className="space-y-2">
+            <label htmlFor="wife-feedback" className="text-[17px] font-semibold text-ink">
+              老婆评价
+            </label>
+            <p className="text-sm text-muted">她怎么说？</p>
           </div>
           <textarea
-            className="min-h-16 w-full rounded-card glass-card border border-white/30 px-4 py-3 text-sm"
-            placeholder="也可以写几句评价..."
+            id="wife-feedback"
+            aria-label="老婆评价"
+            className="min-h-[88px] w-full resize-none border-0 border-b border-line bg-transparent px-0 py-0 text-[16px] text-ink outline-none placeholder:text-subtle focus:border-ink"
+            placeholder="牛腩很软，汤汁特别下饭"
             value={wifeFeedback}
             onChange={(event) => setWifeFeedback(event.target.value)}
           />
+        </section>
+
+        <section className="space-y-4 border-b border-line pb-6">
+          <h3 className="text-[17px] font-semibold text-ink">下次改进</h3>
+          <div className="flex flex-wrap gap-3">
+            {QUICK_TAGS.map((tag) => {
+              const selected = selectedTags.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`min-h-[44px] rounded-[4px] border px-4 text-[16px] text-ink transition ${
+                    selected ? "border-accent" : "border-line"
+                  }`}
+                  onClick={() => toggleTag(tag)}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+          <textarea
+            aria-label="下次改进"
+            className="min-h-[88px] w-full resize-none border-0 border-b border-line bg-transparent px-0 py-0 text-[16px] text-ink outline-none placeholder:text-subtle focus:border-ink"
+            placeholder="番茄可以再多放一个"
+            value={husbandImprovementNotes}
+            onChange={(event) => setHusbandImprovementNotes(event.target.value)}
+          />
+        </section>
+
+        <section className="flex items-center justify-between border-b border-line pb-6">
+          <h3 className="text-[17px] font-semibold text-ink">做菜时间</h3>
+          <p className="text-[17px] text-muted">今天 19:30</p>
+        </section>
+
+        {error ? <p className="text-sm text-accent">{error}</p> : null}
+
+        <div className="space-y-3 pt-2">
+          <button
+            type="button"
+            className="min-h-12 w-full rounded-[8px] bg-ink px-5 py-3 text-[17px] font-semibold text-white disabled:bg-disabled"
+            disabled={!canSubmit || submitting}
+            onClick={handleSubmit}
+          >
+            {submitting ? "保存中..." : "保存复盘"}
+          </button>
+          <p className="text-center text-sm text-muted">保存后做过次数将增加 1</p>
         </div>
-        <div>
-          <p className="text-sm text-muted mb-1.5">老公改进事项</p>
-          <textarea className="min-h-16 w-full rounded-card glass-card border border-white/30 px-4 py-3 text-sm" placeholder="下次注意..." value={husbandImprovementNotes} onChange={(event) => setHusbandImprovementNotes(event.target.value)} />
-        </div>
-        <button className="w-full rounded-pill btn-primary px-5 py-4 font-semibold text-white" onClick={submit}>保存复盘</button>
       </div>
     </BottomSheet>
   );
