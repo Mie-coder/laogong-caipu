@@ -48,6 +48,13 @@ export function RecipeConfirmForm({
     });
   }
 
+  function addItem(key: "ingredients" | "seasonings") {
+    updateIngredients(key, (items) => [
+      ...items,
+      { name: "", amount: "", type: key === "ingredients" ? "ingredient" : "seasoning" }
+    ]);
+  }
+
   function moveItem(key: "ingredients" | "seasonings", index: number, direction: -1 | 1) {
     updateIngredients(key, (items) => {
       const nextIndex = index + direction;
@@ -106,11 +113,7 @@ export function RecipeConfirmForm({
       <section className="space-y-4 border-b border-line pb-6">
         <div className="flex items-center justify-between">
           <h2 className="text-[20px] font-semibold leading-[1.4] text-ink">食材</h2>
-          <button
-            type="button"
-            className="flex min-h-[44px] items-center gap-1 text-sm font-semibold text-ink"
-            onClick={() => updateIngredients("ingredients", (items) => [...items, { name: "", amount: "", type: "ingredient" }])}
-          >
+          <button type="button" className="flex min-h-[44px] items-center gap-1 text-sm font-semibold text-ink" onClick={() => addItem("ingredients")}>
             <Plus className="h-4 w-4" aria-hidden="true" />
             添加
           </button>
@@ -161,6 +164,13 @@ export function RecipeConfirmForm({
                 </div>
               </div>
             ))}
+
+            {key === "seasonings" ? (
+              <button type="button" className="flex min-h-[44px] items-center gap-1 text-sm font-semibold text-ink" onClick={() => addItem("seasonings")}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                添加调料
+              </button>
+            ) : null}
           </div>
         ))}
       </section>

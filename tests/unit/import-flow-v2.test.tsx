@@ -353,6 +353,40 @@ describe("ImportFlow v2 state flow", () => {
     });
   });
 
+  it("can add a seasoning and include it in the save payload", async () => {
+    mockState.parseImportApi.mockResolvedValue({
+      recipe: makeDraft({ seasonings: [] }),
+      imageUrls: ["a.jpg"],
+      needsSupplement: false,
+      crawlStatus: "ok",
+      crawlError: ""
+    });
+    mockState.filterImages.mockResolvedValue(["a.jpg"]);
+    mockState.saveRecipeWithImages.mockResolvedValue({ id: 10 });
+
+    render(<ImportFlow />);
+
+    await startImport();
+    fireEvent.click(await screen.findByRole("button", { name: "确认图片并继续" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "添加调料" }));
+    const seasoningNames = screen.getAllByLabelText("调料名称");
+    const seasoningAmounts = screen.getAllByLabelText("调料用量");
+    fireEvent.change(seasoningNames[0], { target: { value: "葱花" } });
+    fireEvent.change(seasoningAmounts[0], { target: { value: "1把" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "保存菜谱" }));
+
+    await waitFor(() => {
+      expect(mockState.saveRecipeWithImages).toHaveBeenCalledWith(
+        expect.objectContaining({
+          seasonings: [expect.objectContaining({ name: "葱花", amount: "1把", type: "seasoning" })]
+        }),
+        ["a.jpg"]
+      );
+    });
+  });
+
   it("restores session draft and routes successful saves to the recipe detail page", async () => {
     window.sessionStorage.setItem("import-flow-draft", JSON.stringify({
       draft: makeDraft({ name: "草稿菜名" }),
