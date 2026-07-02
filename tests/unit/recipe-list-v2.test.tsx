@@ -220,6 +220,24 @@ describe("RecipeList v2", () => {
     expect(screen.getByDisplayValue("")).toBeInTheDocument();
   });
 
+  it("clears the 最近做过 quick filter when 全部 is selected", async () => {
+    mockState.listRecipesApi.mockResolvedValue({
+      recipes: [
+        makeRecipe(1, { name: "番茄炖牛腩", cookedCount: 2 }),
+        makeRecipe(2, { name: "凉拌黄瓜", cookedCount: 0 })
+      ]
+    });
+
+    render(<RecipeList />);
+    await screen.findByRole("button", { name: "查看菜谱 番茄炖牛腩" });
+
+    fireEvent.click(screen.getByRole("button", { name: "最近做过" }));
+    expect(screen.queryByRole("button", { name: "查看菜谱 凉拌黄瓜" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "全部" }));
+    expect(await screen.findByRole("button", { name: "查看菜谱 凉拌黄瓜" })).toBeInTheDocument();
+  });
+
   it("keeps filter choices visible from the initial unfiltered snapshot", async () => {
     mockState.listRecipesApi
       .mockResolvedValueOnce({
