@@ -68,6 +68,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [recipes, setRecipes] = useState<RecipeCardSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingLayoutSettled, setLoadingLayoutSettled] = useState(false);
   const [error, setError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deleteMode, setDeleteMode] = useState(false);
@@ -83,6 +84,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
   });
 
   const load = useCallback(async () => {
+    setLoadingLayoutSettled(false);
     setLoading(true);
     setError("");
 
@@ -113,7 +115,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
   }, [load]);
 
   useEffect(() => {
-    if (loading || restoredRef.current || recipes.length === 0) {
+    if (loading || !loadingLayoutSettled || restoredRef.current || recipes.length === 0) {
       return;
     }
 
@@ -131,7 +133,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
     } catch {
       window.sessionStorage.removeItem(STORAGE_KEY);
     }
-  }, [currentUrl, loading, recipes.length, searchParams]);
+  }, [currentUrl, loading, loadingLayoutSettled, recipes.length, searchParams]);
 
   useEffect(() => {
     restoredRef.current = false;
@@ -323,7 +325,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
         </div>
       ) : null}
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" onExitComplete={() => setLoadingLayoutSettled(true)}>
         {loading ? (
           <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
             <div className="mt-10">

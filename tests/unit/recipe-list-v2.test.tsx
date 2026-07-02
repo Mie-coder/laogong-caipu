@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RecipeList } from "@/components/recipe-list";
 
@@ -10,7 +10,8 @@ const mockState = vi.hoisted(() => {
     searchParams: new URLSearchParams(),
     listRecipesApi: vi.fn(),
     deleteRecipeApi: vi.fn(),
-    reducedMotion: false
+    reducedMotion: false,
+    onExitComplete: undefined as (() => void) | undefined
   };
 });
 
@@ -33,7 +34,10 @@ vi.mock("framer-motion", async () => {
     );
 
   return {
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    AnimatePresence: ({ children, onExitComplete }: { children: React.ReactNode; onExitComplete?: () => void }) => {
+      if (onExitComplete) mockState.onExitComplete = onExitComplete;
+      return <>{children}</>;
+    },
     motion: {
       div: createMotion("div"),
       section: createMotion("section")
@@ -72,6 +76,7 @@ beforeEach(() => {
   mockState.listRecipesApi.mockReset();
   mockState.deleteRecipeApi.mockReset();
   mockState.reducedMotion = false;
+  mockState.onExitComplete = undefined;
   mockState.searchParams = new URLSearchParams();
   mockState.listRecipesApi.mockResolvedValue({ recipes: [] });
   mockState.deleteRecipeApi.mockResolvedValue({ ok: true });
@@ -387,7 +392,7 @@ describe("RecipeList v2", () => {
     });
   });
 
-  it("restores scroll exactly once after remounted data renders, not while pending", async () => {
+  it("restores scroll exactly once after the loading layout finishes exiting", async () => {
     const request = deferred<{ recipes: ReturnType<typeof makeRecipe>[] }>();
     window.sessionStorage.setItem(
       "recipe-list-return",
@@ -403,7 +408,15 @@ describe("RecipeList v2", () => {
     request.resolve({ recipes: [makeRecipe(1, { name: "牛肉汤" })] });
 
     await screen.findByRole("button", { name: "查看菜谱 牛肉汤" });
-    await waitFor(() => expect(window.scrollTo).toHaveBeenCalledWith(0, 512));
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(mockState.onExitComplete).toBeTypeOf("function");
+
+    act(() => mockState.onExitComplete?.());
+
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 512);
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+
+    act(() => mockState.onExitComplete?.());
     expect(window.scrollTo).toHaveBeenCalledTimes(1);
   });
 });
