@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, ChevronLeft, ChevronRight, Image as ImageIcon, X } from "lucide-react";
 
 type ImageCarouselProps = {
@@ -23,6 +23,7 @@ export function ImageCarousel({
   onToggleSelection,
   onSetCover
 }: ImageCarouselProps) {
+  const reduceMotion = useReducedMotion();
   const filtered = useMemo(() => images.filter(Boolean), [images]);
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -91,7 +92,7 @@ export function ImageCarousel({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
+                transition={{ duration: reduceMotion ? 0 : 0.18 }}
               />
             </AnimatePresence>
           </div>
@@ -177,6 +178,7 @@ export function ImageCarousel({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.18 }}
             onClick={() => setFullscreen(false)}
           >
             <button type="button" aria-label="关闭大图" className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center text-white" onClick={() => setFullscreen(false)}>
@@ -195,6 +197,7 @@ export function ImageCarousel({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.18 }}
               onClick={(event) => event.stopPropagation()}
             />
             {filtered.length > 1 && (

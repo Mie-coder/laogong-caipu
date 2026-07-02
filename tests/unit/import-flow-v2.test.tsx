@@ -297,6 +297,62 @@ describe("ImportFlow v2 state flow", () => {
     expect(screen.getByDisplayValue("丝瓜炒蛋 Plus")).toBeInTheDocument();
   });
 
+  it("reorders ingredients and seasonings in both saved draft and save payload", async () => {
+    mockState.parseImportApi.mockResolvedValue({
+      recipe: makeDraft({
+        ingredients: [
+          { name: "丝瓜", amount: "1根", type: "ingredient" },
+          { name: "鸡蛋", amount: "2个", type: "ingredient" }
+        ],
+        seasonings: [
+          { name: "盐", amount: "1勺", type: "seasoning" },
+          { name: "蒜", amount: "2瓣", type: "seasoning" }
+        ]
+      }),
+      imageUrls: ["a.jpg"],
+      needsSupplement: false,
+      crawlStatus: "ok",
+      crawlError: ""
+    });
+    mockState.filterImages.mockResolvedValue(["a.jpg"]);
+    mockState.saveRecipeWithImages.mockResolvedValue({ id: 9 });
+
+    render(<ImportFlow />);
+
+    await startImport();
+    fireEvent.click(await screen.findByRole("button", { name: "确认图片并继续" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "下移食材 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "下移调料 1" }));
+
+    expect(screen.getAllByLabelText("食材名称").map((node) => (node as HTMLInputElement).value)).toEqual(["鸡蛋", "丝瓜"]);
+    expect(screen.getAllByLabelText("调料名称").map((node) => (node as HTMLInputElement).value)).toEqual(["蒜", "盐"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "保存草稿" }));
+
+    const savedDraft = JSON.parse(window.sessionStorage.getItem("import-flow-draft") ?? "{}");
+    expect(savedDraft.draft.ingredients.map((item: { name: string }) => item.name)).toEqual(["鸡蛋", "丝瓜"]);
+    expect(savedDraft.draft.seasonings.map((item: { name: string }) => item.name)).toEqual(["蒜", "盐"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "保存菜谱" }));
+
+    await waitFor(() => {
+      expect(mockState.saveRecipeWithImages).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ingredients: [
+            expect.objectContaining({ name: "鸡蛋" }),
+            expect.objectContaining({ name: "丝瓜" })
+          ],
+          seasonings: [
+            expect.objectContaining({ name: "蒜" }),
+            expect.objectContaining({ name: "盐" })
+          ]
+        }),
+        ["a.jpg"]
+      );
+    });
+  });
+
   it("restores session draft and routes successful saves to the recipe detail page", async () => {
     window.sessionStorage.setItem("import-flow-draft", JSON.stringify({
       draft: makeDraft({ name: "草稿菜名" }),

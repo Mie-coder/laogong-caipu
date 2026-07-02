@@ -8,7 +8,6 @@ type RecipeConfirmFormProps = {
   imageUrls?: string[];
   onChange: (draft: RecipeDraft) => void;
   coverUrl?: string | null;
-  onSaveDraft?: () => void;
   nameError?: string;
   stepsError?: string;
 };
@@ -46,6 +45,16 @@ export function RecipeConfirmForm({
     update({
       ...draft,
       steps: updater(draft.steps)
+    });
+  }
+
+  function moveItem(key: "ingredients" | "seasonings", index: number, direction: -1 | 1) {
+    updateIngredients(key, (items) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= items.length) return items;
+      const next = [...items];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
     });
   }
 
@@ -124,14 +133,32 @@ export function RecipeConfirmForm({
                   value={item.amount}
                   onChange={(event) => updateIngredients(key, (items) => items.map((entry, itemIndex) => itemIndex === index ? { ...entry, amount: event.target.value } : entry))}
                 />
-                <button
-                  type="button"
-                  aria-label={`删除${key === "ingredients" ? "食材" : "调料"} ${index + 1}`}
-                  className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
-                  onClick={() => updateIngredients(key, (items) => items.filter((_, itemIndex) => itemIndex !== index))}
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    aria-label={`上移${key === "ingredients" ? "食材" : "调料"} ${index + 1}`}
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
+                    onClick={() => moveItem(key, index, -1)}
+                  >
+                    <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`下移${key === "ingredients" ? "食材" : "调料"} ${index + 1}`}
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
+                    onClick={() => moveItem(key, index, 1)}
+                  >
+                    <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`删除${key === "ingredients" ? "食材" : "调料"} ${index + 1}`}
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
+                    onClick={() => updateIngredients(key, (items) => items.filter((_, itemIndex) => itemIndex !== index))}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

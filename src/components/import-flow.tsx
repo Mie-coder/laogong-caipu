@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useReducedMotion } from "framer-motion";
 import { ArrowRight, Clipboard, History, Image as ImageIcon, LoaderCircle, Check, Circle, ChevronLeft } from "lucide-react";
 import { RecipeDraft } from "@/lib/domain/recipe";
 import { filterImages, listRecipesApi, parseImportApi, saveRecipeWithImages } from "@/lib/http/api-client";
@@ -62,8 +63,10 @@ export function ImportFlow(): JSX.Element {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const requestTokenRef = useRef(0);
+  const reduceMotion = useReducedMotion();
 
   const [stage, setStage] = useState<Stage>("home");
+  const [parsingStep, setParsingStep] = useState(0);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [rawInput, setRawInput] = useState("");
   const [sheetError, setSheetError] = useState("");
@@ -194,17 +197,21 @@ export function ImportFlow(): JSX.Element {
     setSheetOpen(false);
     setSheetError("");
     setStage("parsing");
+    setParsingStep(0);
     setSaveError("");
     await Promise.resolve();
 
     try {
       const result = await parseImportApi({ rawInput: trimmed });
       if (requestTokenRef.current !== token) return;
+      setParsingStep(1);
 
       const nextDraft = normalizeSteps(result.recipe ?? createEmptyDraft());
       const imageUrls = result.imageUrls ?? [];
+      setParsingStep(2);
       const filteredUrls = imageUrls.length > 0 ? await filterImages(imageUrls, nextDraft.name) : [];
       if (requestTokenRef.current !== token) return;
+      setParsingStep(3);
 
       setDraft(nextDraft);
       setReviewUrls(filteredUrls);
@@ -229,6 +236,7 @@ export function ImportFlow(): JSX.Element {
     if (!window.confirm("要取消这次解析吗？")) return;
     requestTokenRef.current += 1;
     setIsParsing(false);
+    setParsingStep(0);
     setStage("home");
     setSheetOpen(true);
   }
@@ -473,15 +481,15 @@ export function ImportFlow(): JSX.Element {
 
           <ol className="mt-8 space-y-5">
             {PARSING_LABELS.map((label, index) => {
-              const isDone = index < 3;
-              const isCurrent = index === 3;
+              const isDone = index < parsingStep;
+              const isCurrent = index === parsingStep;
               return (
                 <li key={label} className="flex items-center gap-4">
                   <span className="flex h-6 w-6 items-center justify-center">
                     {isDone ? (
                       <Check className="h-5 w-5 text-ink" aria-hidden="true" />
                     ) : isCurrent ? (
-                      <LoaderCircle className="h-5 w-5 animate-spin text-accent" aria-hidden="true" />
+                      <LoaderCircle className={`h-5 w-5 text-accent ${reduceMotion ? "" : "animate-spin"}`} aria-hidden="true" />
                     ) : (
                       <Circle className="h-5 w-5 text-subtle" aria-hidden="true" />
                     )}
@@ -555,7 +563,6 @@ export function ImportFlow(): JSX.Element {
               imageUrls={selectedUrls}
               onChange={handleDraftChange}
               coverUrl={coverUrl}
-              onSaveDraft={handleSaveDraft}
               nameError={nameError}
               stepsError={stepsError}
             />
