@@ -216,6 +216,41 @@ describe("ImportFlow v2 state flow", () => {
     expect(confirmationActions).toHaveClass("z-40");
   });
 
+  it("wraps ingredient and seasoning actions below long editable amounts", async () => {
+    mockState.parseImportApi.mockResolvedValue({
+      recipe: makeDraft({
+        ingredients: [{ name: "丝瓜", amount: "一根去皮后切成非常非常长的滚刀块备用", type: "ingredient" }],
+        seasonings: [{ name: "盐", amount: "根据个人口味分多次加入并充分翻炒均匀", type: "seasoning" }]
+      }),
+      imageUrls: ["a.jpg"],
+      needsSupplement: false,
+      crawlStatus: "ok",
+      crawlError: ""
+    });
+    mockState.filterImages.mockResolvedValue(["a.jpg"]);
+
+    render(<ImportFlow />);
+
+    await startImport();
+    fireEvent.click(await screen.findByRole("button", { name: "确认图片并继续" }));
+
+    for (const deleteButton of [
+      screen.getByRole("button", { name: "删除食材 1" }),
+      screen.getByRole("button", { name: "删除调料 1" })
+    ]) {
+      const row = deleteButton.closest(".grid");
+      expect(row).toHaveClass("grid-cols-[minmax(0,1fr)_minmax(0,1fr)]");
+      expect(deleteButton.parentElement).toHaveClass("col-span-2", "justify-end");
+    }
+
+    for (const amount of [screen.getByLabelText("食材用量"), screen.getByLabelText("调料用量")]) {
+      expect(amount.tagName).toBe("TEXTAREA");
+      expect(amount).toHaveClass("resize-none");
+      fireEvent.change(amount, { target: { value: "更新后的多行用量" } });
+      expect(amount).toHaveValue("更新后的多行用量");
+    }
+  });
+
   it("confirms cancel during parsing, reopens the sheet, and ignores the late parse result", async () => {
     const parseRequest = deferred<{
       recipe: RecipeDraft;

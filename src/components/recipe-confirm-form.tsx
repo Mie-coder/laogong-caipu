@@ -123,20 +123,21 @@ export function RecipeConfirmForm({
           <div key={key} className="space-y-3">
             <p className="text-sm font-semibold text-muted">{key === "ingredients" ? "主食材" : "调料"}</p>
             {draft[key].map((item, index) => (
-              <div key={`${key}-${index}`} className="grid grid-cols-[1fr_96px_auto] items-center gap-3">
+              <div key={`${key}-${index}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-3">
                 <input
                   aria-label={key === "ingredients" ? "食材名称" : "调料名称"}
-                  className="border-b border-line bg-transparent pb-2 text-base text-text outline-none"
+                  className="min-w-0 border-b border-line bg-transparent pb-2 text-base text-text outline-none"
                   value={item.name}
                   onChange={(event) => updateIngredients(key, (items) => items.map((entry, itemIndex) => itemIndex === index ? { ...entry, name: event.target.value } : entry))}
                 />
-                <input
+                <textarea
                   aria-label={key === "ingredients" ? "食材用量" : "调料用量"}
-                  className="border-b border-line bg-transparent pb-2 text-right text-base text-muted outline-none"
+                  rows={2}
+                  className="min-w-0 resize-none border-b border-line bg-transparent pb-2 text-right text-base text-muted outline-none"
                   value={item.amount}
                   onChange={(event) => updateIngredients(key, (items) => items.map((entry, itemIndex) => itemIndex === index ? { ...entry, amount: event.target.value } : entry))}
                 />
-                <div className="flex items-center">
+                <div className="col-span-2 flex items-center justify-end">
                   <button
                     type="button"
                     aria-label={`上移${key === "ingredients" ? "食材" : "调料"} ${index + 1}`}
