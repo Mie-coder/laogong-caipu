@@ -195,6 +195,27 @@ describe("ImportFlow v2 state flow", () => {
     expect(screen.queryByText(/筛图失败|图片筛选失败/)).not.toBeInTheDocument();
   });
 
+  it("keeps image review and confirmation actions above the bottom navigation", async () => {
+    mockState.parseImportApi.mockResolvedValue({
+      recipe: makeDraft(),
+      imageUrls: ["a.jpg"],
+      needsSupplement: false,
+      crawlStatus: "ok",
+      crawlError: ""
+    });
+    mockState.filterImages.mockResolvedValue(["a.jpg"]);
+
+    render(<ImportFlow />);
+
+    await startImport();
+    const imageReviewActions = (await screen.findByRole("button", { name: "确认图片并继续" })).closest(".fixed");
+    expect(imageReviewActions).toHaveClass("z-40");
+
+    fireEvent.click(screen.getByRole("button", { name: "确认图片并继续" }));
+    const confirmationActions = screen.getByRole("button", { name: "保存菜谱" }).closest(".fixed");
+    expect(confirmationActions).toHaveClass("z-40");
+  });
+
   it("confirms cancel during parsing, reopens the sheet, and ignores the late parse result", async () => {
     const parseRequest = deferred<{
       recipe: RecipeDraft;

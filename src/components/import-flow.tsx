@@ -565,7 +565,7 @@ export function ImportFlow(): JSX.Element {
 
           <p className="mt-4 text-sm leading-[1.5] text-muted">AI 先帮你筛掉了一轮头像、表情包和推广图，剩下的你再看一眼就够了。</p>
 
-          <div className="fixed bottom-0 left-1/2 w-full max-w-[430px] -translate-x-1/2 bg-bg px-5 pb-[calc(var(--safe-bottom)+16px)] pt-4">
+          <div className="fixed bottom-0 left-1/2 z-40 w-full max-w-[430px] -translate-x-1/2 bg-bg px-5 pb-[calc(var(--safe-bottom)+16px)] pt-4">
             <div className="space-y-3 border-t border-line pt-4">
               <button type="button" className="min-h-12 w-full rounded-[8px] bg-ink px-5 py-3 text-base font-semibold text-white" onClick={handleConfirmImages}>
                 确认图片并继续
@@ -601,7 +601,7 @@ export function ImportFlow(): JSX.Element {
             />
           </div>
 
-          <div className="fixed bottom-0 left-1/2 w-full max-w-[430px] -translate-x-1/2 bg-bg px-5 pb-[calc(var(--safe-bottom)+16px)] pt-4">
+          <div className="fixed bottom-0 left-1/2 z-40 w-full max-w-[430px] -translate-x-1/2 bg-bg px-5 pb-[calc(var(--safe-bottom)+16px)] pt-4">
             <div className="space-y-3 border-t border-line pt-4">
               {saveError ? <p className="text-sm text-[#d45b5b]">{saveError}</p> : null}
               <button
