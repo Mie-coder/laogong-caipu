@@ -88,6 +88,12 @@ describe("CookingLogSheet", () => {
     expect(screen.queryByRole("button", { name: "火小一点" })).not.toBeInTheDocument();
   });
 
+  it("does not show a fake fixed cooking time", () => {
+    render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
+
+    expect(screen.queryByText("今天 19:30")).not.toBeInTheDocument();
+  });
+
   it("ignores close while submitting and keeps fields visible", async () => {
     let resolveSubmit: (() => void) | undefined;
     onSubmit.mockImplementation(

@@ -133,7 +133,9 @@ export function RecipeDetail({ id }: { id: number }) {
     <>
       <div className="bg-bg pb-36 text-ink">
         <section className="relative">
-          <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between px-5 pb-4 pt-5 text-white">
+          <div
+            className={`absolute inset-x-0 top-0 z-10 flex items-start justify-between px-5 pb-4 pt-5 ${detailImages.length ? "text-white" : "text-ink"}`}
+          >
             <button
               type="button"
               aria-label="返回菜谱列表"
@@ -295,6 +297,7 @@ export function RecipeDetail({ id }: { id: number }) {
                 ) : null}
                 {latestLog.wifeFeedback ? <p>{latestLog.wifeFeedback}</p> : null}
                 {latestLog.husbandImprovementNotes ? <p className="text-muted">{latestLog.husbandImprovementNotes}</p> : null}
+                {latestLog.notes ? <p className="text-muted">{latestLog.notes}</p> : null}
                 {latestLog.cookedAt ? <p className="text-sm text-subtle">{formatCookedAt(latestLog.cookedAt)}</p> : null}
               </div>
             </section>

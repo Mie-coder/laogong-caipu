@@ -137,11 +137,6 @@ export function CookingLogSheet({
           />
         </section>
 
-        <section className="flex items-center justify-between border-b border-line pb-6">
-          <h3 className="text-[17px] font-semibold text-ink">做菜时间</h3>
-          <p className="text-[17px] text-muted">今天 19:30</p>
-        </section>
-
         {error ? <p className="text-sm text-accent">{error}</p> : null}
 
         <div className="space-y-3 pt-2">

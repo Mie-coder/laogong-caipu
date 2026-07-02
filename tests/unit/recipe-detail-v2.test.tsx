@@ -124,6 +124,17 @@ describe("RecipeDetail v2", () => {
     expect(screen.queryByRole("button", { name: "菜谱信息" })).not.toBeInTheDocument();
   });
 
+  it("keeps header actions visible when the recipe has no image", async () => {
+    mockState.getRecipeApi.mockResolvedValueOnce({
+      recipe: makeRecipe({ coverImageUrl: "", imageUrls: [] })
+    });
+
+    render(<RecipeDetail id={7} />);
+
+    const backButton = await screen.findByRole("button", { name: "返回菜谱列表" });
+    expect(backButton.parentElement).toHaveClass("text-ink");
+  });
+
   it("keeps ingredient checks local only and never sends them to the API payload", async () => {
     render(<RecipeDetail id={7} />);
 
@@ -203,7 +214,7 @@ describe("RecipeDetail v2", () => {
               wifeFeedback: "更下饭了",
               wifeRating: 5,
               husbandImprovementNotes: "再辣一点",
-              notes: ""
+              notes: "砂锅保温很好"
             }
           ]
         })
@@ -222,6 +233,7 @@ describe("RecipeDetail v2", () => {
     expect(await screen.findByText("已保存复盘")).toBeInTheDocument();
     expect(await screen.findByText("更下饭了")).toBeInTheDocument();
     expect(screen.getByText("再辣一点")).toBeInTheDocument();
+    expect(screen.getByText("砂锅保温很好")).toBeInTheDocument();
     expect(screen.getByText("做过 4 次")).toBeInTheDocument();
   });
 
