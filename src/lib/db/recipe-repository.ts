@@ -15,6 +15,7 @@ export type RecipeSummary = {
   mainCategory: string;
   coverImageUrl: string | null;
   cookedCount: number;
+  cookTimeMinutes: number | null;
   difficulty: string;
   tags: string[];
   latestWifeFeedback: string;
@@ -126,6 +127,7 @@ export function createRecipeRepository(db: Database.Database = getDb()) {
           mainCategory: row.main_category,
           coverImageUrl: row.cover_image_url,
           cookedCount: row.cooked_count,
+          cookTimeMinutes: row.cook_time_minutes,
           difficulty: row.difficulty,
           tags: getTags(db, row.id),
           latestWifeFeedback: row.latest_wife_feedback ?? "",
@@ -144,6 +146,7 @@ export function createRecipeRepository(db: Database.Database = getDb()) {
         mainCategory: row.main_category,
         coverImageUrl: row.cover_image_url,
         cookedCount: row.cooked_count,
+        cookTimeMinutes: row.cook_time_minutes,
         tags: getTags(db, id),
         latestWifeFeedback: "",
         wifeRating: 0,
@@ -151,7 +154,6 @@ export function createRecipeRepository(db: Database.Database = getDb()) {
         sourceUrl: row.source_url ?? "",
         originalTitle: row.original_title ?? "",
         shareText: row.share_text ?? "",
-        cookTimeMinutes: row.cook_time_minutes,
         difficulty: row.difficulty,
         tips: row.tips,
         imageUrls: getImageUrls(db, id),

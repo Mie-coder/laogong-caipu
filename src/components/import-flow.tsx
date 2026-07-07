@@ -3,7 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useReducedMotion } from "framer-motion";
-import { ArrowRight, Clipboard, History, Image as ImageIcon, LoaderCircle, Check, Circle, ChevronLeft } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  Clipboard,
+  Clock3,
+  Ellipsis,
+  Image as ImageIcon,
+  LoaderCircle,
+  Sparkles
+} from "lucide-react";
 import { RecipeDraft } from "@/lib/domain/recipe";
 import { filterImages, listRecipesApi, parseImportApi, saveRecipeWithImages } from "@/lib/http/api-client";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -17,6 +29,7 @@ type RecipeListItem = {
   id: number;
   name: string;
   cookedCount: number;
+  cookTimeMinutes?: number | null;
   difficulty?: string;
   mainCategory?: string;
   wifeRating?: number;
@@ -57,6 +70,23 @@ function normalizeSteps(draft: RecipeDraft): RecipeDraft {
 
 function hasValidSteps(draft: RecipeDraft) {
   return draft.steps.some((step) => step.text.trim());
+}
+
+function formatRating(value: number) {
+  return Number.isInteger(value) ? value.toFixed(1) : String(value);
+}
+
+function formatRecentMeta(recipe: RecipeListItem) {
+  const parts = [];
+  if (recipe.cookTimeMinutes) {
+    parts.push(`${recipe.cookTimeMinutes} 分钟`);
+  }
+  if (recipe.wifeRating && recipe.wifeRating > 0) {
+    parts.push(`老婆评分 ${formatRating(recipe.wifeRating)}`);
+  } else {
+    parts.push(`做过 ${recipe.cookedCount} 次`);
+  }
+  return parts.join(" · ");
 }
 
 export function ImportFlow(): JSX.Element {
@@ -120,7 +150,7 @@ export function ImportFlow(): JSX.Element {
         if (cancelled) return;
         const recipes = (result.recipes as RecipeListItem[])
           .filter((recipe) => recipe.cookedCount > 0)
-          .slice(0, 3);
+          .slice(0, 2);
         setListState({ loading: false, error: "", recipes });
       } catch (error) {
         if (cancelled) return;
@@ -158,7 +188,7 @@ export function ImportFlow(): JSX.Element {
       const result = await listRecipesApi();
       const recipes = (result.recipes as RecipeListItem[])
         .filter((recipe) => recipe.cookedCount > 0)
-        .slice(0, 3);
+        .slice(0, 2);
       setListState({ loading: false, error: "", recipes });
     } catch (error) {
       setListState({
@@ -330,46 +360,48 @@ export function ImportFlow(): JSX.Element {
   return (
     <>
       {stage === "home" && (
-        <section className="bg-bg px-5 pb-24 pt-6 text-text">
-          <header className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <h1 className="text-[36px] font-bold leading-[1.2] text-ink">老公菜谱</h1>
-              <p className="text-sm text-muted">今晚做什么</p>
+        <section data-testid="home-page" className="home-page">
+          <header className="home-header">
+            <div>
+              <h1 className="home-brand-title">老公菜谱</h1>
+              <p className="home-brand-subtitle">今晚做什么</p>
             </div>
-            <button type="button" aria-label="查看历史" className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink">
-              <History className="h-5 w-5" aria-hidden="true" />
+            <button type="button" aria-label="查看历史" className="home-history-button">
+              <Clock3 className="home-history-icon" aria-hidden="true" />
             </button>
           </header>
 
-          <div className="mt-8 overflow-hidden rounded-[6px] bg-white">
-            <div className="aspect-[4/3] w-full bg-[linear-gradient(180deg,#f3ece7_0%,#ede5df_100%)]">
-              <img
-                src="https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=900&q=80"
-                alt="今晚认真做一道菜"
-                className="h-full w-full object-cover"
-              />
-            </div>
+          <div className="home-hero-frame">
+            <img
+              src="/ui-concepts/home-hero.png"
+              alt="今晚认真做一道菜"
+              className="home-hero-image"
+            />
           </div>
 
-          <section className="mt-8 space-y-3">
-            <h2 className="text-[30px] font-bold leading-[1.25] text-ink">今晚认真做一道菜</h2>
-            <p className="text-base leading-[1.65] text-muted">
-              把收藏的分享整理成一份真正能照着做的菜谱，图片、步骤和复盘都留在这里。
-            </p>
+          <section className="home-promise">
+            <h2 className="home-promise-title">今晚认真做一道菜</h2>
+            <p className="home-promise-copy">把收藏整理成真正能照着做的步骤</p>
           </section>
 
           <button
             type="button"
             aria-label="从小红书导入菜谱"
-            className="mt-8 flex w-full items-center justify-between border-y border-line py-4 text-left text-[17px] font-semibold text-ink"
+            className="home-import-row"
             onClick={openSheet}
           >
-            <span>从小红书导入菜谱</span>
-            <ArrowRight className="h-5 w-5" aria-hidden="true" />
+            <span className="home-import-icon" aria-hidden="true">
+              <Sparkles />
+            </span>
+            <span className="home-import-copy">
+              <span className="home-import-title">从小红书导入菜谱</span>
+              <span className="home-import-subtitle">粘贴分享文字，自动整理食材与步骤</span>
+            </span>
+            <ArrowRight className="home-import-arrow" aria-hidden="true" />
           </button>
 
           {hasParsedResult && draft ? (
-            <section className="mt-8 space-y-4 border-b border-line pb-6">
+            <section className="mx-[var(--page-x)] mt-8 space-y-4 border-b border-line pb-6">
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-muted">解析完成</p>
                 <h3 className="text-[24px] font-bold leading-[1.3] text-ink">{draft.name || "已整理好待确认的菜谱"}</h3>
@@ -392,17 +424,21 @@ export function ImportFlow(): JSX.Element {
             </section>
           ) : null}
 
-          <section className="mt-8">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[20px] font-semibold leading-[1.4] text-ink">最近做过</h3>
+          <section className="home-recent">
+            <div className="home-recent-header">
+              <h3 className="home-recent-title">最近做过</h3>
+              <a href="/recipes" className="home-recent-all">
+                查看全部
+                <ChevronRight aria-hidden="true" />
+              </a>
             </div>
 
             {listState.loading && (
-              <div className="space-y-3">
-                {[0, 1, 2].map((index) => (
-                  <div key={index} className="flex items-center gap-3 border-b border-line pb-3">
-                    <div className="h-16 w-16 rounded-[6px] bg-[#f1ebe6]" />
-                    <div className="flex-1 space-y-2">
+              <div>
+                {[0, 1].map((index) => (
+                  <div key={index} className="home-recent-item border-b border-line">
+                    <div className="home-recent-thumb bg-[#f1ebe6]" />
+                    <div className="min-w-0 space-y-2">
                       <div className="h-4 w-24 rounded bg-[#f1ebe6]" />
                       <div className="h-3 w-40 rounded bg-[#f5efeb]" />
                     </div>
@@ -412,7 +448,7 @@ export function ImportFlow(): JSX.Element {
             )}
 
             {!listState.loading && listState.error && (
-              <div className="space-y-3 border-b border-line pb-4 text-sm text-muted">
+              <div className="space-y-3 border-b border-line py-4 text-sm text-muted">
                 <p>{listState.error}</p>
                 <button type="button" className="text-ink underline underline-offset-4" onClick={() => void loadRecentRecipesAgain()}>
                   重试
@@ -421,7 +457,7 @@ export function ImportFlow(): JSX.Element {
             )}
 
             {!listState.loading && !listState.error && listState.recipes.length === 0 && (
-              <div className="space-y-3 border-b border-line pb-4 text-sm text-muted">
+              <div className="space-y-3 border-b border-line py-4 text-sm text-muted">
                 <p>还没有做过的菜谱，先导入一道试试。</p>
                 <button type="button" className="text-ink underline underline-offset-4" onClick={openSheet}>
                   从小红书导入菜谱
@@ -430,24 +466,37 @@ export function ImportFlow(): JSX.Element {
             )}
 
             {!listState.loading && !listState.error && listState.recipes.length > 0 && (
-              <div className="space-y-4">
+              <div>
                 {listState.recipes.map((recipe) => (
-                  <div key={recipe.id} className="flex items-center gap-3 border-b border-line pb-4">
-                    <div className="h-16 w-16 overflow-hidden rounded-[6px] bg-[#f1ebe6]">
+                  <div key={recipe.id} className="home-recent-item border-b border-line">
+                    <div className="home-recent-thumb bg-[#f1ebe6]">
                       {recipe.coverImageUrl ? (
-                        <img src={recipe.coverImageUrl} alt="" className="h-full w-full object-cover" />
+                        <img
+                          src={recipe.coverImageUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                        />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-subtle">
                           <ImageIcon className="h-5 w-5" aria-hidden="true" />
                         </div>
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[17px] font-semibold leading-[1.5] text-ink">{recipe.name}</p>
-                      <p className="mt-1 text-[13px] leading-[1.45] text-muted">
-                        {[recipe.mainCategory, recipe.difficulty, `做过 ${recipe.cookedCount} 次`, recipe.wifeRating ? `评分 ${recipe.wifeRating}` : null].filter(Boolean).join(" · ")}
+                    <button
+                      type="button"
+                      className="min-w-0 text-left"
+                      onClick={() => router.push(`/recipes/${recipe.id}`)}
+                    >
+                      <p className="home-recent-name">{recipe.name}</p>
+                      <p className="home-recent-meta">
+                        {formatRecentMeta(recipe)}
                       </p>
-                    </div>
+                    </button>
+                    <button type="button" aria-label={`更多 ${recipe.name}`} className="home-recent-more">
+                      <Ellipsis aria-hidden="true" />
+                    </button>
                   </div>
                 ))}
               </div>

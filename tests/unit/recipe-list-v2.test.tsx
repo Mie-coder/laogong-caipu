@@ -53,6 +53,7 @@ function makeRecipe(id: number, overrides: Record<string, unknown> = {}) {
     mainCategory: "家常菜",
     coverImageUrl: `https://example.com/${id}.jpg`,
     cookedCount: id,
+    cookTimeMinutes: 20,
     difficulty: id % 2 === 0 ? "medium" : "easy",
     tags: ["下饭", "快手"],
     latestWifeFeedback: "",
@@ -109,11 +110,37 @@ describe("RecipeList v2", () => {
     expect(screen.getByRole("heading", { name: "最近更新" })).toBeInTheDocument();
 
     const featured = screen.getByRole("button", { name: "查看菜谱 番茄炖牛腩" });
-    expect(featured.querySelector(".aspect-\\[16\\/9\\]")).not.toBeNull();
+    expect(featured.querySelector(".recipe-list-feature-image")).not.toBeNull();
 
     const row = screen.getByRole("button", { name: "查看菜谱 蒜香鸡翅" });
-    expect(row.closest(".border-t")).not.toBeNull();
+    expect(row.closest(".recipe-list-row")).not.toBeNull();
     expect(screen.queryByText("长按进入删除模式")).not.toBeInTheDocument();
+  });
+
+  it("matches the 1:1 recipe list design contract", async () => {
+    mockState.listRecipesApi.mockResolvedValue({
+      recipes: [
+        makeRecipe(1, { name: "番茄炖牛腩", mainCategory: "家常菜", cookTimeMinutes: 45, cookedCount: 3, wifeRating: 4.8 }),
+        makeRecipe(2, { name: "蒜香鸡翅", difficulty: "easy", cookTimeMinutes: 30, cookedCount: 2 }),
+        makeRecipe(3, { name: "清蒸鲈鱼", difficulty: "medium", cookTimeMinutes: 25, cookedCount: 0 }),
+        makeRecipe(4, { name: "肉末四季豆", difficulty: "easy", cookTimeMinutes: 20, cookedCount: 1 })
+      ]
+    });
+
+    const { container } = render(<RecipeList />);
+
+    expect(await screen.findByText("我的菜谱")).toBeInTheDocument();
+    expect(container.querySelector(".recipe-list-page")).not.toBeNull();
+    expect(container.querySelector(".recipe-list-search")).not.toBeNull();
+    expect(container.querySelector(".recipe-list-tabs")).not.toBeNull();
+    expect(container.querySelector(".recipe-list-feature")).not.toBeNull();
+    expect(container.querySelector(".recipe-list-feature-image")).not.toBeNull();
+    expect(container.querySelectorAll(".recipe-list-row")).toHaveLength(3);
+    expect(container.querySelectorAll(".recipe-list-row-chevron")).toHaveLength(3);
+    expect(screen.getByText("家常菜 · 45 分钟 · 做过 3 次 · 老婆评分 4.8")).toBeInTheDocument();
+    expect(screen.getByText("简单 · 30 分钟 · 做过 2 次")).toBeInTheDocument();
+    expect(screen.getByText("中等 · 25 分钟 · 还没做过")).toBeInTheDocument();
+    expect(screen.getByText("简单 · 20 分钟 · 做过 1 次")).toBeInTheDocument();
   });
 
   it("forwards live search and sheet filters through listRecipesApi", async () => {

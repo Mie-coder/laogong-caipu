@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, PlusCircle } from "lucide-react";
+import { BookOpen, PencilLine } from "lucide-react";
 
 const items = [
-  { href: "/", label: "导入", icon: PlusCircle },
+  { href: "/", label: "导入", icon: PencilLine },
   { href: "/recipes", label: "菜谱", icon: BookOpen }
 ];
 
@@ -16,8 +16,8 @@ export function BottomNav() {
   if (hideNav) return null;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface" aria-label="底部导航">
-      <div className="mx-auto grid max-w-[var(--app-max-width)] grid-cols-2 px-[var(--app-gutter)] pb-[calc(var(--safe-bottom)+8px)] pt-2">
+    <nav className="bottom-nav" aria-label="底部导航">
+      <div className="bottom-nav-grid">
         {items.map((item) => {
           const active =
             item.href === "/recipes"
@@ -29,16 +29,11 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`relative flex min-h-[44px] flex-col items-center justify-center gap-1 px-3 pb-3 pt-2 text-[13px] transition-colors ${
-                active ? "text-accent" : "text-muted"
-              }`}
+              className={`bottom-nav-item ${active ? "is-active" : ""}`}
             >
-              <Icon className="h-5 w-5" aria-hidden="true" />
+              <Icon aria-hidden="true" />
               <span>{item.label}</span>
-              <span
-                aria-hidden="true"
-                className={`absolute bottom-0 h-0.5 w-7 bg-accent transition-opacity ${active ? "opacity-100" : "opacity-0"}`}
-              />
+              <span aria-hidden="true" className="bottom-nav-indicator" />
             </Link>
           );
         })}

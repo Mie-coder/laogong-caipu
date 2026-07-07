@@ -7,7 +7,6 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, Filter, Search, Trash2, X } from "lucide-react";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { deleteRecipeApi, listRecipesApi } from "@/lib/http/api-client";
-import { DIFFICULTY_LABELS } from "@/components/difficulty-stars";
 import { RecipeCard, RecipeCardSummary } from "@/components/recipe-card";
 import { SkeletonCard } from "@/components/skeleton-card";
 
@@ -51,6 +50,22 @@ function collectSnapshotOptions(recipes: RecipeCardSummary[]): SnapshotOptions {
     categories: [...categories],
     tags: [...tags]
   };
+}
+
+function formatCookStatus(count: number) {
+  return count > 0 ? `做过 ${count} 次` : "还没做过";
+}
+
+function formatCookTime(minutes?: number | null) {
+  return minutes ? `${minutes} 分钟` : "时间未定";
+}
+
+function formatFeaturedMetadata(recipe: RecipeCardSummary) {
+  const parts = [recipe.mainCategory, formatCookTime(recipe.cookTimeMinutes), formatCookStatus(recipe.cookedCount)];
+  if (recipe.wifeRating > 0) {
+    parts.push(`老婆评分 ${recipe.wifeRating.toFixed(1)}`);
+  }
+  return parts.join(" · ");
 }
 
 export function RecipeList({ category, tag }: { category?: string; tag?: string }) {
@@ -241,25 +256,25 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
   const highlightedTransition = reduceMotion ? { duration: 0 } : { duration: 0.18, ease: "easeOut" };
 
   return (
-    <section className="pb-32">
-      <div className="flex items-start justify-between gap-4">
+    <section className="recipe-list-page">
+      <div className="recipe-list-header">
         <div>
-          <h1 className="text-[30px] font-bold leading-[1.25] text-ink">我的菜谱</h1>
-          <p className="mt-3 text-[14px] leading-[1.5] text-muted">{`共 ${visibleRecipes.length} 道`}</p>
+          <h1 className="recipe-list-title">我的菜谱</h1>
+          <p className="recipe-list-count">{`共 ${visibleRecipes.length} 道`}</p>
         </div>
-        <div className="flex items-center gap-3 pt-1">
+        <div className="recipe-list-actions">
           <button
             type="button"
             aria-label="搜索"
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
+            className="recipe-list-icon-button"
             onClick={() => document.getElementById("recipe-list-search")?.focus()}
           >
-            <Search className="h-6 w-6" aria-hidden="true" />
+            <Search className="recipe-list-action-icon" aria-hidden="true" />
           </button>
           <button
             type="button"
             aria-label="管理"
-            className="min-h-[44px] text-[17px] font-medium leading-[1.5] text-ink"
+            className="recipe-list-manage-button"
             onClick={() => setDeleteMode(true)}
           >
             管理
@@ -267,28 +282,26 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
         </div>
       </div>
 
-      <div className="mt-8 border-b border-line pb-4">
-        <label htmlFor="recipe-list-search" className="flex items-center gap-3 text-subtle">
-          <Search className="h-6 w-6" aria-hidden="true" />
+      <div className="recipe-list-search">
+        <label htmlFor="recipe-list-search" className="recipe-list-search-label">
+          <Search className="recipe-list-search-icon" aria-hidden="true" />
           <input
             id="recipe-list-search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="搜索菜名"
-            className="w-full border-0 bg-transparent p-0 text-[17px] leading-[1.5] text-ink outline-none placeholder:text-subtle"
+            className="recipe-list-search-input"
           />
         </label>
       </div>
 
-      <div className="mt-8 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-8">
+      <div className="recipe-list-tabs">
+        <div className="recipe-list-tab-group">
           {quickFilters.map((item) => (
             <button
               key={item.label}
               type="button"
-              className={`border-b-2 pb-3 text-[17px] leading-[1.5] ${
-                item.active ? "border-accent font-semibold text-ink" : "border-transparent text-muted"
-              }`}
+              className={`recipe-list-tab ${item.active ? "is-active" : ""}`}
               onClick={item.onClick}
             >
               {item.label}
@@ -298,10 +311,10 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
         <button
           type="button"
           aria-label="筛选"
-          className="flex min-h-[44px] items-center gap-2 text-[17px] leading-[1.5] text-ink"
+          className="recipe-list-filter-button"
           onClick={() => setSheetOpen(true)}
         >
-          <Filter className="h-5 w-5" aria-hidden="true" />
+          <Filter className="recipe-list-filter-icon" aria-hidden="true" />
           <span>筛选</span>
         </button>
       </div>
@@ -328,7 +341,7 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
       <AnimatePresence mode="wait" onExitComplete={() => setLoadingLayoutSettled(true)}>
         {loading ? (
           <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-            <div className="mt-10">
+            <div className="recipe-list-loading">
               <SkeletonCard featured />
               <SkeletonCard />
               <SkeletonCard />
@@ -338,8 +351,8 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
       </AnimatePresence>
 
       {!loading && !error && visibleRecipes.length > 0 ? (
-        <div className="mt-12">
-          <h2 className="text-[20px] font-semibold leading-[1.4] text-ink">最近更新</h2>
+        <div className="recipe-list-content">
+          <h2 className="recipe-list-section-title">最近更新</h2>
 
           {featuredRecipe ? (
             <motion.div
@@ -347,46 +360,44 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
               initial={highlightId === String(featuredRecipe.id) ? { opacity: 0 } : undefined}
               animate={{ opacity: 1 }}
               transition={highlightedTransition}
-              className="relative mt-6"
+              className="recipe-list-feature relative"
             >
               <button
                 type="button"
                 aria-label={deleteMode ? `选择菜谱 ${featuredRecipe.name}` : `查看菜谱 ${featuredRecipe.name}`}
-                className="block w-full text-left"
+                className="recipe-list-feature-card"
                 onPointerDown={() => handlePointerDown(featuredRecipe.id)}
                 onPointerUp={clearLongPress}
                 onPointerLeave={clearLongPress}
                 onClick={() => handleOpenRecipe(featuredRecipe.id)}
               >
-                <div className="aspect-[16/9] w-full overflow-hidden rounded-[6px] bg-line">
+                <div className="recipe-list-feature-image">
                   {featuredRecipe.coverImageUrl ? (
                     <img
                       src={featuredRecipe.coverImageUrl}
                       alt={featuredRecipe.name}
-                      className="h-full w-full object-cover"
+                      className="recipe-list-feature-photo"
                       referrerPolicy="no-referrer"
                       crossOrigin="anonymous"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-[14px] text-subtle">无图</div>
+                    <div className="recipe-list-empty-image">无图</div>
                   )}
                 </div>
-                <div className="mt-5">
-                  <h3 className="text-[28px] font-bold leading-[1.3] text-ink">{featuredRecipe.name}</h3>
-                  <p className="mt-3 text-[16px] leading-[1.65] text-muted">
-                    {[featuredRecipe.mainCategory, DIFFICULTY_LABELS[featuredRecipe.difficulty] ?? "未知", `做过 ${featuredRecipe.cookedCount} 次`, featuredRecipe.wifeRating > 0 ? `老婆评分 ${featuredRecipe.wifeRating.toFixed(1)}` : "评分 --"].join(" · ")}
-                  </p>
+                <div className="recipe-list-feature-copy">
+                  <h3 className="recipe-list-feature-title">{featuredRecipe.name}</h3>
+                  <p className="recipe-list-feature-meta">{formatFeaturedMetadata(featuredRecipe)}</p>
                 </div>
               </button>
               {deleteMode ? (
-                <span className="pointer-events-none absolute right-0 top-4 flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface">
+                <span className="recipe-list-select-badge absolute right-0 top-4">
                   {selectedIds.has(featuredRecipe.id) ? <Check className="h-4 w-4 text-accent" aria-hidden="true" /> : null}
                 </span>
               ) : null}
             </motion.div>
           ) : null}
 
-          <div className="mt-6">
+          <div className="recipe-list-rows">
             {rowRecipes.map((recipe) => {
               const isSelected = selectedIds.has(recipe.id);
 
@@ -396,21 +407,21 @@ export function RecipeList({ category, tag }: { category?: string; tag?: string 
                   initial={highlightId === String(recipe.id) ? { opacity: 0 } : undefined}
                   animate={{ opacity: 1 }}
                   transition={highlightedTransition}
-                  className="relative border-t border-line"
+                  className="recipe-list-row relative"
                 >
                   <button
                     type="button"
                     aria-label={deleteMode ? `选择菜谱 ${recipe.name}` : `查看菜谱 ${recipe.name}`}
-                    className="block w-full text-left"
+                    className="recipe-list-row-button"
                     onPointerDown={() => handlePointerDown(recipe.id)}
                     onPointerUp={clearLongPress}
                     onPointerLeave={clearLongPress}
                     onClick={() => handleOpenRecipe(recipe.id)}
                   >
-                    <RecipeCard recipe={recipe} disableLink />
+                    <RecipeCard recipe={recipe} disableLink variant="list" showChevron />
                   </button>
                   {deleteMode ? (
-                    <span className="absolute right-0 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-line bg-surface">
+                    <span className="recipe-list-row-select">
                       {isSelected ? <Check className="h-4 w-4 text-accent" aria-hidden="true" /> : null}
                     </span>
                   ) : null}

@@ -120,15 +120,35 @@ describe("ImportFlow v2 state flow", () => {
 
     render(<ImportFlow />);
 
+    expect(screen.getByTestId("home-page")).toHaveClass("home-page");
     expect(screen.getByText("老公菜谱")).toBeInTheDocument();
     expect(screen.getByText("今晚做什么")).toBeInTheDocument();
     expect(screen.getByText("今晚认真做一道菜")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "从小红书导入菜谱" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "今晚认真做一道菜" })).toHaveClass("home-hero-image");
+    expect(screen.getByRole("button", { name: "从小红书导入菜谱" })).toHaveClass("home-import-row");
+    expect(screen.getByText("粘贴分享文字，自动整理食材与步骤")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看全部" })).toHaveAttribute("href", "/recipes");
     expect(screen.queryByPlaceholderText(/小红书/i)).not.toBeInTheDocument();
     expect(await screen.findByText("番茄炒蛋")).toBeInTheDocument();
     expect(screen.getByText("红烧肉")).toBeInTheDocument();
-    expect(screen.getByText("清炒西兰花")).toBeInTheDocument();
+    expect(screen.queryByText("清炒西兰花")).not.toBeInTheDocument();
     expect(screen.queryByText("不该出现")).not.toBeInTheDocument();
+  });
+
+  it("formats the home recent list like the reference screenshot", async () => {
+    mockState.listRecipesApi.mockResolvedValue({
+      recipes: [
+        { id: 1, name: "番茄炖牛腩", cookedCount: 1, cookTimeMinutes: 45, wifeRating: 4.8, coverImageUrl: "beef.jpg" },
+        { id: 2, name: "蒜香鸡翅", cookedCount: 3, cookTimeMinutes: 30, coverImageUrl: "wings.jpg" }
+      ]
+    });
+
+    render(<ImportFlow />);
+
+    expect(await screen.findByText("番茄炖牛腩")).toBeInTheDocument();
+    expect(screen.getByText("45 分钟 · 老婆评分 4.8")).toBeInTheDocument();
+    expect(screen.getByText("蒜香鸡翅")).toBeInTheDocument();
+    expect(screen.getByText("30 分钟 · 做过 3 次")).toBeInTheDocument();
   });
 
   it("preserves raw input across open close, disables empty submit, and keeps focus on paste rejection", async () => {

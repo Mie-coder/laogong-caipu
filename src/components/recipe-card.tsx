@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { DifficultyStars } from "@/components/difficulty-stars";
+import { DIFFICULTY_LABELS, DifficultyStars } from "@/components/difficulty-stars";
 
 export type RecipeCardSummary = {
   id: number;
@@ -10,6 +10,7 @@ export type RecipeCardSummary = {
   mainCategory: string;
   coverImageUrl: string | null;
   cookedCount: number;
+  cookTimeMinutes?: number | null;
   difficulty: string;
   tags: string[];
   latestWifeFeedback: string;
@@ -20,7 +21,63 @@ function metadataText(recipe: RecipeCardSummary) {
   return [`${recipe.mainCategory}`, recipe.difficulty, `做过 ${recipe.cookedCount} 次`, recipe.wifeRating > 0 ? `评分 ${recipe.wifeRating.toFixed(1)}` : "评分 --"].join(" ");
 }
 
-export function RecipeCard({ recipe, disableLink }: { recipe: RecipeCardSummary; disableLink?: boolean }) {
+function formatCookStatus(count: number) {
+  return count > 0 ? `做过 ${count} 次` : "还没做过";
+}
+
+function formatListMetadata(recipe: RecipeCardSummary) {
+  const difficulty = DIFFICULTY_LABELS[recipe.difficulty] ?? "未知";
+  const cookTime = recipe.cookTimeMinutes ? `${recipe.cookTimeMinutes} 分钟` : "时间未定";
+  return [difficulty, cookTime, formatCookStatus(recipe.cookedCount)].join(" · ");
+}
+
+export function RecipeCard({
+  recipe,
+  disableLink,
+  variant = "default",
+  showChevron = false
+}: {
+  recipe: RecipeCardSummary;
+  disableLink?: boolean;
+  variant?: "default" | "list";
+  showChevron?: boolean;
+}) {
+  if (variant === "list") {
+    const listContent = (
+      <div className="recipe-list-row-card">
+        <div className="recipe-list-row-thumb">
+          {recipe.coverImageUrl ? (
+            <img
+              src={recipe.coverImageUrl}
+              alt={recipe.name}
+              className="recipe-list-row-image"
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+            />
+          ) : (
+            <span>无图</span>
+          )}
+        </div>
+        <div className="recipe-list-row-copy">
+          <h3 className="recipe-list-row-title">{recipe.name}</h3>
+          <p className="recipe-list-row-meta">{formatListMetadata(recipe)}</p>
+          <span className="sr-only">{metadataText(recipe)}</span>
+        </div>
+        {showChevron ? <ChevronRight className="recipe-list-row-chevron" aria-hidden="true" /> : null}
+      </div>
+    );
+
+    if (disableLink) {
+      return listContent;
+    }
+
+    return (
+      <Link href={`/recipes/${recipe.id}`} className="block">
+        {listContent}
+      </Link>
+    );
+  }
+
   const content = (
     <div className="flex items-center gap-4 py-7">
       <div className="flex aspect-[4/3] w-28 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-[var(--color-line)] text-xs text-subtle">

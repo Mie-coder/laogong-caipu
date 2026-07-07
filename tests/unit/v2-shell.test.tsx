@@ -1,4 +1,6 @@
 import { forwardRef } from "react";
+import fs from "node:fs";
+import path from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { BottomSheet } from "@/components/bottom-sheet";
@@ -49,6 +51,15 @@ beforeEach(() => {
 });
 
 describe("v2 application shell", () => {
+  it("keeps the home import row full-width with its arrow aligned right", () => {
+    const css = fs.readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    const importRowRule = css.match(/\.home-import-row\s*\{[^}]+\}/)?.[0] ?? "";
+    const importArrowRule = css.match(/\.home-import-arrow\s*\{[^}]+\}/)?.[0] ?? "";
+
+    expect(importRowRule).toContain("width: calc(100% - (var(--page-x) * 2));");
+    expect(importArrowRule).toContain("justify-self: end;");
+  });
+
   it("renders two restrained navigation items with an accessible active state", () => {
     render(<BottomNav />);
 
