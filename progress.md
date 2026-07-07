@@ -4,9 +4,10 @@
 
 ## 最新任务快照
 
-- 更新时间：2026-07-07（已补强 1:1 复刻交接规范）
+- 更新时间：2026-07-07（首页与菜谱页 1:1 复刻已提交）
 - 分支：`master`
 - Task 5 代码 HEAD：`73aa869 docs: record task 5 completion`
+- 1:1 复刻提交：`7604460 feat: replicate home and recipe list designs`
 - 当前阶段：当前任务为“复刻1:1设计稿”；首页已复刻，正在继续复刻菜谱页并等待用户视觉验收
 - 实施计划：`docs/superpowers/plans/2026-07-02-v2-ui-redesign.md`
 - 设计基准：`.agents/rules/style.md`、`.agents/rules/global-style.md`、`.agents/rules/复刻1:1设计规范.md`、`docs/ui-concepts/01-home.png` 至 `08-cook-review.png`
@@ -170,6 +171,25 @@
 - `git diff --check`：通过。
 - 仅文档变更，未运行单元测试、E2E 或构建。
 
+### 提交记录（2026-07-07）
+
+已提交：
+
+- `7604460 feat: replicate home and recipe list designs`
+
+提交内容：
+
+- 首页和菜谱页 1:1 复刻代码、样式与测试。
+- `.agents/` 分类归档后的设计与规则文档。
+- `docs/ui-concepts/` 设计稿源文件。
+- `public/ui-concepts/` 本地裁图素材。
+
+提交前验收：
+
+- `git diff --check`：通过。
+- `PATH=/Users/mie/.hermes/node/bin:$PATH npm run test -- tests/unit/import-flow-v2.test.tsx tests/unit/recipe-list-v2.test.tsx tests/unit/recipe-card.test.tsx tests/unit/v2-shell.test.tsx`：4 files / 39 tests 通过。
+- 本轮未运行 `npm run build`；为保持用户当前预览服务不断开，未停止 dev server。
+
 ## 下一步
 
 1. 用户直接在浏览器验收 `/recipes` 菜谱页 1:1 复刻效果。
@@ -179,7 +199,7 @@
 
 ## 当前工作区（2026-07-07）
 
-- 已跟踪改动：首页和菜谱页 1:1 复刻相关代码、测试和 `progress.md` 记录，尚未提交。
-- 未跟踪受保护设计产物：`.agents/`（AI 生成 Markdown 分类归档，含 `design/`、`rules/`、`progress/`）、`docs/ui-concepts/`。
-- 未跟踪新增素材：`public/ui-concepts/`（含首页和菜谱页裁图素材）。
+- 已跟踪改动：仅本次提交记录更新中的 `progress.md`。
+- 未跟踪受保护设计产物：无；`.agents/` 与 `docs/ui-concepts/` 已随 `7604460` 提交。
+- 未跟踪新增素材：无；`public/ui-concepts/` 已随 `7604460` 提交。
 - 未跟踪验收产物：`output/playwright-v2/`、`output/playwright/home-393.png`、`output/playwright/home-430.png`。
