@@ -8,12 +8,14 @@ export function BottomSheet({
   open,
   title,
   children,
-  onClose
+  onClose,
+  variant = "default"
 }: {
   open: boolean;
   title: string;
   children: React.ReactNode;
   onClose: () => void;
+  variant?: "default" | "review";
 }) {
   const titleId = useId();
   const reduceMotion = useReducedMotion();
@@ -47,23 +49,23 @@ export function BottomSheet({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: reduceMotion ? 0 : 24, opacity: 0 }}
             transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: "easeOut" }}
-            className="relative z-10 flex max-h-[80vh] w-full max-w-[var(--app-max-width)] flex-col rounded-t-sheet bg-surface px-5 pb-[calc(var(--safe-bottom)+20px)] pt-3 shadow-sheet"
+            className={`bottom-sheet ${variant === "review" ? "bottom-sheet-review" : ""} relative z-10 flex max-h-[78vh] w-full max-w-[var(--app-max-width)] flex-col rounded-t-sheet bg-surface px-5 pb-[calc(var(--safe-bottom)+16px)] pt-2 shadow-sheet`}
           >
-            <span aria-hidden="true" className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-line" />
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <h2 id={titleId} className="text-xl font-semibold text-ink">
+            <span aria-hidden="true" className="bottom-sheet-handle mx-auto mb-3 h-1 w-9 rounded-full bg-line" />
+            <div className="bottom-sheet-header mb-5 flex items-start justify-between gap-3">
+              <h2 id={titleId} className="bottom-sheet-title text-[20px] font-semibold leading-[1.4] text-ink">
                 {title}
               </h2>
               <button
                 type="button"
                 aria-label="关闭"
-                className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
+                className="bottom-sheet-close flex min-h-[44px] min-w-[44px] items-center justify-center text-ink"
                 onClick={onClose}
               >
-                <X className="h-5 w-5" aria-hidden="true" />
+                <X className="bottom-sheet-close-icon h-5 w-5" aria-hidden="true" />
               </button>
             </div>
-            <div className="overflow-y-auto pr-1 text-text">{children}</div>
+            <div className="bottom-sheet-content overflow-y-auto pr-1 text-text">{children}</div>
           </motion.section>
         </div>
       ) : null}

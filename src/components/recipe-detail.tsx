@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Clock3, Ellipsis, FileText, Star, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ellipsis, FileText, PencilLine, Star, Trash2 } from "lucide-react";
 import { addCookingLogApi, deleteRecipeApi, getRecipeApi } from "@/lib/http/api-client";
 import { CookingLogSheet } from "@/components/cooking-log-sheet";
-import { DifficultyStars } from "@/components/difficulty-stars";
+import { DIFFICULTY_LABELS } from "@/components/difficulty-stars";
 import { ImageCarousel } from "@/components/image-carousel";
 import { SkeletonCard } from "@/components/skeleton-card";
 import { Toast } from "@/components/toast";
@@ -16,6 +16,17 @@ function formatCookedAt(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return `${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatCookTime(minutes?: number | null) {
+  return minutes ? `${minutes} 分钟` : "时间未定";
+}
+
+function formatDetailMetadata(recipe: any) {
+  const difficulty = DIFFICULTY_LABELS[recipe.difficulty] ?? "未知";
+  return [recipe.mainCategory, difficulty, formatCookTime(recipe.cookTimeMinutes), `做过 ${recipe.cookedCount} 次`]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export function RecipeDetail({ id }: { id: number }) {
@@ -128,44 +139,53 @@ export function RecipeDetail({ id }: { id: number }) {
   }
 
   const latestLog = recipe.cookingLogs?.[0] ?? null;
+  const displayRating = recipe.wifeRating > 0 ? recipe.wifeRating : latestLog?.wifeRating;
 
   return (
     <>
-      <div className="bg-bg pb-36 text-ink">
-        <section className="relative">
+      <div className="recipe-detail-page">
+        <section className="recipe-detail-hero-section">
           <div
-            className={`absolute inset-x-0 top-0 z-10 flex items-start justify-between px-5 pb-4 pt-5 ${detailImages.length ? "text-white" : "text-ink"}`}
+            className={`recipe-detail-topbar ${detailImages.length ? "is-on-image text-white" : "is-on-empty text-ink"}`}
           >
             <button
               type="button"
               aria-label="返回菜谱列表"
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center"
+              className="recipe-detail-back-button"
               onClick={handleBack}
             >
-              <ChevronLeft className="h-7 w-7" aria-hidden="true" />
+              <ChevronLeft className="recipe-detail-top-icon" aria-hidden="true" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="relative">
+            <div className="recipe-detail-top-actions">
+              <button
+                type="button"
+                aria-label="编辑菜谱"
+                className="recipe-detail-edit-button"
+                onClick={() => setToast("编辑功能后续开放")}
+              >
+                <PencilLine className="recipe-detail-edit-icon" aria-hidden="true" />
+              </button>
+              <div className="recipe-detail-menu">
                 <button
                   type="button"
                   aria-label="更多操作"
-                  className="flex min-h-[44px] min-w-[44px] items-center justify-center"
+                  className="recipe-detail-more-button"
                   onClick={() => setMenuOpen((current) => !current)}
                 >
-                  <Ellipsis className="h-6 w-6" aria-hidden="true" />
+                  <Ellipsis className="recipe-detail-more-icon" aria-hidden="true" />
                 </button>
                 {menuOpen ? (
                   <div
                     role="menu"
-                    className="absolute right-0 top-[52px] min-w-[132px] rounded-[8px] border border-line bg-white p-1 text-ink"
+                    className="recipe-detail-more-menu"
                   >
                     <button
                       type="button"
                       role="menuitem"
-                      className="flex min-h-[44px] w-full items-center gap-2 rounded-[6px] px-3 text-left text-[16px]"
+                      className="recipe-detail-delete-button"
                       onClick={() => void handleDelete()}
                     >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      <Trash2 className="recipe-detail-delete-icon" aria-hidden="true" />
                       删除菜谱
                     </button>
                   </div>
@@ -175,44 +195,31 @@ export function RecipeDetail({ id }: { id: number }) {
           </div>
 
           {detailImages.length > 0 ? (
-            <ImageCarousel images={detailImages} />
+            <ImageCarousel images={detailImages} variant="detailHero" />
           ) : (
-            <div className="aspect-[4/3] bg-white" />
+            <div className="recipe-detail-hero recipe-detail-hero-empty" />
           )}
         </section>
 
-        <section className="space-y-6 px-5 pt-6">
-          <div className="space-y-3">
-            <h1 className="text-[28px] font-bold leading-[1.3] text-ink">{recipe.name}</h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-muted">
-              <span>{recipe.mainCategory}</span>
-              <span>•</span>
-              <DifficultyStars difficulty={recipe.difficulty} />
-              {recipe.cookTimeMinutes ? (
-                <>
-                  <span>•</span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
-                    {recipe.cookTimeMinutes} 分钟
-                  </span>
-                </>
-              ) : null}
-              <span>•</span>
-              <span>做过 {recipe.cookedCount} 次</span>
-            </div>
-            {latestLog?.wifeRating ? (
-              <p className="text-[17px] text-ink">
-                老婆评分 <span className="text-accent">{latestLog.wifeRating.toFixed(1)}</span>
+        <section className="recipe-detail-content">
+          <section className="recipe-detail-summary">
+            <h1 className="recipe-detail-title">{recipe.name}</h1>
+            <p className="recipe-detail-meta">{formatDetailMetadata(recipe)}</p>
+            <span className="sr-only">{`做过 ${recipe.cookedCount} 次`}</span>
+            {displayRating ? (
+              <p className="recipe-detail-rating">
+                <span>老婆评分</span>
+                <span className="recipe-detail-rating-value">{displayRating.toFixed(1)}</span>
               </p>
             ) : null}
-          </div>
+          </section>
 
-          <div className="border-b border-line">
-            <div className="grid grid-cols-2">
+          <div className="recipe-detail-tabs">
+            <div className="recipe-detail-tab-grid">
               <button
                 type="button"
                 aria-label="备料"
-                className={`min-h-[52px] text-center text-[17px] ${activeTab === "ingredients" ? "font-semibold text-ink" : "text-muted"}`}
+                className={`recipe-detail-tab ${activeTab === "ingredients" ? "is-active" : ""}`}
                 onClick={() => scrollToSection("ingredients")}
               >
                 备料
@@ -220,7 +227,7 @@ export function RecipeDetail({ id }: { id: number }) {
               <button
                 type="button"
                 aria-label="步骤"
-                className={`min-h-[52px] text-center text-[17px] ${activeTab === "steps" ? "font-semibold text-ink" : "text-muted"}`}
+                className={`recipe-detail-tab ${activeTab === "steps" ? "is-active" : ""}`}
                 onClick={() => scrollToSection("steps")}
               >
                 步骤
@@ -228,33 +235,33 @@ export function RecipeDetail({ id }: { id: number }) {
             </div>
           </div>
 
-          <section ref={ingredientsRef} className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[20px] font-semibold text-ink">食材与调料</h2>
+          <section ref={ingredientsRef} className="recipe-detail-ingredients">
+            <div className="recipe-detail-section-header">
+              <h2 className="recipe-detail-section-title">食材与调料</h2>
               <button
                 type="button"
-                className="inline-flex min-h-[44px] items-center gap-1 text-[16px] text-muted"
+                className="recipe-detail-cook-mode"
                 onClick={() => scrollToSection("ingredients")}
               >
                 做菜模式
-                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                <ChevronRight className="recipe-detail-cook-mode-icon" aria-hidden="true" />
               </button>
             </div>
-            <ul className="border-t border-line">
+            <ul className="recipe-detail-prep-list">
               {prepItems.map((item: { name: string; amount: string }, index: number) => {
                 const checked = Boolean(checkedItems[item.name]);
                 return (
-                  <li key={`${item.name}-${index}`} className="border-b border-line">
-                    <label className="flex min-h-[78px] items-center gap-4">
+                  <li key={`${item.name}-${index}`} className="recipe-detail-prep-row">
+                    <label className="recipe-detail-prep-label">
                       <input
                         type="checkbox"
                         aria-label={`勾选食材 ${item.name}`}
-                        className="h-10 w-10 rounded-full border border-muted accent-accent"
+                        className="recipe-detail-prep-checkbox"
                         checked={checked}
                         onChange={() => toggleChecked(item.name)}
                       />
-                      <span className={`flex-1 text-[17px] ${checked ? "text-subtle line-through" : "text-ink"}`}>{item.name}</span>
-                      <span className="text-[17px] text-ink">{item.amount || "适量"}</span>
+                      <span className={`recipe-detail-prep-name ${checked ? "is-checked" : ""}`}>{item.name}</span>
+                      <span className="recipe-detail-prep-amount">{item.amount || "适量"}</span>
                     </label>
                   </li>
                 );
@@ -262,22 +269,22 @@ export function RecipeDetail({ id }: { id: number }) {
             </ul>
           </section>
 
-          <section ref={stepsRef} className="space-y-6">
-            <h2 className="text-[20px] font-semibold text-ink">制作步骤</h2>
-            <ol className="space-y-8">
+          <section ref={stepsRef} className="recipe-detail-steps">
+            <h2 className="recipe-detail-section-title">制作步骤</h2>
+            <ol className="recipe-detail-step-list">
               {recipe.steps.map((step: { order: number; text: string; imageUrl: string | null }) => (
-                <li key={step.order} className="space-y-4">
-                  <div className="flex gap-5">
-                    <span className="min-w-[56px] text-[48px] italic leading-none text-ink">
+                <li key={step.order} className="recipe-detail-step">
+                  <div className="recipe-detail-step-copy">
+                    <span className="recipe-detail-step-number">
                       {String(step.order).padStart(2, "0")}
                     </span>
-                    <p className="pt-2 text-[17px] leading-[1.65] text-ink">{step.text}</p>
+                    <p className="recipe-detail-step-text">{step.text}</p>
                   </div>
                   {step.imageUrl ? (
                     <img
                       src={step.imageUrl}
                       alt=""
-                      className="h-auto w-full rounded-[6px] object-cover"
+                      className="recipe-detail-step-image"
                     />
                   ) : null}
                 </li>
@@ -286,49 +293,49 @@ export function RecipeDetail({ id }: { id: number }) {
           </section>
 
           {latestLog ? (
-            <section ref={reviewRef} className="space-y-4 border-t border-line pt-6">
-              <h2 className="text-[20px] font-semibold text-ink">最近复盘</h2>
-              <div className="space-y-3 text-[16px] text-ink">
+            <section ref={reviewRef} className="recipe-detail-review">
+              <h2 className="recipe-detail-section-title">最近复盘</h2>
+              <div className="recipe-detail-review-body">
                 {latestLog.wifeRating ? (
-                  <p className="inline-flex items-center gap-2">
-                    <Star className="h-4 w-4 text-accent" fill="currentColor" aria-hidden="true" />
+                  <p className="recipe-detail-review-rating">
+                    <Star className="recipe-detail-review-star" fill="currentColor" aria-hidden="true" />
                     {latestLog.wifeRating.toFixed(1)}
                   </p>
                 ) : null}
                 {latestLog.wifeFeedback ? <p>{latestLog.wifeFeedback}</p> : null}
-                {latestLog.husbandImprovementNotes ? <p className="text-muted">{latestLog.husbandImprovementNotes}</p> : null}
-                {latestLog.notes ? <p className="text-muted">{latestLog.notes}</p> : null}
-                {latestLog.cookedAt ? <p className="text-sm text-subtle">{formatCookedAt(latestLog.cookedAt)}</p> : null}
+                {latestLog.husbandImprovementNotes ? <p className="recipe-detail-review-muted">{latestLog.husbandImprovementNotes}</p> : null}
+                {latestLog.notes ? <p className="recipe-detail-review-muted">{latestLog.notes}</p> : null}
+                {latestLog.cookedAt ? <p className="recipe-detail-review-date">{formatCookedAt(latestLog.cookedAt)}</p> : null}
               </div>
             </section>
           ) : (
-            <section ref={reviewRef} className="border-t border-line pt-6">
-              <h2 className="text-[20px] font-semibold text-ink">最近复盘</h2>
+            <section ref={reviewRef} className="recipe-detail-review">
+              <h2 className="recipe-detail-section-title">最近复盘</h2>
             </section>
           )}
 
           {recipe.tips ? (
-            <section className="space-y-3 border-t border-line pt-6">
-              <h2 className="text-[20px] font-semibold text-ink">小贴士</h2>
-              <p className="text-[16px] leading-[1.65] text-muted">{recipe.tips}</p>
+            <section className="recipe-detail-tips">
+              <h2 className="recipe-detail-section-title">小贴士</h2>
+              <p className="recipe-detail-tips-text">{recipe.tips}</p>
             </section>
           ) : null}
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 backdrop-blur-sm">
-        <div className="mx-auto flex w-full max-w-[430px] items-center gap-4 px-5 pb-[calc(var(--safe-bottom)+12px)] pt-4">
+      <div className="recipe-detail-action-bar">
+        <div className="recipe-detail-action-inner">
           <button
             type="button"
-            className="inline-flex min-h-[48px] items-center gap-3 text-[17px] text-ink"
+            className="recipe-detail-review-button"
             onClick={() => scrollToSection("review")}
           >
-            <FileText className="h-6 w-6" aria-hidden="true" />
+            <FileText className="recipe-detail-review-button-icon" aria-hidden="true" />
             查看复盘
           </button>
           <button
             type="button"
-            className="ml-auto min-h-[48px] min-w-[168px] rounded-[8px] bg-ink px-6 text-[17px] font-semibold text-white"
+            className="recipe-detail-cooked-button"
             onClick={() => setSheetOpen(true)}
           >
             标记做过

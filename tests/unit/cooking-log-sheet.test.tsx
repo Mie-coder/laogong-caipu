@@ -35,13 +35,14 @@ describe("CookingLogSheet", () => {
     onSubmit.mockResolvedValue(undefined);
   });
 
-  it("disables save until rating or text is provided, then submits notes in the payload", async () => {
+  it("disables save until rating, text, or a quick tag is provided, then submits the review payload", async () => {
     render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
 
     const saveButton = screen.getByRole("button", { name: "保存复盘" });
     expect(saveButton).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText("备注"), { target: { value: "这次火候稳住了" } });
+    fireEvent.click(screen.getByRole("button", { name: "少盐" }));
+    fireEvent.change(screen.getByLabelText("下次改进"), { target: { value: "番茄可以再多放一个" } });
     expect(saveButton).not.toBeDisabled();
 
     fireEvent.click(saveButton);
@@ -49,11 +50,26 @@ describe("CookingLogSheet", () => {
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
         wifeFeedback: "",
-        husbandImprovementNotes: "",
-        notes: "这次火候稳住了",
+        husbandImprovementNotes: "少盐，番茄可以再多放一个",
+        notes: "",
         wifeRating: 0
       })
     );
+  });
+
+  it("matches the 1:1 cooking review sheet design contract", () => {
+    const { container } = render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
+
+    expect(screen.getByRole("heading", { name: "这次做得怎么样？" })).toBeInTheDocument();
+    expect(screen.getByText("记录下来，下次会做得更好")).toBeInTheDocument();
+    expect(container.querySelector(".cook-review-form")).not.toBeNull();
+    expect(container.querySelector(".cook-review-stars")).not.toBeNull();
+    expect(container.querySelectorAll(".cook-review-star-button")).toHaveLength(5);
+    expect(container.querySelector(".cook-review-feedback")).not.toBeNull();
+    expect(container.querySelector(".cook-review-tags")).not.toBeNull();
+    expect(container.querySelectorAll(".cook-review-tag")).toHaveLength(4);
+    expect(container.querySelector(".cook-review-time-row")).not.toBeNull();
+    expect(container.querySelector(".cook-review-submit")).not.toBeNull();
   });
 
   it("shows a lucide star rating control and keeps the selected label in sync", () => {
@@ -81,17 +97,33 @@ describe("CookingLogSheet", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("does not render quick tag toggles", () => {
+  it("renders quick tag toggles and marks the selected improvement tag", () => {
     render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
 
-    expect(screen.queryByRole("button", { name: "少盐" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "火小一点" })).not.toBeInTheDocument();
+    const lessSalt = screen.getByRole("button", { name: "少盐" });
+    expect(lessSalt).toHaveClass("cook-review-tag");
+    fireEvent.click(lessSalt);
+
+    expect(lessSalt).toHaveClass("is-selected");
+    expect(screen.getByRole("button", { name: "火小一点" })).toBeInTheDocument();
   });
 
-  it("does not show a fake fixed cooking time", () => {
-    render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
+  it("shows the current cooking time row without submitting a fake cookedAt field", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 8, 19, 30, 0));
 
-    expect(screen.queryByText("今天 19:30")).not.toBeInTheDocument();
+    try {
+      render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
+
+      expect(screen.getByText("今天 19:30")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "4 星，很好吃" }));
+      fireEvent.click(screen.getByRole("button", { name: "保存复盘" }));
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("cookedAt");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("ignores close while submitting and keeps fields visible", async () => {
@@ -105,7 +137,7 @@ describe("CookingLogSheet", () => {
 
     render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
 
-    fireEvent.change(screen.getByLabelText("备注"), { target: { value: "留着观察口感" } });
+    fireEvent.change(screen.getByLabelText("老婆评价"), { target: { value: "留着观察口感" } });
     fireEvent.click(screen.getByRole("button", { name: "保存复盘" }));
 
     expect(screen.getByRole("button", { name: "保存中..." })).toBeDisabled();
@@ -121,7 +153,7 @@ describe("CookingLogSheet", () => {
     const { rerender } = render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
 
     fireEvent.change(screen.getByLabelText("老婆评价"), { target: { value: "香" } });
-    fireEvent.change(screen.getByLabelText("备注"), { target: { value: "下次继续" } });
+    fireEvent.change(screen.getByLabelText("下次改进"), { target: { value: "下次继续" } });
     fireEvent.click(screen.getByRole("button", { name: "保存复盘" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));

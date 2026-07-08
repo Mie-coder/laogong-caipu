@@ -124,6 +124,32 @@ describe("RecipeDetail v2", () => {
     expect(screen.queryByRole("button", { name: "菜谱信息" })).not.toBeInTheDocument();
   });
 
+  it("matches the 1:1 recipe detail design contract", async () => {
+    const { container } = render(<RecipeDetail id={7} />);
+
+    expect(await screen.findByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
+    expect(container.querySelector(".recipe-detail-page")).not.toBeNull();
+    expect(container.querySelector(".recipe-detail-hero")).not.toBeNull();
+    expect(container.querySelector(".recipe-detail-hero-image")).not.toBeNull();
+    expect(container.querySelector(".recipe-detail-topbar")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "返回菜谱列表" })).toHaveClass("recipe-detail-back-button");
+    expect(screen.getByRole("button", { name: "编辑菜谱" })).toHaveClass("recipe-detail-edit-button");
+    expect(screen.getByRole("button", { name: "更多操作" })).toHaveClass("recipe-detail-more-button");
+    expect(container.querySelector(".recipe-detail-summary")).not.toBeNull();
+    expect(screen.getByText("家常菜 · 中等 · 45 分钟 · 做过 3 次")).toBeInTheDocument();
+    expect(screen.getByText("老婆评分")).toBeInTheDocument();
+    expect(screen.getByText("4.8")).toBeInTheDocument();
+    expect(container.querySelector(".recipe-detail-tabs")).not.toBeNull();
+    expect(container.querySelector(".recipe-detail-tabs .is-active")).toHaveTextContent("备料");
+    expect(container.querySelector(".recipe-detail-ingredients")).not.toBeNull();
+    expect(container.querySelectorAll(".recipe-detail-prep-row")).toHaveLength(3);
+    expect(container.querySelector(".recipe-detail-steps")).not.toBeNull();
+    expect(container.querySelectorAll(".recipe-detail-step")).toHaveLength(2);
+    expect(container.querySelector(".recipe-detail-action-bar")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "查看复盘" })).toHaveClass("recipe-detail-review-button");
+    expect(screen.getByRole("button", { name: "标记做过" })).toHaveClass("recipe-detail-cooked-button");
+  });
+
   it("keeps header actions visible when the recipe has no image", async () => {
     mockState.getRecipeApi.mockResolvedValueOnce({
       recipe: makeRecipe({ coverImageUrl: "", imageUrls: [] })

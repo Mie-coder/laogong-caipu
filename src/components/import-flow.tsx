@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Circle,
+  Cloud,
   Clipboard,
   Clock3,
   Ellipsis,
@@ -38,6 +39,7 @@ type RecipeListItem = {
 
 const STORAGE_KEY = "import-flow-draft";
 const PARSING_LABELS = ["识别分享内容", "读取菜谱正文", "整理食材和步骤", "筛选菜谱图片"];
+const PARSING_DESCRIPTIONS = ["已找到小红书链接", "已提取食材与做法", "AI 正在核对用量与顺序", ""];
 const EXAMPLE = "5分钟就可以搞定！超级下饭的丝瓜炒蛋 丝瓜炒蛋可以算... http://xhslink.com/o/smiaxnsR3c 复制后打开【小红书】查看笔记！";
 
 function createEmptyDraft(): RecipeDraft {
@@ -87,6 +89,24 @@ function formatRecentMeta(recipe: RecipeListItem) {
     parts.push(`做过 ${recipe.cookedCount} 次`);
   }
   return parts.join(" · ");
+}
+
+function formatParsingSource(rawInput: string, draft?: RecipeDraft | null) {
+  if (draft?.name) {
+    return `来自小红书 · ${draft.name}`;
+  }
+
+  const cleaned = rawInput
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/复制后打开【小红书】查看笔记！?/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) {
+    return "来自小红书 · 正在读取分享";
+  }
+
+  return cleaned.startsWith("来自小红书") ? cleaned : `来自小红书 · ${cleaned}`;
 }
 
 export function ImportFlow(): JSX.Element {
@@ -180,7 +200,10 @@ export function ImportFlow(): JSX.Element {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [stage, hasUnsavedChanges]);
 
-  const previewCountLabel = useMemo(() => `已选 ${selectedUrls.length} 张`, [selectedUrls.length]);
+  const previewCountLabel = useMemo(
+    () => `${selectedUrls.length} / ${reviewUrls.length} 已选`,
+    [reviewUrls.length, selectedUrls.length]
+  );
 
   async function loadRecentRecipesAgain() {
     setListState((current) => ({ ...current, loading: true, error: "" }));
@@ -247,9 +270,9 @@ export function ImportFlow(): JSX.Element {
       setParsingStep(3);
 
       setDraft(nextDraft);
-      setReviewUrls(filteredUrls);
+      setReviewUrls(imageUrls);
       setSelectedUrls(filteredUrls);
-      setCoverUrl(null);
+      setCoverUrl(filteredUrls[0] ?? null);
       setHasParsedResult(true);
       setHasUnsavedChanges(false);
       setStage("images");
@@ -355,7 +378,7 @@ export function ImportFlow(): JSX.Element {
     }
   }
 
-  const parsingSummary = draft?.name || rawInput.trim().slice(0, 24) || "正在读取分享内容";
+  const parsingSummary = formatParsingSource(rawInput, draft);
 
   return (
     <>
@@ -506,35 +529,35 @@ export function ImportFlow(): JSX.Element {
       )}
 
       <BottomSheet open={sheetOpen} title="导入菜谱" onClose={closeSheet}>
-        <div className="flex min-h-[60vh] max-h-[75vh] flex-col">
-          <div className="space-y-4 pb-4">
-            <p className="text-sm leading-[1.5] text-muted">把分享文本贴进来，我会按菜谱结构整理好，图片也会先帮你筛一遍。</p>
+        <div className="flex min-h-[58vh] max-h-[72vh] flex-col">
+          <div className="space-y-3 pb-4">
+            <p className="import-sheet-lead text-[14px] leading-[22px] text-muted">把分享文本贴进来，我会按菜谱结构整理好，图片也会先帮你筛一遍。</p>
 
             <label className="block">
-              <span className="mb-2 block text-sm text-ink">分享文本</span>
+              <span className="mb-2 block text-[14px] leading-[20px] text-ink">分享文本</span>
               <textarea
                 ref={textareaRef}
                 aria-label="分享文本"
-                className="min-h-40 w-full rounded-[8px] border border-line bg-white px-4 py-3 text-base text-text outline-none focus:border-ink"
+                className="import-sheet-textarea min-h-[120px] w-full rounded-input border border-line bg-white px-4 py-3 text-[16px] leading-[25px] text-text outline-none placeholder:text-subtle focus:border-ink"
                 placeholder={EXAMPLE}
                 value={rawInput}
                 onChange={(event) => setRawInput(event.target.value)}
               />
             </label>
 
-            <button type="button" className="inline-flex min-h-[44px] items-center gap-2 text-sm font-semibold text-ink" onClick={() => void handlePaste()}>
-              <Clipboard className="h-4 w-4" aria-hidden="true" />
+            <button type="button" className="inline-flex min-h-[44px] items-center gap-2 text-[14px] font-semibold leading-[20px] text-ink" onClick={() => void handlePaste()}>
+              <Clipboard className="h-[18px] w-[18px]" aria-hidden="true" />
               粘贴分享文本
             </button>
 
-            <p className="text-xs leading-[1.4] text-subtle">支持小红书分享口令、短链和正文片段。关闭抽屉不会清空你已经粘贴的内容。</p>
+            <p className="import-sheet-hint text-[12px] leading-[17px] text-subtle">支持小红书分享口令、短链和正文片段。关闭抽屉不会清空你已经粘贴的内容。</p>
           </div>
 
-          <div className="mt-auto space-y-3 border-t border-line pb-[calc(var(--safe-bottom)+12px)] pt-4">
-            {sheetError ? <p className="text-sm text-[#d45b5b]">{sheetError}</p> : null}
+          <div className="mt-auto space-y-3 border-t border-line pb-[calc(var(--safe-bottom)+10px)] pt-4">
+            {sheetError ? <p className="import-sheet-error text-sm text-[#d45b5b]">{sheetError}</p> : null}
             <button
               type="button"
-              className="min-h-12 w-full rounded-[8px] bg-ink px-5 py-3 text-base font-semibold text-white disabled:bg-disabled"
+              className="import-sheet-submit min-h-[48px] w-full rounded-input bg-ink px-5 py-3 text-[16px] font-semibold text-white disabled:bg-disabled"
               disabled={!rawInput.trim() || isParsing}
               onClick={() => void handleParse()}
             >
@@ -545,81 +568,105 @@ export function ImportFlow(): JSX.Element {
       </BottomSheet>
 
       {stage === "parsing" && (
-        <section className="min-h-screen bg-bg px-5 pb-12 pt-6 text-text">
-          <header className="flex items-center justify-between">
-            <div className="w-11" />
-            <h1 className="text-[30px] font-bold leading-[1.25] text-ink">正在整理菜谱</h1>
-            <button type="button" className="text-sm text-ink" onClick={handleCancelParsing}>
-              取消解析
+        <section data-testid="import-parsing-page" className="import-parsing-page">
+          <header className="import-parsing-header">
+            <button type="button" aria-label="返回导入" className="import-parsing-back" onClick={handleCancelParsing}>
+              <ChevronLeft aria-hidden="true" />
             </button>
+            <h1 className="import-parsing-title">正在整理菜谱</h1>
+            <span className="import-parsing-header-spacer" aria-hidden="true" />
           </header>
 
-          <div className="mt-10 border-b border-line pb-6">
-            <p className="text-[17px] font-semibold leading-[1.5] text-ink">{parsingSummary}</p>
-            <p className="mt-2 text-sm leading-[1.5] text-muted">
-              来源分享正在转成菜谱，图片有的话也会顺手筛干净。
-            </p>
+          <div className="import-parsing-hero">
+            <img
+              src="/ui-concepts/import-parsing-hero.png"
+              alt="正在整理菜谱"
+              className="import-parsing-hero-image"
+            />
           </div>
 
-          <ol className="mt-8 space-y-5">
+          <p className="import-parsing-source">{parsingSummary}</p>
+
+          <ol className="import-parsing-timeline" aria-label="解析进度">
             {PARSING_LABELS.map((label, index) => {
               const isDone = index < parsingStep;
               const isCurrent = index === parsingStep;
               return (
-                <li key={label} className="flex items-center gap-4">
-                  <span className="flex h-6 w-6 items-center justify-center">
+                <li
+                  key={label}
+                  data-testid="import-parsing-step"
+                  className={`import-parsing-step ${isDone ? "is-done" : ""} ${isCurrent ? "is-current" : ""}`}
+                >
+                  <span className="import-parsing-step-marker">
                     {isDone ? (
-                      <Check className="h-5 w-5 text-ink" aria-hidden="true" />
+                      <Check className="import-parsing-step-check" aria-hidden="true" />
                     ) : isCurrent ? (
-                      <LoaderCircle className={`h-5 w-5 text-accent ${reduceMotion ? "" : "animate-spin"}`} aria-hidden="true" />
+                      <LoaderCircle className={`import-parsing-step-loader ${reduceMotion ? "" : "animate-spin"}`} aria-hidden="true" />
                     ) : (
-                      <Circle className="h-5 w-5 text-subtle" aria-hidden="true" />
+                      <Circle className="import-parsing-step-circle" aria-hidden="true" />
                     )}
                   </span>
-                  <span className="text-base leading-[1.65] text-text">{label}</span>
+                  <span className="import-parsing-step-copy">
+                    <span className="import-parsing-step-title">{label}</span>
+                    {PARSING_DESCRIPTIONS[index] ? (
+                      <span className="import-parsing-step-description">{PARSING_DESCRIPTIONS[index]}</span>
+                    ) : null}
+                  </span>
                 </li>
               );
             })}
           </ol>
 
-          <div className="mt-10 space-y-2 text-sm leading-[1.5] text-muted">
-            <p>已自动保留你的分享文本，取消后还能继续补充。</p>
-            <p>预计还要 10-20 秒。</p>
+          <div className="import-parsing-hints">
+            <p className="import-parsing-hint">
+              <Cloud aria-hidden="true" />
+              您的输入已自动保存
+            </p>
+            <p className="import-parsing-hint is-muted">
+              <Clock3 aria-hidden="true" />
+              通常需要 10-20 秒，请不要关闭页面
+            </p>
           </div>
+
+          <button type="button" className="import-parsing-cancel" onClick={handleCancelParsing}>
+            取消解析
+          </button>
         </section>
       )}
 
       {stage === "images" && draft && (
-        <section className="min-h-screen bg-bg px-5 pb-28 pt-6 text-text">
-          <header className="flex items-center justify-between">
-            <button type="button" aria-label="返回解析结果" className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink" onClick={handleReturnToParsedResult}>
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+        <section data-testid="image-review-page" className="image-review-page">
+          <header className="image-review-header">
+            <button type="button" aria-label="返回解析结果" className="image-review-back" onClick={handleReturnToParsedResult}>
+              <ChevronLeft aria-hidden="true" />
             </button>
-            <div className="text-center">
-              <h1 className="text-[20px] font-semibold leading-[1.4] text-ink">图片审核</h1>
-              <p className="text-[13px] leading-[1.45] text-muted">{previewCountLabel}</p>
+            <div className="image-review-heading">
+              <span className="sr-only">图片审核</span>
+              <h1 className="image-review-title">选择菜谱图片</h1>
+              <p className="image-review-subtitle">保留真正有助于做菜的图片</p>
             </div>
-            <div className="w-11" />
+            <p className="image-review-count">{previewCountLabel}</p>
           </header>
 
-          <div className="mt-6">
+          <div className="image-review-body">
             <ImageCarousel
               images={reviewUrls}
               selectedUrls={selectedUrls}
               coverUrl={coverUrl}
               onToggleSelection={handleToggleSelection}
               onSetCover={handleSetCover}
+              variant="imageReview"
             />
           </div>
 
-          <p className="mt-4 text-sm leading-[1.5] text-muted">AI 先帮你筛掉了一轮头像、表情包和推广图，剩下的你再看一眼就够了。</p>
+          <p className="image-review-note">AI 已推荐 {selectedUrls.length} 张，你可以继续调整</p>
 
-          <div className="fixed bottom-0 left-1/2 z-40 w-full max-w-[430px] -translate-x-1/2 bg-bg px-5 pb-[calc(var(--safe-bottom)+16px)] pt-4">
-            <div className="space-y-3 border-t border-line pt-4">
-              <button type="button" className="min-h-12 w-full rounded-[8px] bg-ink px-5 py-3 text-base font-semibold text-white" onClick={handleConfirmImages}>
-                确认图片并继续
+          <div className="image-review-footer fixed bottom-0 left-1/2 z-40 w-full max-w-[430px] -translate-x-1/2">
+            <div className="image-review-footer-inner">
+              <button type="button" className="image-review-submit" onClick={handleConfirmImages}>
+                确认图片（{selectedUrls.length}）
               </button>
-              <button type="button" className="w-full text-sm text-ink" onClick={() => goToConfirm([], null)}>
+              <button type="button" className="image-review-empty" onClick={() => goToConfirm([], null)}>
                 无图保存
               </button>
             </div>
@@ -628,18 +675,18 @@ export function ImportFlow(): JSX.Element {
       )}
 
       {stage === "confirm" && draft && (
-        <section className="min-h-screen bg-bg px-5 pb-28 pt-6 text-text">
-          <header className="flex items-center justify-between">
-            <button type="button" aria-label="返回图片审核" className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink" onClick={() => setStage("images")}>
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+        <section data-testid="recipe-confirm-page" className="recipe-confirm-page">
+          <header className="recipe-confirm-header">
+            <button type="button" aria-label="返回图片审核" className="recipe-confirm-back" onClick={() => setStage("images")}>
+              <ChevronLeft aria-hidden="true" />
             </button>
-            <h1 className="text-[20px] font-semibold leading-[1.4] text-ink">确认菜谱</h1>
-            <button type="button" className="text-sm font-semibold text-ink" onClick={handleSaveDraft}>
+            <h1 className="recipe-confirm-title">确认菜谱</h1>
+            <button type="button" className="recipe-confirm-draft-button" onClick={handleSaveDraft}>
               保存草稿
             </button>
           </header>
 
-          <div className="mt-6">
+          <div className="recipe-confirm-body">
             <RecipeConfirmForm
               draft={draft}
               imageUrls={selectedUrls}
@@ -650,12 +697,13 @@ export function ImportFlow(): JSX.Element {
             />
           </div>
 
-          <div className="fixed bottom-0 left-1/2 z-40 w-full max-w-[430px] -translate-x-1/2 bg-bg px-5 pb-[calc(var(--safe-bottom)+16px)] pt-4">
-            <div className="space-y-3 border-t border-line pt-4">
-              {saveError ? <p className="text-sm text-[#d45b5b]">{saveError}</p> : null}
+          <div className="recipe-confirm-footer fixed bottom-0 left-1/2 z-40 w-full max-w-[430px] -translate-x-1/2">
+            <div className="recipe-confirm-footer-inner">
+              {saveError ? <p className="recipe-confirm-error">{saveError}</p> : null}
+              <p className="recipe-confirm-save-hint"><span aria-hidden="true">•</span> 请确认食材用量后再保存</p>
               <button
                 type="button"
-                className="min-h-12 w-full rounded-[8px] bg-ink px-5 py-3 text-base font-semibold text-white disabled:bg-disabled"
+                className="recipe-confirm-submit"
                 disabled={saving || !draft.name.trim() || !hasValidSteps(draft)}
                 onClick={() => void handleSaveRecipe()}
               >

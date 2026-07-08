@@ -251,94 +251,215 @@
 
 参考：`docs/ui-concepts/02-import-sheet.png`
 
-### 结构
+### 2.1 结构
 
 1. 背景保留首页并加半透明遮罩。
 2. 白色底部抽屉。
-3. 标题、说明、关闭按钮。
+3. 顶部拖动条、标题、说明、关闭按钮。
 4. 分享文本输入区和粘贴操作。
 5. 辅助提示。
-6. 深墨色“开始智能解析”按钮。
+6. 固定在抽屉底部安全区上方的深墨色”开始智能解析”按钮。
 
-### 规则
+### 2.2 画布与容器
 
-- 抽屉高度约占屏幕 60%–75%。
+```css
+.bottom-sheet {
+  max-height: 78vh;
+  padding: 8px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-radius: 8px 8px 0 0;
+  background: #ffffff;
+  box-shadow: 0 -8px 30px rgba(46, 39, 37, 0.10);
+}
+```
+
+- 白色实体背景，顶部圆角 8px，不使用毛玻璃。
+- 顶部拖动条：宽 36px，高 4px，居中，颜色 `#e9e3df`。
+- 标题行下边距 20px；内容区可滚动；底部操作区固定。
+- 375px–430px 宽度下左右边距 20px。
+
+### 2.3 字体
+
+| 用途 | 字号 | 字重 | 行高 | 颜色 |
+| --- | ---: | ---: | ---: | --- |
+| 标题 | 20px | 600 | 1.4 | `#2e2725` |
+| 说明 | 14px | 400 | 22px | `#6f6865` |
+| 字段标签 | 14px | 400 | 20px | `#2e2725` |
+| 输入文字 | 16px | 400 | 25px | `#3d3633` |
+| 粘贴按钮 | 14px | 600 | 20px | `#2e2725` |
+| 辅助提示 | 12px | 400 | 17px | `#9a928e` |
+| 主按钮 | 16px | 600 | 1.4 | 白色（底 `#2e2725`） |
+
+### 2.4 纵向坐标（390px 基准）
+
+| 区块 | 间距/位置 | 说明 |
+| --- | --- | --- |
+| 拖动条 | 顶部 8px | 居中，36×4px |
+| 标题行 | 拖动条下方 12px | 高 44px，左边标题，右 44px 关闭 |
+| 说明 | 标题行下方 20px | 14px/22px，灰 |
+| 字段标签 | 说明下方 12px | mb-8 |
+| 输入框 | 标签下方 8px | 初始高度 120px |
+| 粘贴按钮 | 输入框下方 12px | 44px 高，图标 18px |
+| 辅助提示 | 粘贴按钮下方 12px | 12px/17px |
+| 底部分隔线 | 内容区与操作区之间 | `1px solid #e9e3df` |
+| 主按钮 | 分隔线顶部下方 16px | 高 48px，圆角 8px |
+
+### 2.5 锚点 class hook
+
+- `.bottom-sheet` — 抽屉容器
+- `.bottom-sheet-content` — 滚动内容区
+- `.import-sheet-lead` — 说明段落
+- `.import-sheet-textarea` — 分享文本输入框
+- `.import-sheet-hint` — 辅助提示
+- `.import-sheet-error` — 错误提示
+- `.import-sheet-submit` — 主按钮
+
+### 2.6 规则
+
+- 抽屉高度约占屏幕 58%–72%。
 - 输入框只使用 1px 细边框。
 - 输入为空时主按钮禁用。
 - 粘贴失败时聚焦输入框。
 - 关闭抽屉不得清空已输入内容。
 - 主按钮固定在抽屉底部安全区上方。
+- 按下主按钮时 opacity 降至 0.88，不缩放。
+
+### 2.7 验收要点
+
+- 背景首页可见但被半透明遮罩覆盖。
+- 标题、关闭按钮在同一行两端。
+- 输入框使用细边框，无大圆角、无毛玻璃。
+- 按钮高度 48px，深墨色底白字，圆角 8px。
+- 主按钮禁用时色值跟随 `--color-disabled`。
 
 ## 3. 解析进度
 
 参考：`docs/ui-concepts/03-parsing.png`
 
-### 结构
+### 3.1 画布与根节点
 
-1. 返回按钮和标题“正在整理菜谱”。
-2. 菜品图片和来源摘要。
-3. 四阶段纵向时间线：
-   - 识别分享内容
-   - 读取菜谱正文
-   - 整理食材和步骤
-   - 筛选菜谱图片
-4. 自动保存提示、预计时间和取消操作。
+- 设计稿原图：853 × 1844；CSS 基准：430 × 930。
+- 页面路由：`/` 导入流程内部 `stage === "parsing"`。
+- 根节点：`.import-parsing-page`，全屏流程页，出现时隐藏全局 `.bottom-nav`，`main` 不保留 AppShell gutter。
+- 背景：`#fffaf7`，不用毛玻璃卡片和大色块。
 
-### 规则
+### 3.2 顶部与主图
 
-- 已完成阶段使用深墨色实心勾选。
-- 当前阶段使用小型珊瑚色进度环。
-- 未开始阶段使用浅灰描边。
-- 不使用大色块状态卡片。
-- 取消解析前进行确认。
-- 失败后回到导入抽屉，并保留输入。
+- 头部：`.import-parsing-header`，高度 102px，三列 `70px / 1fr / 70px`。
+- 返回按钮：`.import-parsing-back`，44px 热区，`ChevronLeft` 34px，颜色 `#171412`。
+- 标题：`.import-parsing-title`，`正在整理菜谱`，24px/34px，700，居中。
+- 主图：`.import-parsing-hero` 高 190px，宽度贴满 430px 容器；图片 `.import-parsing-hero-image` 使用本地裁图 `public/ui-concepts/import-parsing-hero.png`，`object-fit: cover`。
+- 来源摘要：`.import-parsing-source`，左右 25px，距主图 25px，18px/28px，单行省略。格式为 `来自小红书 · 菜名或分享标题`，去掉短链和“小红书查看笔记”尾巴。
+
+### 3.3 时间线
+
+- 时间线根：`.import-parsing-timeline`，距来源 45px，左侧 marker 中心线 x≈80px，竖线 1px `#d8d1cc`。
+- 单步：`.import-parsing-step`，`data-testid="import-parsing-step"`，四项固定：
+  - `识别分享内容` / `已找到小红书链接`
+  - `读取菜谱正文` / `已提取食材与做法`
+  - `整理食材和步骤` / `AI 正在核对用量与顺序`
+  - `筛选菜谱图片`
+- 已完成：`.is-done`，48px 深墨色实心圆，白色 `Check`。
+- 当前：`.is-current`，48px 圆，6px 珊瑚色进度环，内部 `LoaderCircle`。
+- 未开始：灰色描边 `Circle`，标题颜色降为 `#8d8580`。
+- 标题：`.import-parsing-step-title`，24px/34px，700；说明 `.import-parsing-step-description`，18px/28px。
+
+### 3.4 提示与取消
+
+- 提示组：`.import-parsing-hints`，距时间线约 80px，顶部虚线；两行 `.import-parsing-hint`：
+  - `您的输入已自动保存`，`Cloud` 图标珊瑚色。
+  - `通常需要 10-20 秒，请不要关闭页面`，`Clock3` 图标灰色。
+- 取消：`.import-parsing-cancel`，文字 `取消解析`，19px/27px，700，底部 1px 下划线。
+- 取消解析前必须 `window.confirm`；取消后回导入抽屉，保留输入；解析失败也回导入抽屉并显示错误。
 
 ## 4. 图片审核
 
 参考：`docs/ui-concepts/04-image-review.png`
 
-### 结构
+### 4.1 画布与根节点
 
-1. 返回、标题和已选数量。
-2. 大图预览。
-3. 横向缩略图列表。
-4. 设为封面和取消选择。
-5. AI 推荐说明。
-6. 固定确认按钮和无图保存。
+- 页面路由：`/` 导入流程内部 `stage === "images"`。
+- 根节点：`.image-review-page`，全屏流程页，左右 22px，底部为固定操作区预留 220px。
+- 标题视觉文案：`选择菜谱图片`；为了旧流程测试兼容，可保留 `图片审核` 的 sr-only 文本。
 
-### 规则
+### 4.2 顶部
 
-- 大图不放在额外卡片内。
-- 缩略图选中使用 1px 珊瑚色边框和勾选图标。
-- 未选图片仅降低透明度。
-- 第一张图片不自动等同于封面，封面必须显式标记。
-- 删除或取消后自动定位相邻图片。
-- 支持全部取消并无图保存。
+- 头部：`.image-review-header`，最小高 130px，三列 `54px / 1fr / 86px`。
+- 返回按钮：`.image-review-back`，`ChevronLeft` 34px。
+- 标题：`.image-review-title`，24px/34px，700。
+- 副标题：`.image-review-subtitle`，`保留真正有助于做菜的图片`，17px/25px，灰色。
+- 计数：`.image-review-count`，格式 `{已选数} / {原图总数} 已选`，右对齐，17px/25px。
+
+### 4.3 大图与缩略图
+
+- 轮播变体：`ImageCarousel variant="imageReview"`。
+- 根节点：`.image-review-carousel`。
+- 大图框：`.image-review-main-frame`，圆角 6px，不放额外卡片；媒体区 `.image-review-main-media` 使用 `aspect-ratio: 1 / 1.14`；图片 `.image-review-main-image` 覆盖裁切。
+- 封面标记：`.image-review-cover-badge`，左上角深墨半透明底，文字 `封面`。封面必须来自 `coverUrl`，不能用第一张隐式推断。
+- 查看大图：`.image-review-fullscreen-button`，右上 38px 深色半透明按钮，`Maximize2` 图标。
+- 缩略图：`.image-review-thumbnails` 横向滚动；单项 `.image-review-thumbnail` 为 72 × 94px。
+- 选中态：`.is-selected`，2px 珊瑚色边框，右上 `.image-review-thumbnail-check` 珊瑚圆形勾。
+- 未选态：`.is-muted`，仅降低透明度到 0.45，不删除、不重排。
+- 缩略图仍显示全部 `imageUrls`；`filterImages` 的结果只决定初始 `selectedUrls` 和初始 `coverUrl`。
+
+### 4.4 操作区
+
+- 图片操作：`.image-review-actions`，顶部分割线，两列；按钮 `.image-review-action`，包含 `Star` + `设为封面`、`Trash2` + `取消选择/恢复选择`。
+- 推荐说明：`.image-review-note`，文案 `AI 已推荐 N 张，你可以继续调整`，居中灰色。
+- 固定底部：`.image-review-footer`，`z-40`，半透明暖白背景，顶部发丝线。
+- 主按钮：`.image-review-submit`，文案 `确认图片（N）`，50px 高，深墨色，4px 圆角。
+- 次按钮：`.image-review-empty`，文案 `无图保存`。
+- 删除或取消当前图后必须自动定位到最近仍选中的图片；全部取消后显示 `0 / 总数 已选` 并允许无图保存。
 
 ## 5. 菜谱确认
 
 参考：`docs/ui-concepts/05-recipe-confirm.png`
 
-### 结构
+### 5.1 画布与根节点
 
-1. 返回、标题和保存草稿。
-2. 封面缩略图、菜名和基础元数据。
-3. “概览 / 食材 / 步骤”文字标签。
-4. 标签编辑。
-5. 食材与调料两列列表。
-6. 大号步骤序号和步骤正文。
-7. 固定“保存菜谱”按钮。
+- 页面路由：`/` 导入流程内部 `stage === "confirm"`。
+- 根节点：`.recipe-confirm-page`，全屏流程页，左右 17px，底部为固定保存区预留 174px。
+- 表单根：`.recipe-confirm-form`，`data-testid="recipe-confirm-form"`。
+- 出现时隐藏全局 `.bottom-nav`，不得出现旧式玻璃卡片。
 
-### 规则
+### 5.2 顶部与摘要
 
-- 页面不使用多个独立卡片包裹字段。
-- 标签切换使用短下划线。
-- 食材名称和用量左右对齐。
-- 步骤序号使用 `01 / 02 / 03`。
-- 编辑操作使用铅笔图标。
-- 食材和步骤支持新增、删除、编辑和排序。
-- 菜名为空或步骤为空时禁止保存。
-- 离开未保存页面前必须确认。
+- 顶部：`.recipe-confirm-header`，高度 102px，三列 `76px / 1fr / 82px`。
+- 返回按钮：`.recipe-confirm-back`，`ChevronLeft` 34px。
+- 标题：`.recipe-confirm-title`，`确认菜谱`，23px/32px，700。
+- 保存草稿：`.recipe-confirm-draft-button`，右对齐，17px/25px。
+- 摘要：`.recipe-confirm-summary`，左图右文，列间距 15px。
+- 封面：`.recipe-confirm-cover`，比例约 1.88:1，圆角 4px，图片 `.recipe-confirm-cover-image`。
+- 菜名：`.recipe-confirm-name`，仍是可编辑 input，30px/42px，宋体/Georgia 风格，700。
+- 菜名编辑按钮：`.recipe-confirm-edit-button`，视觉图标约 21px；点击必须聚焦并选中 `.recipe-confirm-name`，不能只是静态图标。
+- 元信息：`.recipe-confirm-meta`，格式 `分类 · 难度中文 · N 分钟`，17px/25px，单行。
+
+### 5.3 标签与食材
+
+- Tab：`.recipe-confirm-tabs`，三列 `概览 / 食材 / 步骤`；当前项 `.is-active` 使用 36px 珊瑚色下划线。点击 tab 必须更新 `aria-selected` 和 `.is-active`，并滚动到对应分区。
+- 分区标题：`.recipe-confirm-section-title`，21px/30px，700；右侧编辑按钮 `.recipe-confirm-section-edit-button` 内含图标 `.recipe-confirm-section-icon`，必须能触发对应编辑动作或聚焦对应输入。
+- 标签区：`.recipe-confirm-tags`，标签 `.recipe-confirm-tag` 使用细边框小矩形；加号 `.recipe-confirm-tag-add` 点击后必须能添加标签，不能无反馈。
+- 食材区根：`.recipe-confirm-ingredients`。
+- 食材列表：`.recipe-confirm-ingredient-list`，按设计稿首屏高度裁切；DOM 中仍保留完整可编辑项；点击查看全部后增加 `.is-expanded`，取消高度裁切。
+- 食材行：`.recipe-confirm-ingredient-row` 必须同时保留 `grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)]` 以保证长用量换行和旧测试兼容。
+- 名称：`.recipe-confirm-ingredient-name`；用量：`.recipe-confirm-ingredient-amount resize-none`，两列底线式输入；默认单行高度必须一致，左右底线在同一水平线上。
+- 行操作：`.recipe-confirm-ingredient-actions col-span-2 flex justify-end`，包含上移、下移、删除，但默认必须同时带 `.recipe-confirm-layout-hidden`，只保留可访问/可测试能力，不进入视觉布局流，也不能拦截真实点击。
+- 新增食材/调料按钮 `.recipe-confirm-add-line` 默认也必须带 `.recipe-confirm-layout-hidden`，不能在预览态露出 `添加食材 / 添加调料` 文案。
+- 查看全部：`.recipe-confirm-more`，折叠态格式 `查看全部 N 项`；点击后展开并变为可收起状态。
+
+### 5.4 步骤与固定保存
+
+- 步骤分区：`.recipe-confirm-steps`。
+- 步骤列表：`.recipe-confirm-step-list`，视觉上展示前两步高度；DOM 保留完整可编辑项；点击查看全部后增加 `.is-expanded`，取消高度裁切。
+- 步骤行：`.recipe-confirm-step`，列为序号、正文、操作。
+- 序号：`.recipe-confirm-step-order`，`01 / 02 / 03`，34px italic serif。
+- 正文：`.recipe-confirm-step-text`，textarea，18px/31px。
+- 操作：`.recipe-confirm-step-actions` 只允许视觉展示拖拽提示 `.recipe-confirm-step-grip`；上移、下移、删除按钮必须带 `.recipe-confirm-layout-hidden`，不能撑高步骤行。
+- 添加步骤按钮 `.recipe-confirm-add-line` 默认必须带 `.recipe-confirm-layout-hidden`，不能在预览态露出 `添加步骤`。
+- 查看全部：`.recipe-confirm-more`，折叠态格式 `查看全部 N 步`；点击后展开并变为可收起状态。
+- 固定底部：`.recipe-confirm-footer`，`z-40`，顶部发丝线，半透明暖白。
+- 保存提示：`.recipe-confirm-save-hint`，文案 `请确认食材用量后再保存`，前置珊瑚色圆点。
+- 主按钮：`.recipe-confirm-submit`，50px 高，深墨色，4px 圆角；禁用态 `#c9c2be`。
+- 菜名为空或步骤为空时禁止保存；保存失败显示 `.recipe-confirm-error`；保存成功跳转详情页。
 
 ## 6. 菜谱列表
 
@@ -388,6 +509,20 @@
 - “标记做过”始终可发现，不完全隐藏。
 - 删除放在更多菜单中，并二次确认。
 
+### 1:1 实施规格
+
+- 根节点：`.recipe-detail-page`，抵消 `AppShell` 横向 padding，背景 `#fffaf7`，底部为固定操作栏预留 `132px + safe-area`。
+- 顶部图：`.recipe-detail-hero` / `.recipe-detail-hero-image`，全宽 `430px` 基准，高约 `306px`，`object-fit: cover`，不加暗色遮罩；顶部操作直接浮在图上。
+- 顶部操作：`.recipe-detail-topbar`，y≈55px，左右 16px；返回 `ChevronLeft` 36px，编辑 `PencilLine` 30px，更多 `Ellipsis` 31px，点击热区均 `44px`。
+- 内容边距：`.recipe-detail-content` 左右 `clamp(23px, 5.8vw, 25px)`。
+- 菜名：`.recipe-detail-title`，宋体感字体，37px/1.18，颜色 `#24201e`。
+- 元信息：`.recipe-detail-meta`，格式固定为 `分类 · 难度 · 用时 · 做过 N 次`，16px/24px，颜色 `#706965`。
+- 评分：`.recipe-detail-rating`，`老婆评分` + 珊瑚色数字，16px/24px。
+- 标签切换：`.recipe-detail-tabs`，两列文字按钮，选中项 `.is-active` 底部 2px 珊瑚线。
+- 食材行：`.recipe-detail-prep-row`，底部发丝线；`.recipe-detail-prep-label` 三列：圆形 checkbox、名称、右对齐用量。
+- 步骤：`.recipe-detail-step-number` 使用 italic serif 46px；正文 `.recipe-detail-step-text` 为 17px/29px；步骤图片 `.recipe-detail-step-image` 圆角 6px。
+- 底部操作栏：`.recipe-detail-action-bar` 固定底部，隐藏详情页全局 `.bottom-nav`；左侧 `.recipe-detail-review-button`，右侧 `.recipe-detail-cooked-button` 深墨色按钮。
+
 ## 8. 做菜复盘
 
 参考：`docs/ui-concepts/08-cook-review.png`
@@ -410,6 +545,19 @@
 - 至少填写评分或一项文字内容后才能保存。
 - 保存后清空表单、关闭抽屉、做过次数加一。
 - 成功只显示短 Toast，不播放全屏庆祝动画。
+
+### 1:1 实施规格
+
+- 抽屉容器：`BottomSheet variant="review"` 输出 `.bottom-sheet-review`，430px 基准高度约 584px，顶部圆角 16px，纯白背景，无阴影装饰。
+- 拖动条：`.bottom-sheet-handle`，46px × 3px，灰色 `#d8d8d8`，位于抽屉顶部居中。
+- 标题：`.bottom-sheet-title`，`这次做得怎么样？`，23px/32px，字重 700；关闭按钮为 44px 热区，`X` 图标 25px。
+- 表单根：`.cook-review-form`；副标题 `.cook-review-lead` 为 15px/22px，颜色 `#7a706c`。
+- 评分：`.cook-review-stars` 五个 `Star`，图标 40px，已选填充 `#ff5f52`；评分文字 `.cook-review-rating-label` 居中。
+- 老婆评价：`.cook-review-feedback`，标题、提示 `她怎么说？` 和单行底线式 textarea，不使用填充输入框。
+- 下次改进：`.cook-review-tags` 四个细边框标签：`少盐`、`火小一点`、`时间短一点`、`再辣一点`；`.is-selected` 只改边框色为珊瑚色，不填充。
+- 改进文字：`.cook-review-improvement-textarea`，与快捷标签合并提交到 `husbandImprovementNotes`，用中文逗号连接。
+- 做菜时间：`.cook-review-time-row` 显示当前 `今天 HH:mm`，只用于展示，不把 `cookedAt` 塞入提交 payload。
+- 保存按钮：`.cook-review-submit`，48px 高，4px 圆角，深墨色；禁用态使用 `#c9c2be`。
 
 ## 9. 页面流转
 

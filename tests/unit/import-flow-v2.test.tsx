@@ -158,6 +158,10 @@ describe("ImportFlow v2 state flow", () => {
     render(<ImportFlow />);
 
     await openImportSheet();
+    expect(screen.getByRole("dialog")).toHaveClass("bottom-sheet");
+    expect(screen.getByTestId("home-page")).toBeInTheDocument();
+    expect(screen.getByLabelText("分享文本")).toHaveClass("import-sheet-textarea");
+    expect(screen.getByRole("button", { name: "开始智能解析" })).toHaveClass("import-sheet-submit");
 
     const submit = screen.getByRole("button", { name: "开始智能解析" });
     expect(submit).toBeDisabled();
@@ -196,6 +200,32 @@ describe("ImportFlow v2 state flow", () => {
     expect(screen.getByDisplayValue("分享文本 http://xhslink.com/demo")).toBeInTheDocument();
   });
 
+  it("matches the 1:1 parsing progress design contract", async () => {
+    const parseRequest = deferred<{
+      recipe: RecipeDraft;
+      imageUrls: string[];
+      needsSupplement: boolean;
+      crawlStatus: string;
+      crawlError: string;
+    }>();
+    mockState.parseImportApi.mockReturnValue(parseRequest.promise);
+
+    render(<ImportFlow />);
+
+    await startImport("来自小红书 · 番茄炖牛腩 http://xhslink.com/demo");
+
+    const page = await screen.findByTestId("import-parsing-page");
+    expect(page).toHaveClass("import-parsing-page");
+    expect(screen.getByRole("img", { name: "正在整理菜谱" })).toHaveClass("import-parsing-hero-image");
+    expect(screen.getByText("来自小红书 · 番茄炖牛腩")).toHaveClass("import-parsing-source");
+    expect(screen.getByRole("list", { name: "解析进度" })).toHaveClass("import-parsing-timeline");
+    expect(screen.getAllByTestId("import-parsing-step")).toHaveLength(4);
+    expect(screen.getAllByTestId("import-parsing-step")[0]).toHaveClass("is-current");
+    expect(screen.getByText("AI 正在核对用量与顺序")).toBeInTheDocument();
+    expect(screen.getByText("您的输入已自动保存")).toHaveClass("import-parsing-hint");
+    expect(screen.getByRole("button", { name: "取消解析" })).toHaveClass("import-parsing-cancel");
+  });
+
   it("treats filter fallback as a successful degraded path and enters image review", async () => {
     mockState.parseImportApi.mockResolvedValue({
       recipe: makeDraft(),
@@ -211,8 +241,40 @@ describe("ImportFlow v2 state flow", () => {
     await startImport();
 
     expect(await screen.findByText("图片审核")).toBeInTheDocument();
-    expect(screen.getByText("已选 2 张")).toBeInTheDocument();
+    expect(screen.getByText("2 / 2 已选")).toBeInTheDocument();
     expect(screen.queryByText(/筛图失败|图片筛选失败/)).not.toBeInTheDocument();
+  });
+
+  it("matches the 1:1 image review design contract with all source images visible", async () => {
+    mockState.parseImportApi.mockResolvedValue({
+      recipe: makeDraft({ name: "番茄炖牛腩" }),
+      imageUrls: ["cover.jpg", "beef.jpg", "tomato.jpg", "spice.jpg", "portrait.jpg"],
+      needsSupplement: false,
+      crawlStatus: "ok",
+      crawlError: ""
+    });
+    mockState.filterImages.mockResolvedValue(["cover.jpg", "beef.jpg", "tomato.jpg"]);
+
+    render(<ImportFlow />);
+
+    await startImport();
+
+    const page = await screen.findByTestId("image-review-page");
+    expect(page).toHaveClass("image-review-page");
+    expect(screen.getByText("选择菜谱图片")).toHaveClass("image-review-title");
+    expect(screen.getByText("3 / 5 已选")).toHaveClass("image-review-count");
+    expect(screen.getByText("保留真正有助于做菜的图片")).toHaveClass("image-review-subtitle");
+    expect(screen.getByTestId("image-review-carousel")).toHaveClass("image-review-carousel");
+    expect(screen.getByRole("img", { name: "图片 1" })).toHaveClass("image-review-main-image");
+    expect(screen.getByTestId("image-review-thumbnails")).toHaveClass("image-review-thumbnails");
+    expect(screen.getAllByTestId("image-review-thumbnail")).toHaveLength(5);
+    expect(screen.getAllByTestId("image-review-thumbnail")[0]).toHaveClass("is-selected");
+    expect(screen.getAllByTestId("image-review-thumbnail")[3]).toHaveClass("is-muted");
+    expect(screen.getByRole("button", { name: "设为封面" })).toHaveClass("image-review-action");
+    expect(screen.getByRole("button", { name: "取消选择" })).toHaveClass("image-review-action");
+    expect(screen.getByText("AI 已推荐 3 张，你可以继续调整")).toHaveClass("image-review-note");
+    expect(screen.getByRole("button", { name: "确认图片（3）" })).toHaveClass("image-review-submit");
+    expect(screen.getByRole("button", { name: "无图保存" })).toHaveClass("image-review-empty");
   });
 
   it("keeps image review and confirmation actions above the bottom navigation", async () => {
@@ -228,10 +290,10 @@ describe("ImportFlow v2 state flow", () => {
     render(<ImportFlow />);
 
     await startImport();
-    const imageReviewActions = (await screen.findByRole("button", { name: "确认图片并继续" })).closest(".fixed");
+    const imageReviewActions = (await screen.findByRole("button", { name: /^确认图片/ })).closest(".fixed");
     expect(imageReviewActions).toHaveClass("z-40");
 
-    fireEvent.click(screen.getByRole("button", { name: "确认图片并继续" }));
+    fireEvent.click(screen.getByRole("button", { name: /^确认图片/ }));
     const confirmationActions = screen.getByRole("button", { name: "保存菜谱" }).closest(".fixed");
     expect(confirmationActions).toHaveClass("z-40");
   });
@@ -252,7 +314,7 @@ describe("ImportFlow v2 state flow", () => {
     render(<ImportFlow />);
 
     await startImport();
-    fireEvent.click(await screen.findByRole("button", { name: "确认图片并继续" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^确认图片/ }));
 
     for (const deleteButton of [
       screen.getByRole("button", { name: "删除食材 1" }),
@@ -324,7 +386,7 @@ describe("ImportFlow v2 state flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "设为封面" }));
     fireEvent.click(screen.getByRole("button", { name: "取消选择" }));
     fireEvent.click(screen.getByRole("button", { name: "取消选择" }));
-    expect(screen.getByText("已选 0 张")).toBeInTheDocument();
+    expect(screen.getByText("0 / 2 已选")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "无图保存" }));
 
@@ -333,7 +395,7 @@ describe("ImportFlow v2 state flow", () => {
     fireEvent.change(nameInput, { target: { value: "改过的菜名" } });
     fireEvent.click(screen.getByRole("button", { name: "返回图片审核" }));
     expect(await screen.findByText("图片审核")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "确认图片并继续" }));
+    fireEvent.click(screen.getByRole("button", { name: /^确认图片/ }));
 
     expect(await screen.findByDisplayValue("改过的菜名")).toBeInTheDocument();
   });
@@ -407,7 +469,7 @@ describe("ImportFlow v2 state flow", () => {
     render(<ImportFlow />);
 
     await startImport();
-    fireEvent.click(await screen.findByRole("button", { name: "确认图片并继续" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^确认图片/ }));
 
     const nameInput = screen.getByLabelText("菜名");
     fireEvent.change(nameInput, { target: { value: "   " } });
@@ -453,7 +515,7 @@ describe("ImportFlow v2 state flow", () => {
     render(<ImportFlow />);
 
     await startImport();
-    fireEvent.click(await screen.findByRole("button", { name: "确认图片并继续" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^确认图片/ }));
 
     fireEvent.change(screen.getAllByLabelText("食材名称")[0], { target: { value: "嫩丝瓜" } });
     fireEvent.change(screen.getAllByLabelText("食材用量")[0], { target: { value: "2根" } });
@@ -514,7 +576,7 @@ describe("ImportFlow v2 state flow", () => {
     render(<ImportFlow />);
 
     await startImport();
-    fireEvent.click(await screen.findByRole("button", { name: "确认图片并继续" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^确认图片/ }));
 
     fireEvent.click(screen.getByRole("button", { name: "添加调料" }));
     const seasoningNames = screen.getAllByLabelText("调料名称");
@@ -557,5 +619,130 @@ describe("ImportFlow v2 state flow", () => {
     });
     expect(mockState.push).toHaveBeenCalledWith("/recipes/42");
     expect(window.sessionStorage.getItem("import-flow-draft")).toBeNull();
+  });
+
+  it("matches the 1:1 recipe confirmation design contract", async () => {
+    mockState.parseImportApi.mockResolvedValue({
+      recipe: makeDraft({
+        name: "番茄炖牛腩",
+        mainCategory: "家常菜",
+        difficulty: "medium",
+        cookTimeMinutes: 45,
+        tags: ["下饭菜", "炖菜", "牛肉"],
+        ingredients: [
+          { name: "牛腩", amount: "500 克", type: "ingredient" },
+          { name: "番茄", amount: "3 个", type: "ingredient" },
+          { name: "洋葱", amount: "半个", type: "ingredient" },
+          { name: "生抽", amount: "2 勺", type: "seasoning" }
+        ],
+        seasonings: [],
+        steps: [
+          { order: 1, text: "牛腩冷水下锅，加入姜片、料酒，焯水煮出浮沫，捞出冲洗干净备用。" },
+          { order: 2, text: "热锅冷油，放入洋葱炒香，再加入番茄块，炒出汤汁。" },
+          { order: 3, text: "加入牛腩小火炖煮。" }
+        ]
+      }),
+      imageUrls: ["cover.jpg"],
+      needsSupplement: false,
+      crawlStatus: "ok",
+      crawlError: ""
+    });
+    mockState.filterImages.mockResolvedValue(["cover.jpg"]);
+
+    render(<ImportFlow />);
+
+    await startImport();
+    fireEvent.click(await screen.findByRole("button", { name: "确认图片（1）" }));
+
+    const page = await screen.findByTestId("recipe-confirm-page");
+    expect(page).toHaveClass("recipe-confirm-page");
+    expect(screen.getByText("确认菜谱")).toHaveClass("recipe-confirm-title");
+    expect(screen.getByRole("button", { name: "保存草稿" })).toHaveClass("recipe-confirm-draft-button");
+    expect(screen.getByTestId("recipe-confirm-form")).toHaveClass("recipe-confirm-form");
+    expect(screen.getByTestId("recipe-confirm-summary")).toHaveClass("recipe-confirm-summary");
+    expect(screen.getByTestId("recipe-confirm-cover")).toHaveClass("recipe-confirm-cover");
+    expect(screen.getByLabelText("菜名")).toHaveClass("recipe-confirm-name");
+    expect(screen.getByText("家常菜 · 中等 · 45 分钟")).toHaveClass("recipe-confirm-meta");
+    expect(screen.getByRole("tablist", { name: "菜谱确认分区" })).toHaveClass("recipe-confirm-tabs");
+    expect(screen.getByText("标签")).toHaveClass("recipe-confirm-section-title");
+    expect(screen.getByText("下饭菜")).toHaveClass("recipe-confirm-tag");
+    expect(screen.getByTestId("recipe-confirm-ingredients")).toHaveClass("recipe-confirm-ingredients");
+    expect(screen.getAllByLabelText("食材名称")[0]).toHaveClass("recipe-confirm-ingredient-name");
+    expect(screen.getAllByLabelText("食材用量")[0]).toHaveClass("recipe-confirm-ingredient-amount");
+    expect(screen.getByText("制作步骤")).toHaveClass("recipe-confirm-section-title");
+    expect(screen.getAllByTestId("step-row")[0]).toHaveClass("recipe-confirm-step");
+    expect(screen.getAllByTestId("step-order")[0]).toHaveClass("recipe-confirm-step-order");
+    expect(screen.getByText("查看全部 3 步")).toHaveClass("recipe-confirm-more");
+    expect(screen.getByText("请确认食材用量后再保存")).toHaveClass("recipe-confirm-save-hint");
+    expect(screen.getByRole("button", { name: "保存菜谱" })).toHaveClass("recipe-confirm-submit");
+
+    expect(screen.getByRole("button", { name: "删除食材 1" }).parentElement).toHaveClass("recipe-confirm-layout-hidden");
+    expect(screen.getByRole("button", { name: "上移步骤 1" })).toHaveClass("recipe-confirm-layout-hidden");
+    expect(screen.getByRole("button", { name: "添加食材" })).toHaveClass("recipe-confirm-layout-hidden");
+    expect(screen.getByRole("button", { name: "添加步骤" })).toHaveClass("recipe-confirm-layout-hidden");
+    expect(screen.getAllByTestId("recipe-confirm-step-grip")[0]).toHaveClass("recipe-confirm-step-grip");
+  });
+
+  it("keeps confirmation preview controls interactive after the 1:1 restyle", async () => {
+    const promptSpy = vi.spyOn(window, "prompt").mockReturnValue("清爽");
+    mockState.parseImportApi.mockResolvedValue({
+      recipe: makeDraft({
+        tags: ["快手菜", "下饭菜", "炒菜"],
+        ingredients: [
+          { name: "丝瓜", amount: "1根", type: "ingredient" },
+          { name: "鸡蛋", amount: "2个", type: "ingredient" }
+        ],
+        seasonings: [{ name: "盐", amount: "适量", type: "seasoning" }],
+        steps: [
+          { order: 1, text: "丝瓜去皮，切成滚刀块或片状。" },
+          { order: 2, text: "鸡蛋打散，加少许盐拌匀。" },
+          { order: 3, text: "热锅下油，倒入鸡蛋炒散。" }
+        ]
+      }),
+      imageUrls: ["cover.jpg"],
+      needsSupplement: false,
+      crawlStatus: "ok",
+      crawlError: ""
+    });
+    mockState.filterImages.mockResolvedValue(["cover.jpg"]);
+
+    render(<ImportFlow />);
+
+    await startImport();
+    fireEvent.click(await screen.findByRole("button", { name: "确认图片（1）" }));
+
+    const nameInput = await screen.findByLabelText("菜名");
+    fireEvent.click(screen.getByRole("button", { name: "编辑菜名" }));
+    expect(nameInput).toHaveFocus();
+
+    const overviewTab = screen.getByRole("tab", { name: "概览" });
+    const ingredientsTab = screen.getByRole("tab", { name: "食材" });
+    const stepsTab = screen.getByRole("tab", { name: "步骤" });
+    fireEvent.click(ingredientsTab);
+    expect(ingredientsTab).toHaveAttribute("aria-selected", "true");
+    expect(ingredientsTab).toHaveClass("is-active");
+    expect(overviewTab).toHaveAttribute("aria-selected", "false");
+
+    fireEvent.click(stepsTab);
+    expect(stepsTab).toHaveAttribute("aria-selected", "true");
+    expect(stepsTab).toHaveClass("is-active");
+
+    fireEvent.click(screen.getByRole("button", { name: "添加标签" }));
+    expect(promptSpy).toHaveBeenCalled();
+    expect(screen.getByText("清爽")).toHaveClass("recipe-confirm-tag");
+
+    const ingredientList = screen.getByTestId("recipe-confirm-ingredient-list");
+    expect(ingredientList).not.toHaveClass("is-expanded");
+    fireEvent.click(screen.getByRole("button", { name: "查看全部 3 项" }));
+    expect(ingredientList).toHaveClass("is-expanded");
+    expect(screen.getByRole("button", { name: "收起食材与调料" })).toHaveClass("recipe-confirm-more");
+
+    const stepList = screen.getByTestId("recipe-confirm-step-list");
+    fireEvent.click(screen.getByRole("button", { name: "查看全部 3 步" }));
+    expect(stepList).toHaveClass("is-expanded");
+
+    for (const amount of screen.getAllByLabelText(/(?:食材|调料)用量/)) {
+      expect(amount).toHaveAttribute("rows", "1");
+    }
   });
 });
