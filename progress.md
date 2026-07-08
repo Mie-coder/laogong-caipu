@@ -336,7 +336,7 @@
 
 ## 当前工作区（2026-07-08）
 
-- 已跟踪改动：仅 `progress.md` 本提交记录待提交。
-- 未提交改动：`progress.md` 当前提交记录。
+- 已跟踪改动：无。
+- 未提交改动：无。
 - 未跟踪验收产物：`output/playwright-v2/`、`output/playwright/home-393.png`、`output/playwright/home-430.png`。
 - 真实导入预览服务当前由后台 `screen` 会话 `laogong-deepseek-preview` 提供。
