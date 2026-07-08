@@ -8,6 +8,7 @@
 - 分支：`master`
 - Task 5 代码 HEAD：`73aa869 docs: record task 5 completion`
 - 1:1 复刻提交：`7604460 feat: replicate home and recipe list designs`
+- 导入/详情/复盘 1:1 复刻提交：`1233318 feat: replicate remaining recipe flows`
 - 当前阶段：当前任务为“复刻1:1设计稿”；01 首页、02 导入抽屉、03 解析中、04 图片审核、05 菜谱确认、06 菜谱页、07 详情页、08 复盘抽屉均已完成定向复刻，等待真实导入流与用户视觉验收
 - 实施计划：`docs/superpowers/plans/2026-07-02-v2-ui-redesign.md`
 - 设计基准：`.agents/rules/style.md`、`.agents/rules/global-style.md`、`.agents/rules/复刻1:1设计规范.md`、`docs/ui-concepts/01-home.png` 至 `08-cook-review.png`
@@ -313,9 +314,29 @@
 - `rg -n "TBD|TODO|待定|占位|\\?\\?" .agents/rules/style.md .agents/rules/复刻1:1设计规范.md`：无匹配（退出码 1，符合预期）。
 - 预览服务：后台 `screen` 会话 `laogong-deepseek-preview` 仍在运行，`curl -I http://127.0.0.1:3000/` 返回 `HTTP/1.1 200 OK`。
 
+### 提交记录（2026-07-08）
+
+已提交：
+
+- `1233318 feat: replicate remaining recipe flows`
+
+提交内容：
+
+- 导入抽屉、解析中、图片审核、菜谱确认、详情页、复盘抽屉 1:1 复刻代码与样式。
+- 确认菜谱页布局失真和点击无反馈回归修复。
+- 03/04/05/07/08 相关单测、规则文档和 `progress.md` 记录。
+- 新增解析中页面本地视觉素材 `public/ui-concepts/import-parsing-hero.png`。
+
+提交前验收：
+
+- `PATH=/Users/mie/.hermes/node/bin:$PATH npm run test`：14 files / 77 tests 通过。
+- `git diff --check`：通过。
+- `rg -n "TBD|TODO|待定|占位|\\?\\?" .agents/rules/style.md .agents/rules/复刻1:1设计规范.md`：无匹配（退出码 1，符合预期）。
+- 本轮未运行 `npm run build`；为保持用户当前预览服务不断开，未停止 dev server。
+
 ## 当前工作区（2026-07-08）
 
-- 已跟踪改动：导入抽屉、解析中、图片审核、菜谱确认、详情页、复盘抽屉 1:1 复刻改动仍未提交；本轮涉及 `ImportFlow`、`ImageCarousel`、`RecipeConfirmForm`、`RecipeDetail`、`BottomSheet`、`CookingLogSheet`、全局 CSS、规则文档、`progress.md` 和对应测试改动。确认菜谱页已追加布局失真与交互回归修复。真实导入预览服务当前由后台 `screen` 会话 `laogong-deepseek-preview` 提供。
-- 未提交改动：同上；`git diff --stat` 当前显示 13 个跟踪文件改动，主要为 1:1 流程复刻、文档和测试。
-- 未跟踪受保护设计产物：`public/ui-concepts/import-parsing-hero.png`。
+- 已跟踪改动：仅 `progress.md` 本提交记录待提交。
+- 未提交改动：`progress.md` 当前提交记录。
 - 未跟踪验收产物：`output/playwright-v2/`、`output/playwright/home-393.png`、`output/playwright/home-430.png`。
+- 真实导入预览服务当前由后台 `screen` 会话 `laogong-deepseek-preview` 提供。
