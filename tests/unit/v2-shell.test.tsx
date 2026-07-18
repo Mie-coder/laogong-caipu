@@ -153,11 +153,24 @@ describe("v2 application shell", () => {
     expect(screen.getByRole("dialog", { name: "筛选图片" })).toHaveAttribute("data-reduced-motion", "true");
     expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-initial", JSON.stringify({ opacity: 0, y: 0 }));
     expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-transition", JSON.stringify({ duration: 0.01 }));
+
+    const css = fs.readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    expect(css).toContain('[data-reduced-motion="true"][data-vaul-drawer]');
+    expect(css).toContain('[data-reduced-motion="true"][data-vaul-overlay]');
+    expect(css).toContain("animation-duration: 0.01ms !important;");
+    expect(css).toContain("transition-duration: 0.01ms !important;");
+    expect(css).not.toContain('data-reduced-motion="true"][data-vaul-drawer] {\n  transform:');
   });
 
   it("keeps Drawer and page motion when reduced motion is explicitly false", () => {
-    render(<PageTransition><span>页面内容</span></PageTransition>);
+    render(
+      <>
+        <BottomSheet open title="筛选图片" onClose={vi.fn()}><div>内容</div></BottomSheet>
+        <PageTransition><span>页面内容</span></PageTransition>
+      </>
+    );
 
+    expect(screen.getByRole("dialog", { name: "筛选图片" })).not.toHaveAttribute("data-reduced-motion");
     expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-initial", JSON.stringify({ opacity: 0, y: 8 }));
     expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-transition", JSON.stringify({ duration: 0.16, ease: "easeOut" }));
   });

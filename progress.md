@@ -60,6 +60,13 @@
 - 44px 命中盒覆盖 Input、Checkbox、Tabs、Dialog close、Dropdown 和 AlertDialog 操作；Checkbox 视觉框保持 16px，Textarea 保持 60px。
 - 最终验收：`PATH=/Users/mie/.hermes/node/bin:$PATH npm run test` 为 15 files / 84 tests 通过；`PATH=/Users/mie/.hermes/node/bin:$PATH npm run build` 成功（9/9 静态页）；`git diff --check` 通过。
 
+### Task 1 Checkbox 复审修正（2026-07-18）
+
+- 新增 RED 行为契约确认：Checkbox Root 点击后虽进入 `data-state="checked"`，但旧 Tailwind 3 arbitrary selector 无法让其 16px 视觉 span 获得选中颜色。
+- 修正为 Root `group` 与视觉 span `group-data-[state=checked]` 变体；生产 CSS 审计确认生成 `.group[data-state=checked] .group-data-[state=checked]...` 的正确父子选择器方向。
+- 同时完成 reduced-motion CSS 契约：true/null 包含 0.01ms Drawer/overlay 自动动画规则且不覆盖 transform，explicit false 不带 reduced-motion 属性。
+- 验收：定向 2 files / 16 tests、完整 15 files / 85 tests、生产 build（9/9 静态页）和 `git diff --check` 均通过。
+
 ## Task 4 完成记录
 
 完成内容：

@@ -58,6 +58,18 @@ describe("Stitch V3 foundation", () => {
     expect(screen.getByRole("button", { name: "Close", hidden: true })).toHaveClass("min-w-11");
   });
 
+  it("keeps the 16px Checkbox visual styled from its checked Root state", () => {
+    render(<Checkbox aria-label="完成" />);
+
+    const checkbox = screen.getByLabelText("完成");
+    const visual = checkbox.firstElementChild;
+
+    expect(visual).toHaveClass("h-4", "w-4");
+    fireEvent.click(checkbox);
+    expect(checkbox).toHaveAttribute("data-state", "checked");
+    expect(visual).toHaveClass("group-data-[state=checked]:bg-primary", "group-data-[state=checked]:text-primary-foreground");
+  });
+
   it("maps destructive foreground as a Tailwind color token", () => {
     const config = fs.readFileSync(path.join(process.cwd(), "tailwind.config.ts"), "utf8");
 
