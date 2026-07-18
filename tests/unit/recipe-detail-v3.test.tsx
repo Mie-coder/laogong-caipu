@@ -61,6 +61,7 @@ describe("Recipe detail V3", () => {
     const startCooking = vi.fn();
     render(<RecipeDetail id={7} onStartCooking={startCooking} />);
     expect(await screen.findByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
+    expect(screen.getByText("家常菜 · 45 分钟 · 中等 · 做过 3 次")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "食材" })).toHaveAttribute("aria-selected", "true");
     fireEvent.click(screen.getByRole("tab", { name: "步骤" }));
     expect(screen.getByRole("tab", { name: "步骤" })).toHaveAttribute("aria-selected", "true");

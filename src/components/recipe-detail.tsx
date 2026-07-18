@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CookingLogSheet } from "@/components/cooking-log-sheet";
+import { DIFFICULTY_LABELS } from "@/components/difficulty-stars";
 import { FavoriteButton } from "@/components/recipe/favorite-button";
 import { SkeletonCard } from "@/components/skeleton-card";
 import { addCookingLogApi, deleteRecipeApi, getRecipeApi } from "@/lib/http/api-client";
@@ -80,7 +81,7 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
     <section className="recipe-detail-v3-hero">
       <span aria-hidden="true" className="recipe-detail-v3-numeral">02</span>
       {heroImage && !imageFailed ? <img src={heroImage} alt={`${recipe.name} 菜谱封面`} className="recipe-detail-v3-hero-image" onError={() => setImageFailed(true)} /> : <div className="recipe-detail-v3-image-fallback" role="status">图片加载失败</div>}
-      <div className="recipe-detail-v3-summary"><h1>{recipe.name}</h1><p>{recipe.mainCategory} · {formatCookTime(recipe.cookTimeMinutes)} · {recipe.difficulty} · 做过 {recipe.cookedCount} 次</p>{latestReview?.wifeRating ? <p className="recipe-detail-v3-rating"><Star aria-hidden="true" fill="currentColor" />老婆评分 {latestReview.wifeRating.toFixed(1)}</p> : null}</div>
+      <div className="recipe-detail-v3-summary"><h1>{recipe.name}</h1><p>{recipe.mainCategory} · {formatCookTime(recipe.cookTimeMinutes)} · {DIFFICULTY_LABELS[recipe.difficulty] ?? "未知"} · 做过 {recipe.cookedCount} 次</p>{latestReview?.wifeRating ? <p className="recipe-detail-v3-rating"><Star aria-hidden="true" fill="currentColor" />老婆评分 {latestReview.wifeRating.toFixed(1)}</p> : null}</div>
     </section>
 
     <section className="recipe-detail-v3-body">

@@ -60,6 +60,7 @@ describe("CookingLogSheet", () => {
   it("matches the 1:1 cooking review sheet design contract", () => {
     render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
 
+    expect(screen.getByTestId("review-drawer")).toHaveClass("cook-review-drawer");
     expect(screen.getByRole("heading", { name: "做菜复盘" })).toBeInTheDocument();
     expect(screen.getByText("记录下来，下次会做得更好")).toBeInTheDocument();
     expect(document.querySelector(".cook-review-form")).not.toBeNull();

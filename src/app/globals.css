@@ -2864,3 +2864,24 @@ main:has([data-transaction-screen="true"]) > .v3-bottom-nav { display: none; }
 [data-press-feedback="apple"]:active, .recipe-detail-v3-footer button:active, .cook-review-tag:active { transform: scale(0.98); transition: transform 100ms ease-out; }
 @media (prefers-reduced-motion: reduce) { [data-press-feedback="apple"]:active, .recipe-detail-v3-footer button:active, .cook-review-tag:active { transform: none; } .recipe-detail-v3 *, .cook-review-drawer * { scroll-behavior: auto; transition-duration: 1ms !important; } }
 @media (prefers-reduced-transparency: reduce) { .recipe-detail-v3-footer, .cook-review-footer { background: hsl(var(--surface)); backdrop-filter: none; } }
+
+/* Final V3 review Drawer density: keep the first viewport on the rating, feedback, and quick improvements. */
+.cook-review-drawer { height: 60dvh; max-height: 85dvh; overflow: hidden; border-radius: 1.5rem 1.5rem 0 0; }
+.cook-review-header { flex: 0 0 3.5rem; min-height: 3.5rem; padding: 0.5rem 1.25rem; }
+.cook-review-form { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; flex: 1 1 auto; min-height: 0; gap: 0.75rem; overflow-x: hidden; overflow-y: auto; padding: 0 1.25rem 0.75rem; }
+.cook-review-lead, .cook-review-rating-label, .cook-review-footnote { display: none; }
+.cook-review-section { gap: 0.5rem; min-width: 0; border-bottom: 0; padding: 0; }
+.cook-review-rating-section { margin-top: 0; }
+.cook-review-feedback, .cook-review-improvement { padding-top: 0; }
+.cook-review-section-title { font-size: 0.9375rem; }
+.cook-review-stars { justify-content: flex-start; flex-wrap: nowrap; gap: 0.5rem; margin: 0; }
+.cook-review-star-button { flex: 0 0 2.75rem; width: 2.75rem; min-width: 2.75rem; height: 2.75rem; min-height: 2.75rem; padding: 0; color: hsl(var(--on-surface-variant)); }
+.cook-review-star { width: 2rem; height: 2rem; }
+.cook-review-star-button.is-selected { color: hsl(var(--primary)); }
+.cook-review-textarea { height: 7rem; min-height: 7rem; border: 1px solid hsl(var(--divider)); border-radius: 0.75rem; background: hsl(var(--surface)); padding: 0.75rem; resize: none; }
+.cook-review-tags { display: flex; grid-template-columns: none; flex-wrap: nowrap; gap: 0.5rem; margin: 0; overflow-x: auto; padding-bottom: 0.125rem; }
+.cook-review-tag { flex: 0 0 auto; min-width: 2.75rem; min-height: 2.75rem; height: 2.75rem; border-radius: 9999px; padding: 0 0.75rem; }
+.cook-review-improvement-textarea { height: 5rem; min-height: 5rem; }
+.cook-review-time-row { min-height: 0; padding-top: 0.75rem; }
+.cook-review-footer { flex: 0 0 4.75rem; min-height: 4.75rem; margin-top: 0; padding: 0.75rem 1.25rem; }
+.cook-review-submit { width: 100%; min-height: 2.75rem; }
