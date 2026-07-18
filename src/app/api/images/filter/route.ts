@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { apiError } from "@/lib/http/api-response";
 
 const RequestSchema = z.object({
-  imageUrls: z.array(z.string()).min(1),
+    imageUrls: z.array(z.string().url()).min(1),
   recipeName: z.string().optional().default("")
 });
 
 export async function POST(request: Request) {
   try {
     const body = RequestSchema.parse(await request.json());
-    const fallbackImages = filterLikelyRecipeImages(body.imageUrls);
+    const fallbackImages = filterLikelyRecipeImages(body.imageUrls.filter(isSafeImageUrl));
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ imageUrls: fallbackImages });
@@ -40,11 +41,16 @@ export async function POST(request: Request) {
     const content = (payload.choices?.[0]?.message?.content ?? "").trim();
     const stripJson = content.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
     const parsed = JSON.parse(stripJson);
-    return NextResponse.json({ imageUrls: parsed.imageUrls ?? fallbackImages });
+    const returned = z.object({ imageUrls: z.array(z.string()).default([]) }).safeParse(parsed);
+    return NextResponse.json({ imageUrls: returned.success ? returned.data.imageUrls.filter(isSafeImageUrl) : fallbackImages });
 
-  } catch {
-    return NextResponse.json({ imageUrls: [] }, { status: 500 });
+  } catch (error) {
+    return apiError("image_filter_failed", error instanceof Error ? error.message : "图片筛选失败", 500);
   }
+}
+
+function isSafeImageUrl(value: string) {
+  try { const url = new URL(value); return url.protocol === "http:" || url.protocol === "https:"; } catch { return false; }
 }
 
 function filterLikelyRecipeImages(imageUrls: string[]): string[] {

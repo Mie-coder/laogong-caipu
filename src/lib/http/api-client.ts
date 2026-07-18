@@ -20,8 +20,8 @@ async function requestJson<T>(url: string, schema: z.ZodType<T>, init: RequestIn
 
 const ImportParseResponseSchema = z.object({ recipe: RecipeDraftSchema, imageUrls: z.array(z.string()), needsSupplement: z.boolean(), crawlStatus: z.string(), crawlError: z.string() });
 
-export async function parseImportApi(input: { rawInput: string; manualSupplement?: string }): Promise<{ recipe: RecipeDraft; imageUrls: string[]; needsSupplement: boolean; crawlStatus: string; crawlError: string }> {
-  const result = await requestJson("/api/import/parse", ImportParseResponseSchema, { method: "POST", body: JSON.stringify(input) });
+export async function parseImportApi(input: { rawInput: string; manualSupplement?: string }, signal?: AbortSignal): Promise<{ recipe: RecipeDraft; imageUrls: string[]; needsSupplement: boolean; crawlStatus: string; crawlError: string }> {
+  const result = await requestJson("/api/import/parse", ImportParseResponseSchema, { method: "POST", body: JSON.stringify(input) }, signal);
   return { ...result, recipe: RecipeDraftSchema.parse(result.recipe) as RecipeDraft };
 }
 export function saveRecipeApi(recipe: RecipeDraft) { return requestJson("/api/recipes", z.object({ id: z.number() }), { method: "POST", body: JSON.stringify(recipe) }); }
@@ -34,9 +34,9 @@ export async function listRecipesApi(params: { query?: string; category?: string
 export function getRecipeApi(id: number, signal?: AbortSignal) { return requestJson(`/api/recipes/${id}`, RecipeDetailResponseSchema, {}, signal); }
 export function addCookingLogApi(id: number, input: { wifeFeedback: string; husbandImprovementNotes: string; notes: string; wifeRating: number }) { return requestJson(`/api/recipes/${id}/cook`, z.object({ ok: z.literal(true) }), { method: "POST", body: JSON.stringify(input) }); }
 export function deleteRecipeApi(id: number) { return requestJson(`/api/recipes/${id}`, z.object({ ok: z.literal(true) }), { method: "DELETE" }); }
-export async function filterImages(imageUrls: string[], recipeName: string): Promise<string[]> {
+export async function filterImages(imageUrls: string[], recipeName: string, signal?: AbortSignal): Promise<string[]> {
   try {
-    const response = await fetch("/api/images/filter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageUrls, recipeName }) });
+    const response = await fetch("/api/images/filter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageUrls, recipeName }), signal });
     if (!response.ok) return imageUrls;
     const payload: unknown = await response.json();
     return z.object({ imageUrls: z.array(z.string()) }).parse(payload).imageUrls;

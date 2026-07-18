@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Stitch V3 import flow: fixed actions reserve space and fall back to calm motion. */
+.v3-import-drawer,
+.image-review-page,
+.recipe-confirm-page {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.v3-import-drawer button:active,
+.image-review-page button:active,
+.recipe-confirm-page button:active {
+  transform: scale(0.98);
+}
+
+.image-review-thumbnails {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-block: 0.5rem;
+}
+
+.image-review-thumbnail {
+  position: relative;
+  flex: 0 0 5.5rem;
+  height: 5.5rem;
+  overflow: hidden;
+  padding: 0;
+}
+
+.image-review-thumbnail.is-muted { opacity: 0.45; }
+.image-review-thumbnail-check { position: absolute; right: 0.25rem; top: 0.25rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .v3-import-drawer *,
+  .image-review-page *,
+  .recipe-confirm-page * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 :root {
   --color-bg: hsl(var(--canvas));
   --color-surface: hsl(var(--surface));
@@ -2630,4 +2670,52 @@ select {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* V3 import screens map the four Stitch compositions to stable semantic anchors. */
+.v3-import-drawer { background: hsl(var(--surface)); border-radius: 1.5rem 1.5rem 0 0; }
+.import-sheet-header { padding-top: 0.5rem; }
+.import-sheet-header [role="heading"] { font-size: 1.5rem; line-height: 2rem; letter-spacing: -0.02em; }
+.import-sheet-lead { color: hsl(var(--on-surface-variant)); }
+.import-sheet-textarea { min-height: 8rem; border-color: hsl(var(--track)); background: hsl(var(--surface-low)); border-radius: 1rem; line-height: 1.5rem; }
+.import-sheet-paste-hint, .import-sheet-success-hint { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: hsl(var(--on-surface-variant)); }
+.import-sheet-success-hint { color: hsl(var(--success)); }
+.import-sheet-submit { min-height: 3.5rem; border-radius: 9999px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+
+.import-parsing-page { background: hsl(var(--canvas)); }
+.import-parsing-title { font-size: 2rem; line-height: 2.5rem; letter-spacing: -0.025em; }
+.import-parsing-estimate, .import-parsing-live-status { color: hsl(var(--on-surface-variant)); font-size: 0.875rem; }
+.import-parsing-source-card { margin-top: 1.5rem; border-radius: 1rem; background: hsl(var(--surface)); padding: 1rem; box-shadow: 0 0.25rem 1rem hsl(var(--ink) / 0.06); }
+.import-parsing-source-card p, .import-parsing-source-card strong { display: block; }
+.import-parsing-source-card p { color: hsl(var(--on-surface-variant)); font-size: 0.75rem; }
+.import-parsing-timeline { position: relative; }
+.import-parsing-step { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 0.75rem; min-height: 3.5rem; }
+.import-parsing-step-marker { display: grid; place-items: start center; color: hsl(var(--primary)); }
+.import-parsing-step strong, .import-parsing-step small { display: block; }
+.import-parsing-step small { margin-top: 0.125rem; color: hsl(var(--on-surface-variant)); }
+.import-parsing-cancel { margin-top: 2rem; min-height: 3.5rem; width: 100%; border-radius: 9999px; }
+
+.image-review-page { background: hsl(var(--canvas)); }
+.image-review-header { display: flex; align-items: center; gap: 0.75rem; padding: 2.5rem 1.25rem 0; }
+.image-review-title { font-size: 2rem; line-height: 2.5rem; letter-spacing: -0.025em; }
+.image-review-subtitle, .image-review-all-count { color: hsl(var(--on-surface-variant)); font-size: 0.875rem; }
+.image-review-all-count { padding: 1rem 1.25rem; }
+.image-review-main-frame { position: relative; aspect-ratio: 350 / 330; overflow: hidden; border-radius: 1.25rem; background: hsl(var(--track)); }
+.image-review-main-image { width: 100%; height: 100%; object-fit: cover; }
+.image-review-thumbnail { flex-basis: 6.25rem; height: 6.25rem; border-radius: 0.75rem; }
+.image-review-footer button { min-height: 3.5rem; border-radius: 9999px; }
+
+.recipe-confirm-page { background: hsl(var(--canvas)); }
+.recipe-confirm-cover { width: 6.875rem; height: 6.875rem; flex: 0 0 6.875rem; border-radius: 9999px; overflow: hidden; background: hsl(var(--track)); }
+.recipe-confirm-cover-image { width: 100%; height: 100%; object-fit: cover; }
+.recipe-confirm-metadata { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; margin-top: 0.75rem; }
+.recipe-confirm-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.recipe-confirm-tag { border-radius: 9999px; background: hsl(var(--surface-container)); padding: 0.25rem 0.75rem; font-size: 0.75rem; }
+.recipe-confirm-ingredient-row { border-bottom: 1px solid hsl(var(--divider)); padding-block: 0.5rem; }
+.recipe-confirm-step { align-items: start; border-bottom: 1px solid hsl(var(--divider)); padding-block: 0.75rem; }
+.recipe-confirm-step-order { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 9999px; background: hsl(var(--surface-container)); color: hsl(var(--primary)); font-weight: 600; }
+.recipe-confirm-step-text { min-height: 5rem; resize: vertical; }
+
+@media (prefers-reduced-transparency: reduce) {
+  .image-review-page footer, .recipe-confirm-page footer { background: hsl(var(--surface)); backdrop-filter: none; }
 }
