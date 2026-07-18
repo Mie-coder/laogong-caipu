@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { RecipeDraftSchema, type RecipeDraft } from "@/lib/domain/recipe";
-import { RecipeDetailResponseSchema, RecipeFavoriteResponseSchema, RecipeListResponseSchema, type RecipeSummary } from "@/lib/domain/recipe-api";
+import { RecipeDetailResponseSchema, RecipeFavoriteResponseSchema, RecipeListResponseSchema, type RecipeDetail, type RecipeSummary } from "@/lib/domain/recipe-api";
 import { ApiError, ApiErrorResponseSchema } from "@/lib/http/api-error";
 
 async function requestJson<T>(url: string, schema: z.ZodType<T>, init: RequestInit = {}, signal?: AbortSignal): Promise<T> {
@@ -31,7 +31,10 @@ export async function listRecipesApi(params: { query?: string; category?: string
   const result = await requestJson(`/api/recipes?${search}`, RecipeListResponseSchema, {}, signal);
   return { recipes: result.recipes.map((recipe) => ({ ...recipe, isFavorite: recipe.isFavorite ?? false })) };
 }
-export function getRecipeApi(id: number, signal?: AbortSignal) { return requestJson(`/api/recipes/${id}`, RecipeDetailResponseSchema, {}, signal); }
+export async function getRecipeApi(id: number, signal?: AbortSignal): Promise<{ recipe: RecipeDetail }> {
+  const result = await requestJson(`/api/recipes/${id}`, RecipeDetailResponseSchema, {}, signal);
+  return { recipe: { ...result.recipe, isFavorite: result.recipe.isFavorite ?? false } };
+}
 export function setRecipeFavoriteApi(id: number, isFavorite: boolean) {
   return requestJson(`/api/recipes/${id}/favorite`, RecipeFavoriteResponseSchema, { method: "PATCH", body: JSON.stringify({ isFavorite }) });
 }
