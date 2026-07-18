@@ -20,6 +20,7 @@ export type RecipeSummary = {
   tags: string[];
   latestWifeFeedback: string;
   wifeRating: number;
+  isFavorite: boolean;
 };
 
 export type RecipeDetail = RecipeSummary & {
@@ -43,6 +44,28 @@ export type RecipeDetail = RecipeSummary & {
     notes: string;
   }>;
 };
+
+type RecipeRow = {
+  id: number;
+  name: string;
+  main_category: string;
+  source_platform: string | null;
+  source_url: string | null;
+  original_title: string | null;
+  share_text: string | null;
+  cover_image_url: string | null;
+  cook_time_minutes: number | null;
+  difficulty: string;
+  tips: string;
+  cooked_count: number;
+  is_favorite: number;
+  latest_wife_feedback?: string | null;
+  latest_wife_rating?: number | null;
+};
+type TagRow = { tag: string };
+type ImageRow = { url: string };
+type StepRow = { step_order: number; text: string; image_url: string | null };
+type CookingLogRow = { id: number; cooked_at: string; wife_feedback: string; wife_rating: number | null; husband_improvement_notes: string; notes: string };
 
 export function createRecipeRepository(db: Database.Database = getDb()) {
   return {
@@ -113,15 +136,15 @@ export function createRecipeRepository(db: Database.Database = getDb()) {
           filters.query ?? "", `%${filters.query ?? ""}%`,
           filters.category ?? "", filters.category ?? "",
           filters.difficulty ?? "", filters.difficulty ?? ""
-        ) as any[];
+        ) as RecipeRow[];
 
       return rows
-        .filter((row: any) => {
+        .filter((row) => {
           if (!filters.tag) return true;
           const tags = getTags(db, row.id);
           return tags.includes(filters.tag);
         })
-        .map((row: any) => ({
+        .map((row) => ({
           id: row.id,
           name: row.name,
           mainCategory: row.main_category,
@@ -131,15 +154,17 @@ export function createRecipeRepository(db: Database.Database = getDb()) {
           difficulty: row.difficulty,
           tags: getTags(db, row.id),
           latestWifeFeedback: row.latest_wife_feedback ?? "",
-          wifeRating: row.latest_wife_rating ?? 0
+          wifeRating: row.latest_wife_rating ?? 0,
+          isFavorite: row.is_favorite === 1
         }));
     },
 
     getRecipeById(id: number): RecipeDetail | null {
-      const row = db.prepare(`SELECT * FROM recipes WHERE id = ?`).get(id) as any;
+      const row = db.prepare(`SELECT * FROM recipes WHERE id = ?`).get(id) as RecipeRow | undefined;
       if (!row) return null;
 
       const ingredients = getIngredients(db, id);
+      const cookingLogs = getCookingLogs(db, id);
       return {
         id: row.id,
         name: row.name,
@@ -148,8 +173,9 @@ export function createRecipeRepository(db: Database.Database = getDb()) {
         cookedCount: row.cooked_count,
         cookTimeMinutes: row.cook_time_minutes,
         tags: getTags(db, id),
-        latestWifeFeedback: "",
-        wifeRating: 0,
+        latestWifeFeedback: cookingLogs[0]?.wifeFeedback ?? "",
+        wifeRating: cookingLogs[0]?.wifeRating ?? 0,
+        isFavorite: row.is_favorite === 1,
         sourcePlatform: row.source_platform ?? "",
         sourceUrl: row.source_url ?? "",
         originalTitle: row.original_title ?? "",
@@ -160,8 +186,15 @@ export function createRecipeRepository(db: Database.Database = getDb()) {
         ingredients: ingredients.filter((item) => item.type === "ingredient"),
         seasonings: ingredients.filter((item) => item.type === "seasoning"),
         steps: getSteps(db, id),
-        cookingLogs: getCookingLogs(db, id)
+        cookingLogs
       };
+    },
+
+    setFavorite(id: number, isFavorite: boolean): boolean {
+      const result = db.prepare(
+        "UPDATE recipes SET is_favorite = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+      ).run(isFavorite ? 1 : 0, id);
+      return result.changes === 1;
     },
 
     addCookingLog(id: number, input: CookingLogInput): void {
@@ -184,7 +217,7 @@ export function createRecipeRepository(db: Database.Database = getDb()) {
 }
 
 function getTags(db: Database.Database, recipeId: number): string[] {
-  return (db.prepare(`SELECT tag FROM recipe_tags WHERE recipe_id = ? ORDER BY id`).all(recipeId) as any[]).map(
+  return (db.prepare(`SELECT tag FROM recipe_tags WHERE recipe_id = ? ORDER BY id`).all(recipeId) as TagRow[]).map(
     (row) => row.tag
   );
 }
@@ -198,13 +231,13 @@ function getIngredients(db: Database.Database, recipeId: number) {
 function getImageUrls(db: Database.Database, recipeId: number): string[] {
   return (db
     .prepare(`SELECT url FROM recipe_images WHERE recipe_id = ? ORDER BY sort_order`)
-    .all(recipeId) as any[]).map((row) => row.url);
+    .all(recipeId) as ImageRow[]).map((row) => row.url);
 }
 
 function getSteps(db: Database.Database, recipeId: number) {
   return (db
     .prepare(`SELECT step_order, text, image_url FROM recipe_steps WHERE recipe_id = ? ORDER BY step_order`)
-    .all(recipeId) as any[]).map((row) => ({
+    .all(recipeId) as StepRow[]).map((row) => ({
     order: row.step_order,
     text: row.text,
     imageUrl: row.image_url
@@ -214,7 +247,7 @@ function getSteps(db: Database.Database, recipeId: number) {
 function getCookingLogs(db: Database.Database, recipeId: number) {
   return (db
     .prepare(`SELECT id, cooked_at, wife_feedback, wife_rating, husband_improvement_notes, notes FROM cooking_logs WHERE recipe_id = ? ORDER BY id DESC`)
-    .all(recipeId) as any[]).map((row) => ({
+    .all(recipeId) as CookingLogRow[]).map((row) => ({
     id: row.id,
     cookedAt: row.cooked_at,
     wifeFeedback: row.wife_feedback,

@@ -4,6 +4,22 @@ import { migrate } from "@/lib/db/schema";
 import { createRecipeRepository } from "@/lib/db/recipe-repository";
 
 describe("RecipeRepository", () => {
+  it("adds and persists favorite state without resetting existing recipes", () => {
+    const db = new Database(":memory:");
+    migrate(db);
+    const repo = createRecipeRepository(db);
+    const saved = repo.saveRecipeDraft({
+      name: "收藏测试菜", mainCategory: "家常菜", tags: [], ingredients: [], seasonings: [],
+      steps: [{ order: 1, text: "完成" }], cookTimeMinutes: null, difficulty: "unknown", tips: "", confidence: 1, missingFields: []
+    });
+
+    migrate(db);
+
+    expect(repo.setFavorite(saved.id, true)).toBe(true);
+    expect(repo.getRecipeById(saved.id)?.isFavorite).toBe(true);
+    expect(repo.listRecipes()[0]?.isFavorite).toBe(true);
+  });
+
   it("saves a recipe draft and reads it with children", () => {
     const db = new Database(":memory:");
     migrate(db);

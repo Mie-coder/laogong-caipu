@@ -22,3 +22,4 @@ export const RecipeDetailSchema = RecipeSummarySchema.extend({
 export type RecipeDetail = z.infer<typeof RecipeDetailSchema>;
 export const RecipeListResponseSchema = z.object({ recipes: z.array(RecipeSummarySchema) });
 export const RecipeDetailResponseSchema = z.object({ recipe: RecipeDetailSchema });
+export const RecipeFavoriteResponseSchema = z.object({ isFavorite: z.boolean() });

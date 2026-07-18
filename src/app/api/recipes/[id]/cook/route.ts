@@ -10,15 +10,21 @@ const RequestSchema = z.object({
 });
 
 export async function POST(request: Request, context: { params: { id: string } }) {
+  const id = Number(context.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    return NextResponse.json({ error: { code: "invalid_id", message: "菜谱编号无效" } }, { status: 400 });
+  }
   try {
-    const { id } = context.params;
     const body = RequestSchema.parse(await request.json());
     const repo = createRecipeRepository();
-    repo.addCookingLog(Number(id), body);
+    if (!repo.getRecipeById(id)) {
+      return NextResponse.json({ error: { code: "not_found", message: "菜谱不存在" } }, { status: 404 });
+    }
+    repo.addCookingLog(id, body);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "记录做过失败" },
+      { error: { code: "invalid_request", message: error instanceof Error ? error.message : "记录做过失败" } },
       { status: 400 }
     );
   }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { RecipeDraftSchema, type RecipeDraft } from "@/lib/domain/recipe";
-import { RecipeDetailResponseSchema, RecipeListResponseSchema, type RecipeSummary } from "@/lib/domain/recipe-api";
+import { RecipeDetailResponseSchema, RecipeFavoriteResponseSchema, RecipeListResponseSchema, type RecipeSummary } from "@/lib/domain/recipe-api";
 import { ApiError, ApiErrorResponseSchema } from "@/lib/http/api-error";
 
 async function requestJson<T>(url: string, schema: z.ZodType<T>, init: RequestInit = {}, signal?: AbortSignal): Promise<T> {
@@ -32,6 +32,9 @@ export async function listRecipesApi(params: { query?: string; category?: string
   return { recipes: result.recipes.map((recipe) => ({ ...recipe, isFavorite: recipe.isFavorite ?? false })) };
 }
 export function getRecipeApi(id: number, signal?: AbortSignal) { return requestJson(`/api/recipes/${id}`, RecipeDetailResponseSchema, {}, signal); }
+export function setRecipeFavoriteApi(id: number, isFavorite: boolean) {
+  return requestJson(`/api/recipes/${id}/favorite`, RecipeFavoriteResponseSchema, { method: "PATCH", body: JSON.stringify({ isFavorite }) });
+}
 export function addCookingLogApi(id: number, input: { wifeFeedback: string; husbandImprovementNotes: string; notes: string; wifeRating: number }) { return requestJson(`/api/recipes/${id}/cook`, z.object({ ok: z.literal(true) }), { method: "POST", body: JSON.stringify(input) }); }
 export function deleteRecipeApi(id: number) { return requestJson(`/api/recipes/${id}`, z.object({ ok: z.literal(true) }), { method: "DELETE" }); }
 export async function filterImages(imageUrls: string[], recipeName: string, signal?: AbortSignal): Promise<string[]> {

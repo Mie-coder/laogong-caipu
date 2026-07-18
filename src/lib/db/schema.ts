@@ -17,6 +17,7 @@ export function migrate(db: Database.Database): void {
       difficulty TEXT NOT NULL DEFAULT 'unknown',
       tips TEXT NOT NULL DEFAULT '',
       cooked_count INTEGER NOT NULL DEFAULT 0,
+      is_favorite INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -78,4 +79,9 @@ export function migrate(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  const recipeColumns = db.prepare("PRAGMA table_info(recipes)").all() as Array<{ name: string }>;
+  if (!recipeColumns.some((column) => column.name === "is_favorite")) {
+    db.exec("ALTER TABLE recipes ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0");
+  }
 }

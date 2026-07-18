@@ -1,359 +1,100 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Ellipsis, FileText, PencilLine, Star, Trash2 } from "lucide-react";
-import { addCookingLogApi, deleteRecipeApi, getRecipeApi } from "@/lib/http/api-client";
+import { ChevronLeft, Ellipsis, PencilLine, Star, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CookingLogSheet } from "@/components/cooking-log-sheet";
-import { DIFFICULTY_LABELS } from "@/components/difficulty-stars";
-import { ImageCarousel } from "@/components/image-carousel";
+import { FavoriteButton } from "@/components/recipe/favorite-button";
 import { SkeletonCard } from "@/components/skeleton-card";
-import { Toast } from "@/components/toast";
+import { addCookingLogApi, deleteRecipeApi, getRecipeApi } from "@/lib/http/api-client";
+import type { RecipeDetail as RecipeDetailData } from "@/lib/domain/recipe-api";
 
 const LIST_RETURN_KEY = "recipe-list-return";
 
+function formatCookTime(minutes: number | null) { return minutes ? `${minutes} 分钟` : "时间未定"; }
 function formatCookedAt(value: string) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return `${date.getMonth() + 1}月${date.getDate()}日 ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  return Number.isNaN(date.getTime()) ? "" : `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+function listReturnUrl() {
+  try {
+    const parsed: unknown = JSON.parse(window.sessionStorage.getItem(LIST_RETURN_KEY) ?? "{}");
+    return typeof parsed === "object" && parsed !== null && "url" in parsed && typeof parsed.url === "string" ? parsed.url : "/recipes";
+  } catch {
+    return "/recipes";
+  }
 }
 
-function formatCookTime(minutes?: number | null) {
-  return minutes ? `${minutes} 分钟` : "时间未定";
-}
-
-function formatDetailMetadata(recipe: any) {
-  const difficulty = DIFFICULTY_LABELS[recipe.difficulty] ?? "未知";
-  return [recipe.mainCategory, difficulty, formatCookTime(recipe.cookTimeMinutes), `做过 ${recipe.cookedCount} 次`]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-export function RecipeDetail({ id }: { id: number }) {
+export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number; onStartCooking?: (recipeId: number) => void; onEditRecipe?: (recipeId: number) => void }) {
   const router = useRouter();
-  const [recipe, setRecipe] = useState<any | null>(null);
+  const [recipe, setRecipe] = useState<RecipeDetailData | null>(null);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"ingredients" | "steps">("ingredients");
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
-  const ingredientsRef = useRef<HTMLElement | null>(null);
-  const stepsRef = useRef<HTMLElement | null>(null);
-  const reviewRef = useRef<HTMLElement | null>(null);
+  const [notice, setNotice] = useState("");
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+  const [activeTab, setActiveTab] = useState("ingredients");
 
   async function load() {
     try {
       setError("");
       const result = await getRecipeApi(id);
       setRecipe(result.recipe);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "加载失败");
+      setImageFailed(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "加载失败，请重试");
     }
   }
 
-  useEffect(() => {
-    void load();
-  }, [id]);
+  useEffect(() => { void load(); }, [id]);
 
-  const detailImages = useMemo(() => {
-    if (!recipe) return [];
-    if (recipe.imageUrls?.length) return recipe.imageUrls;
-    return recipe.coverImageUrl ? [recipe.coverImageUrl] : [];
-  }, [recipe]);
+  const heroImage = useMemo(() => recipe?.coverImageUrl ?? recipe?.imageUrls[0] ?? null, [recipe]);
+  const prepItems = useMemo(() => recipe ? [...recipe.ingredients, ...recipe.seasonings] : [], [recipe]);
 
-  const prepItems = useMemo(() => {
-    if (!recipe) return [];
-    return [...recipe.ingredients, ...recipe.seasonings].filter((item) => item?.name);
-  }, [recipe]);
-
-  function toggleChecked(name: string) {
-    setCheckedItems((current) => ({ ...current, [name]: !current[name] }));
-  }
-
-  function handleBack() {
-    router.push(getListReturnUrl());
-  }
-
-  function getListReturnUrl() {
-    try {
-      const raw = window.sessionStorage.getItem(LIST_RETURN_KEY);
-      if (!raw) return "/recipes";
-      const parsed = JSON.parse(raw) as { url?: string };
-      return parsed.url || "/recipes";
-    } catch {
-      // ponytail: bad sessionStorage falls back to the default list route
-      return "/recipes";
-    }
-  }
-
-  function scrollToSection(section: "ingredients" | "steps" | "review") {
-    setActiveTab(section === "steps" ? "steps" : "ingredients");
-    const element =
-      section === "ingredients" ? ingredientsRef.current : section === "steps" ? stepsRef.current : reviewRef.current;
-    element?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  async function handleDelete() {
-    if (!window.confirm("确认删除这道菜谱吗？")) return;
+  async function deleteRecipe() {
     try {
       await deleteRecipeApi(id);
-      setMenuOpen(false);
-      router.push(getListReturnUrl());
-    } catch (deleteError) {
-      setToast(deleteError instanceof Error ? deleteError.message : "删除失败");
-      setMenuOpen(false);
+      router.push(listReturnUrl());
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : "删除失败，请重试");
+      setDeleteOpen(false);
     }
   }
 
-  if (!recipe && !error) {
-    return <SkeletonCard />;
-  }
+  if (!recipe && !error) return <SkeletonCard />;
+  if (error) return <main className="recipe-detail-error" data-transaction-screen="true"><Button variant="ghost" size="icon" aria-label="返回菜谱列表" onClick={() => router.push(listReturnUrl())}><ChevronLeft aria-hidden="true" /></Button><section><h1>菜谱没找到</h1><p role="status">{error}</p><Button variant="outline" onClick={() => void load()}>重试</Button></section></main>;
+  if (!recipe) return null;
 
-  if (error) {
-    return (
-      <div className="space-y-6 px-5 pb-32 pt-6 text-ink">
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            aria-label="返回菜谱列表"
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center"
-            onClick={handleBack}
-          >
-            <ChevronLeft className="h-6 w-6" aria-hidden="true" />
-          </button>
-        </div>
-        <div className="space-y-3">
-          <h1 className="text-[30px] font-bold leading-tight text-ink">菜谱没找到</h1>
-          <p className="text-[16px] text-muted">{error}</p>
-          <button
-            type="button"
-            className="min-h-[44px] text-[16px] font-semibold text-ink underline underline-offset-4"
-            onClick={() => void load()}
-          >
-            重新加载
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const latestReview = recipe.cookingLogs[0] ?? null;
+  return <main className="recipe-detail-v3" data-transaction-screen="true">
+    <header className="recipe-detail-v3-header">
+      <Button variant="secondary" size="icon" aria-label="返回菜谱列表" onClick={() => router.push(listReturnUrl())}><ChevronLeft aria-hidden="true" /></Button>
+      <div className="recipe-detail-v3-actions"><FavoriteButton recipeId={recipe.id} recipeName={recipe.name} isFavorite={recipe.isFavorite} onChanged={(isFavorite) => setRecipe((current) => current ? { ...current, isFavorite } : current)} /><Button variant="secondary" size="icon" aria-label="编辑菜谱" disabled={!onEditRecipe} onClick={() => onEditRecipe?.(recipe.id)}><PencilLine aria-hidden="true" /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="secondary" size="icon" aria-label="更多操作"><Ellipsis aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => setDeleteOpen(true)}><Trash2 aria-hidden="true" />删除菜谱</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+    </header>
 
-  const latestLog = recipe.cookingLogs?.[0] ?? null;
-  const displayRating = recipe.wifeRating > 0 ? recipe.wifeRating : latestLog?.wifeRating;
+    <section className="recipe-detail-v3-hero">
+      <span aria-hidden="true" className="recipe-detail-v3-numeral">02</span>
+      {heroImage && !imageFailed ? <img src={heroImage} alt={`${recipe.name} 菜谱封面`} className="recipe-detail-v3-hero-image" onError={() => setImageFailed(true)} /> : <div className="recipe-detail-v3-image-fallback" role="status">图片加载失败</div>}
+      <div className="recipe-detail-v3-summary"><h1>{recipe.name}</h1><p>{recipe.mainCategory} · {formatCookTime(recipe.cookTimeMinutes)} · {recipe.difficulty} · 做过 {recipe.cookedCount} 次</p>{latestReview?.wifeRating ? <p className="recipe-detail-v3-rating"><Star aria-hidden="true" fill="currentColor" />老婆评分 {latestReview.wifeRating.toFixed(1)}</p> : null}</div>
+    </section>
 
-  return (
-    <>
-      <div className="recipe-detail-page">
-        <section className="recipe-detail-hero-section">
-          <div
-            className={`recipe-detail-topbar ${detailImages.length ? "is-on-image text-white" : "is-on-empty text-ink"}`}
-          >
-            <button
-              type="button"
-              aria-label="返回菜谱列表"
-              className="recipe-detail-back-button"
-              onClick={handleBack}
-            >
-              <ChevronLeft className="recipe-detail-top-icon" aria-hidden="true" />
-            </button>
-            <div className="recipe-detail-top-actions">
-              <button
-                type="button"
-                aria-label="编辑菜谱"
-                className="recipe-detail-edit-button"
-                onClick={() => setToast("编辑功能后续开放")}
-              >
-                <PencilLine className="recipe-detail-edit-icon" aria-hidden="true" />
-              </button>
-              <div className="recipe-detail-menu">
-                <button
-                  type="button"
-                  aria-label="更多操作"
-                  className="recipe-detail-more-button"
-                  onClick={() => setMenuOpen((current) => !current)}
-                >
-                  <Ellipsis className="recipe-detail-more-icon" aria-hidden="true" />
-                </button>
-                {menuOpen ? (
-                  <div
-                    role="menu"
-                    className="recipe-detail-more-menu"
-                  >
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="recipe-detail-delete-button"
-                      onClick={() => void handleDelete()}
-                    >
-                      <Trash2 className="recipe-detail-delete-icon" aria-hidden="true" />
-                      删除菜谱
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
+    <section className="recipe-detail-v3-body">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="recipe-detail-v3-tabs">
+        <TabsList aria-label="菜谱内容"><TabsTrigger value="ingredients" onClick={() => setActiveTab("ingredients")}>食材</TabsTrigger><TabsTrigger value="steps" onClick={() => setActiveTab("steps")}>步骤</TabsTrigger></TabsList>
+        <TabsContent value="ingredients"><section><h2>食材与调料</h2><div className="recipe-detail-v3-ingredients">{prepItems.map((item, index) => <div key={`${item.type}-${item.name}-${index}`}><span>{item.name}</span><span>{item.amount || "适量"}</span></div>)}</div></section></TabsContent>
+        <TabsContent value="steps"><section><h2>制作步骤</h2><ol className="recipe-detail-v3-steps">{recipe.steps.map((step) => <li key={step.order}><span>{String(step.order).padStart(2, "0")}</span><p>{step.text}</p></li>)}</ol></section></TabsContent>
+      </Tabs>
+      <section className="recipe-detail-v3-review"><h2>最近复盘</h2>{latestReview ? <div><p>{latestReview.wifeFeedback || "暂无文字评价"}</p>{latestReview.husbandImprovementNotes ? <p>{latestReview.husbandImprovementNotes}</p> : null}<p>{formatCookedAt(latestReview.cookedAt)}</p></div> : <p>还没有复盘记录</p>}</section>
+      {recipe.tips ? <section className="recipe-detail-v3-tips"><h2>小贴士</h2><p>{recipe.tips}</p></section> : null}
+    </section>
 
-          {detailImages.length > 0 ? (
-            <ImageCarousel images={detailImages} variant="detailHero" />
-          ) : (
-            <div className="recipe-detail-hero recipe-detail-hero-empty" />
-          )}
-        </section>
-
-        <section className="recipe-detail-content">
-          <section className="recipe-detail-summary">
-            <h1 className="recipe-detail-title">{recipe.name}</h1>
-            <p className="recipe-detail-meta">{formatDetailMetadata(recipe)}</p>
-            <span className="sr-only">{`做过 ${recipe.cookedCount} 次`}</span>
-            {displayRating ? (
-              <p className="recipe-detail-rating">
-                <span>老婆评分</span>
-                <span className="recipe-detail-rating-value">{displayRating.toFixed(1)}</span>
-              </p>
-            ) : null}
-          </section>
-
-          <div className="recipe-detail-tabs">
-            <div className="recipe-detail-tab-grid">
-              <button
-                type="button"
-                aria-label="备料"
-                className={`recipe-detail-tab ${activeTab === "ingredients" ? "is-active" : ""}`}
-                onClick={() => scrollToSection("ingredients")}
-              >
-                备料
-              </button>
-              <button
-                type="button"
-                aria-label="步骤"
-                className={`recipe-detail-tab ${activeTab === "steps" ? "is-active" : ""}`}
-                onClick={() => scrollToSection("steps")}
-              >
-                步骤
-              </button>
-            </div>
-          </div>
-
-          <section ref={ingredientsRef} className="recipe-detail-ingredients">
-            <div className="recipe-detail-section-header">
-              <h2 className="recipe-detail-section-title">食材与调料</h2>
-              <button
-                type="button"
-                className="recipe-detail-cook-mode"
-                onClick={() => scrollToSection("ingredients")}
-              >
-                做菜模式
-                <ChevronRight className="recipe-detail-cook-mode-icon" aria-hidden="true" />
-              </button>
-            </div>
-            <ul className="recipe-detail-prep-list">
-              {prepItems.map((item: { name: string; amount: string }, index: number) => {
-                const checked = Boolean(checkedItems[item.name]);
-                return (
-                  <li key={`${item.name}-${index}`} className="recipe-detail-prep-row">
-                    <label className="recipe-detail-prep-label">
-                      <input
-                        type="checkbox"
-                        aria-label={`勾选食材 ${item.name}`}
-                        className="recipe-detail-prep-checkbox"
-                        checked={checked}
-                        onChange={() => toggleChecked(item.name)}
-                      />
-                      <span className={`recipe-detail-prep-name ${checked ? "is-checked" : ""}`}>{item.name}</span>
-                      <span className="recipe-detail-prep-amount">{item.amount || "适量"}</span>
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-
-          <section ref={stepsRef} className="recipe-detail-steps">
-            <h2 className="recipe-detail-section-title">制作步骤</h2>
-            <ol className="recipe-detail-step-list">
-              {recipe.steps.map((step: { order: number; text: string; imageUrl: string | null }) => (
-                <li key={step.order} className="recipe-detail-step">
-                  <div className="recipe-detail-step-copy">
-                    <span className="recipe-detail-step-number">
-                      {String(step.order).padStart(2, "0")}
-                    </span>
-                    <p className="recipe-detail-step-text">{step.text}</p>
-                  </div>
-                  {step.imageUrl ? (
-                    <img
-                      src={step.imageUrl}
-                      alt=""
-                      className="recipe-detail-step-image"
-                    />
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          {latestLog ? (
-            <section ref={reviewRef} className="recipe-detail-review">
-              <h2 className="recipe-detail-section-title">最近复盘</h2>
-              <div className="recipe-detail-review-body">
-                {latestLog.wifeRating ? (
-                  <p className="recipe-detail-review-rating">
-                    <Star className="recipe-detail-review-star" fill="currentColor" aria-hidden="true" />
-                    {latestLog.wifeRating.toFixed(1)}
-                  </p>
-                ) : null}
-                {latestLog.wifeFeedback ? <p>{latestLog.wifeFeedback}</p> : null}
-                {latestLog.husbandImprovementNotes ? <p className="recipe-detail-review-muted">{latestLog.husbandImprovementNotes}</p> : null}
-                {latestLog.notes ? <p className="recipe-detail-review-muted">{latestLog.notes}</p> : null}
-                {latestLog.cookedAt ? <p className="recipe-detail-review-date">{formatCookedAt(latestLog.cookedAt)}</p> : null}
-              </div>
-            </section>
-          ) : (
-            <section ref={reviewRef} className="recipe-detail-review">
-              <h2 className="recipe-detail-section-title">最近复盘</h2>
-            </section>
-          )}
-
-          {recipe.tips ? (
-            <section className="recipe-detail-tips">
-              <h2 className="recipe-detail-section-title">小贴士</h2>
-              <p className="recipe-detail-tips-text">{recipe.tips}</p>
-            </section>
-          ) : null}
-        </section>
-      </div>
-
-      <div className="recipe-detail-action-bar">
-        <div className="recipe-detail-action-inner">
-          <button
-            type="button"
-            className="recipe-detail-review-button"
-            onClick={() => scrollToSection("review")}
-          >
-            <FileText className="recipe-detail-review-button-icon" aria-hidden="true" />
-            查看复盘
-          </button>
-          <button
-            type="button"
-            className="recipe-detail-cooked-button"
-            onClick={() => setSheetOpen(true)}
-          >
-            标记做过
-          </button>
-        </div>
-      </div>
-
-      <CookingLogSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSubmit={async (input) => {
-          await addCookingLogApi(id, input);
-          setToast("已保存复盘");
-          setSheetOpen(false);
-          await load();
-        }}
-      />
-      <Toast message={toast} />
-    </>
-  );
+    <footer className="recipe-detail-v3-footer"><Button variant="outline" onClick={() => setReviewOpen(true)}>查看复盘</Button><Button onClick={() => onStartCooking?.(recipe.id)}>开始做菜</Button></footer>
+    {notice ? <p className="recipe-detail-v3-notice" role="status">{notice}</p> : null}
+    <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>删除这道菜谱？</AlertDialogTitle><AlertDialogDescription>删除后无法恢复，相关图片和复盘记录也会一并删除。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void deleteRecipe()}>删除菜谱</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <CookingLogSheet open={reviewOpen} onClose={() => setReviewOpen(false)} onSubmit={async (input) => { await addCookingLogApi(id, input); setReviewOpen(false); setNotice("已保存复盘"); await load(); }} />
+  </main>;
 }

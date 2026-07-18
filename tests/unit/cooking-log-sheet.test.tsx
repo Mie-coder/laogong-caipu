@@ -58,18 +58,18 @@ describe("CookingLogSheet", () => {
   });
 
   it("matches the 1:1 cooking review sheet design contract", () => {
-    const { container } = render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
+    render(<CookingLogSheet open onClose={onClose} onSubmit={onSubmit} />);
 
-    expect(screen.getByRole("heading", { name: "这次做得怎么样？" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "做菜复盘" })).toBeInTheDocument();
     expect(screen.getByText("记录下来，下次会做得更好")).toBeInTheDocument();
-    expect(container.querySelector(".cook-review-form")).not.toBeNull();
-    expect(container.querySelector(".cook-review-stars")).not.toBeNull();
-    expect(container.querySelectorAll(".cook-review-star-button")).toHaveLength(5);
-    expect(container.querySelector(".cook-review-feedback")).not.toBeNull();
-    expect(container.querySelector(".cook-review-tags")).not.toBeNull();
-    expect(container.querySelectorAll(".cook-review-tag")).toHaveLength(4);
-    expect(container.querySelector(".cook-review-time-row")).not.toBeNull();
-    expect(container.querySelector(".cook-review-submit")).not.toBeNull();
+    expect(document.querySelector(".cook-review-form")).not.toBeNull();
+    expect(document.querySelector(".cook-review-stars")).not.toBeNull();
+    expect(document.querySelectorAll(".cook-review-star-button")).toHaveLength(5);
+    expect(document.querySelector(".cook-review-feedback")).not.toBeNull();
+    expect(document.querySelector(".cook-review-tags")).not.toBeNull();
+    expect(document.querySelectorAll(".cook-review-tag")).toHaveLength(4);
+    expect(document.querySelector(".cook-review-time-row")).not.toBeNull();
+    expect(document.querySelector(".cook-review-submit")).not.toBeNull();
   });
 
   it("shows a lucide star rating control and keeps the selected label in sync", () => {

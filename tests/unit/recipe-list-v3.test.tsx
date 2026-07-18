@@ -10,7 +10,8 @@ const state = vi.hoisted(() => ({
   search: "",
   pathname: "/recipes",
   recipes: vi.fn(),
-  remove: vi.fn()
+  remove: vi.fn(),
+  setFavorite: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
@@ -21,7 +22,8 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/http/api-client", () => ({
   listRecipesApi: state.recipes,
-  deleteRecipeApi: state.remove
+  deleteRecipeApi: state.remove,
+  setRecipeFavoriteApi: state.setFavorite
 }));
 
 function recipe(id: number, overrides: Record<string, unknown> = {}) {
@@ -35,6 +37,7 @@ beforeEach(() => {
   state.pathname = "/recipes";
   state.recipes.mockReset().mockResolvedValue({ recipes: [] });
   state.remove.mockReset().mockResolvedValue({ ok: true });
+  state.setFavorite.mockReset().mockResolvedValue({ isFavorite: true });
   window.sessionStorage.clear();
   window.scrollTo = vi.fn();
 });
@@ -49,10 +52,10 @@ describe("Stitch V3 recipe list contract", () => {
     expect(result.recipes[0]?.isFavorite).toBe(false);
   });
 
-  it("has an accessible recipe navigation action and no fake favorite action", () => {
+  it("has an accessible recipe navigation action and shared favorite control", () => {
     render(<RecipeCard recipe={RecipeListResponseSchema.parse({ recipes: [{ id: 1, name: "菠萝咕噜肉", mainCategory: "家常菜", coverImageUrl: null, cookedCount: 0, cookTimeMinutes: 30, difficulty: "easy", tags: [], latestWifeFeedback: "", wifeRating: 0 }] }).recipes[0]!} />);
     expect(screen.getByRole("button", { name: "查看菜谱 菠萝咕噜肉" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /收藏/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "收藏菜谱 菠萝咕噜肉" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("renders V3 list structure with categories and the local recent segment", async () => {
@@ -72,7 +75,7 @@ describe("Stitch V3 recipe list contract", () => {
     expect(screen.getByRole("button", { name: "最近做过" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "查看菜谱 蒜香鸡翅" }));
     expect(state.push).toHaveBeenCalledWith("/recipes/3");
-    expect(screen.queryByRole("button", { name: /收藏/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "收藏菜谱 蒜香鸡翅" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("link", { name: "导入新菜谱" })).toHaveAttribute("href", "/");
   });
 
