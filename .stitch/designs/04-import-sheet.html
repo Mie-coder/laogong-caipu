@@ -1,0 +1,193 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>导入菜谱</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Noto+Serif:wght@300;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#231a14",
+                        "on-tertiary-fixed": "#1a1c1a",
+                        "on-secondary-fixed-variant": "#474744",
+                        "inverse-surface": "#392e28",
+                        "secondary-fixed": "#e5e2de",
+                        "warm-gray-light": "#A8A39C",
+                        "on-secondary-container": "#656462",
+                        "surface-container-low": "#fff1ea",
+                        "tertiary-fixed-dim": "#c7c6c4",
+                        "outline": "#887367",
+                        "on-tertiary-fixed-variant": "#464745",
+                        "primary": "#984800",
+                        "on-surface": "#231a14",
+                        "error": "#B54A43",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#d97832",
+                        "secondary-fixed-dim": "#c8c6c3",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#ffede5",
+                        "on-primary-container": "#481f00",
+                        "surface-dim": "#e8d7ce",
+                        "on-primary-fixed-variant": "#743500",
+                        "track": "#F2F1EE",
+                        "on-primary-fixed": "#311300",
+                        "on-secondary-fixed": "#1c1c1a",
+                        "primary-fixed": "#ffdbc8",
+                        "tertiary": "#5e5f5d",
+                        "ink": "#20201E",
+                        "surface-bright": "#fff8f5",
+                        "surface-tint": "#984800",
+                        "surface-container-high": "#f7e5dc",
+                        "tertiary-fixed": "#e3e2e0",
+                        "canvas": "#FAF9F6",
+                        "divider": "#E8E6E1",
+                        "tangerine": "#D97832",
+                        "on-surface-variant": "#554338",
+                        "background": "#fff8f5",
+                        "inverse-primary": "#ffb689",
+                        "on-primary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface": "#FFFFFF",
+                        "secondary": "#5f5e5c",
+                        "on-tertiary-container": "#292a29",
+                        "success": "#4D7A5B",
+                        "surface-variant": "#f1dfd6",
+                        "warm-gray": "#77736D",
+                        "tangerine-pale": "#FCF3EA",
+                        "outline-variant": "#dbc1b3",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "secondary-container": "#e5e2de",
+                        "surface-container": "#fdeae1",
+                        "tertiary-container": "#91918f",
+                        "surface-container-highest": "#f1dfd6",
+                        "primary-fixed-dim": "#ffb689"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "sheet": "24px"
+                    },
+                    "spacing": {
+                        "gutter": "20px",
+                        "touch-target": "44px",
+                        "inline-gap": "12px",
+                        "section-gap": "32px",
+                        "compact": "8px",
+                        "block-gap": "20px"
+                    },
+                    "fontFamily": {
+                        "body": ["Inter"],
+                        "nav-title": ["Inter"],
+                        "recipe-title": ["Inter"],
+                        "section-title": ["Inter"],
+                        "display-serif": ["Noto Serif"],
+                        "editorial-numeral": ["Noto Serif"],
+                        "metadata": ["Inter"],
+                        "body-emphasis": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body": ["16px", { "lineHeight": "26px", "fontWeight": "400" }],
+                        "nav-title": ["34px", { "lineHeight": "41px", "letterSpacing": "-0.025em", "fontWeight": "700" }],
+                        "recipe-title": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+                        "section-title": ["22px", { "lineHeight": "28px", "fontWeight": "700" }],
+                        "display-serif": ["37px", { "lineHeight": "44px", "fontWeight": "700" }],
+                        "editorial-numeral": ["64px", { "lineHeight": "1.0", "letterSpacing": "-0.05em", "fontWeight": "300" }],
+                        "metadata": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-emphasis": ["16px", { "lineHeight": "26px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .scrim {
+            background-color: rgba(32, 32, 30, 0.6); /* Ink color at 60% */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body min-h-screen relative overflow-hidden flex justify-center">
+<!-- Background Content (Simulating Home Screen underneath) -->
+<div aria-hidden="true" class="w-full max-w-[430px] h-full relative">
+<!-- TopAppBar (from JSON) -->
+<header class="bg-background/85 backdrop-blur-xl dark:bg-on-background/85 flex justify-between items-center px-gutter py-4 w-full fixed top-0 z-40 max-w-[430px]">
+<button class="h-touch-target w-touch-target flex items-center justify-center text-primary scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">history</span>
+</button>
+<h1 class="font-nav-title text-nav-title text-on-background">老公菜谱</h1>
+<button class="h-touch-target w-touch-target flex items-center justify-center text-primary scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</header>
+<!-- Simulated Home Content -->
+<main class="pt-[90px] px-gutter pb-[100px] h-screen overflow-y-auto">
+<div class="space-y-section-gap">
+<!-- Recipe Row 1 -->
+<div class="flex items-center gap-inline-gap pb-block-gap border-b border-divider">
+<img class="w-20 h-20 rounded-full object-cover shadow-sm" data-alt="A top-down macro shot of a perfectly plated serving of braised pork belly (Hong Shao Rou) in a shallow white ceramic bowl. The meat is glossy and richly colored in deep amber and mahogany tones, resting on a bed of steamed white rice. The lighting is soft and natural, suggesting a bright, airy modern kitchen. The composition focuses entirely on the food, capturing the glistening texture of the sauce and the tender layers of the pork. The overall aesthetic is clean, appetizing, and editorial." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFopE13pmLFKCErN5zAUBymZwWY9kPg2g9aM2rDN6hTaoEIPb405VbwDAfcx3VgPDwv0wTYGwLiBSBgS89tCdDOb3Dueh0DbEk1LoW0q5aKHza7zxZbRha2Ad6aPzSXkqPpDkHwWiC2u8P4rvCYbmVIuSjMfuejLpVyYm-dp8qkK19blyK5g4Zo7MG3uzfYg8Zs4E3_mwOksrX3jpD4wjGy3aCPvyddpNKw5v9-2gtlSvklZ-uyDSmV_kWCbdgTV8VXELZKePF-fV6">
+<div class="flex-1">
+<h3 class="font-body-emphasis text-body-emphasis text-on-background">红烧肉</h3>
+<p class="font-metadata text-metadata text-warm-gray">45 分钟 · 炖菜</p>
+</div>
+</div>
+<!-- Recipe Row 2 -->
+<div class="flex items-center gap-inline-gap pb-block-gap border-b border-divider">
+<img class="w-20 h-20 rounded-full object-cover shadow-sm" data-alt="A beautifully plated portion of Mapo Tofu in a minimalist white bowl. The tofu cubes are perfectly uniform, coated in a fiery red, glistening chili oil sauce with visible flecks of minced pork and bright green chopped scallions scattered on top. The photograph uses a shallow depth of field, blurring out the background to draw all attention to the vibrant colors and rich textures of the dish. The lighting is bright and diffuse, highlighting the glossy finish of the sauce in a modern, calm culinary setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvenew2No1_9AYRbkthdskJYfOYgIZ3zDMeBTM_cruM_murzNZPJvVS977c-WPX99KGA4r9fUOlxVjwFheWBB3UJse-Lgcv0tPjoGMq6ZZJeJ_21iO37gpHr_sTk5d3SkIP19rKuUgyuh-THy2R2MtO2FJWA4g_H14jvKGcBdksN8wbXOZzeJn0S7uJz9ryK4h2wnUbpOKNd_z8I-dEuJH2_N7b9IXf6-a9TxHHcZg_IKXoU6C8KpZL_LZh7wnQz4RkpfQmCQW44Hm">
+<div class="flex-1">
+<h3 class="font-body-emphasis text-body-emphasis text-on-background">麻婆豆腐</h3>
+<p class="font-metadata text-metadata text-warm-gray">20 分钟 · 川菜</p>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Scrim & Bottom Sheet Overlay -->
+<div class="fixed inset-0 z-50 flex items-end justify-center pointer-events-auto">
+<!-- Focus Scrim -->
+<div aria-hidden="true" class="absolute inset-0 scrim backdrop-blur-sm transition-opacity duration-300"></div>
+<!-- Bottom Sheet -->
+<div aria-labelledby="sheet-title" aria-modal="true" class="relative bg-surface w-full max-w-[430px] rounded-t-sheet shadow-[0_-8px_24px_rgba(32,32,30,0.1)] flex flex-col transform transition-transform duration-300 ease-out translate-y-0" role="dialog">
+<!-- Drag Handle -->
+<div class="w-full pt-4 pb-2 flex justify-center cursor-grab active:cursor-grabbing">
+<div class="w-12 h-1.5 bg-divider rounded-full"></div>
+</div>
+<!-- Sheet Content Canvas -->
+<div class="px-gutter pb-8 pt-2 flex flex-col gap-block-gap">
+<!-- Header -->
+<div class="text-center">
+<h2 class="font-section-title text-section-title text-on-background mb-compact" id="sheet-title">导入菜谱</h2>
+<p class="font-metadata text-metadata text-warm-gray">粘贴小红书分享文字即可自动解析</p>
+</div>
+<!-- Input Area -->
+<div class="flex flex-col gap-compact mt-2">
+<div class="relative">
+<textarea class="w-full h-32 p-4 bg-track rounded-xl border-none focus:ring-2 focus:ring-primary-container text-body font-body text-on-background placeholder-warm-gray-light resize-none shadow-inner" placeholder="在这里粘贴文字..."></textarea>
+</div>
+<!-- Subtext / Feedback -->
+<div class="flex items-center gap-2 px-2 text-success">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<p class="font-metadata text-metadata">粘贴提示：已从剪贴板识别到内容</p>
+</div>
+</div>
+<!-- Primary Action -->
+<button class="w-full bg-tangerine text-on-primary font-body-emphasis text-body-emphasis h-touch-target rounded-full mt-4 scale-100 active:scale-98 transition-transform duration-200 shadow-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">magic_button</span>
+                    开始解析
+                </button>
+</div>
+</div>
+</div>
+</body></html>

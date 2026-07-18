@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>老公菜谱 - 菠萝咕噜肉 做菜模式</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Noto+Serif:wght@300;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-background": "#231a14",
+                      "on-tertiary-fixed": "#1a1c1a",
+                      "on-secondary-fixed-variant": "#474744",
+                      "inverse-surface": "#392e28",
+                      "secondary-fixed": "#e5e2de",
+                      "warm-gray-light": "#A8A39C",
+                      "on-secondary-container": "#656462",
+                      "surface-container-low": "#fff1ea",
+                      "tertiary-fixed-dim": "#c7c6c4",
+                      "outline": "#887367",
+                      "on-tertiary-fixed-variant": "#464745",
+                      "primary": "#984800",
+                      "on-surface": "#231a14",
+                      "error": "#B54A43",
+                      "error-container": "#ffdad6",
+                      "primary-container": "#d97832",
+                      "secondary-fixed-dim": "#c8c6c3",
+                      "on-error": "#ffffff",
+                      "inverse-on-surface": "#ffede5",
+                      "on-primary-container": "#481f00",
+                      "surface-dim": "#e8d7ce",
+                      "on-primary-fixed-variant": "#743500",
+                      "track": "#F2F1EE",
+                      "on-primary-fixed": "#311300",
+                      "on-secondary-fixed": "#1c1c1a",
+                      "primary-fixed": "#ffdbc8",
+                      "tertiary": "#5e5f5d",
+                      "ink": "#20201E",
+                      "surface-bright": "#fff8f5",
+                      "surface-tint": "#984800",
+                      "surface-container-high": "#f7e5dc",
+                      "tertiary-fixed": "#e3e2e0",
+                      "canvas": "#FAF9F6",
+                      "divider": "#E8E6E1",
+                      "tangerine": "#D97832",
+                      "on-surface-variant": "#554338",
+                      "background": "#fff8f5",
+                      "inverse-primary": "#ffb689",
+                      "on-primary": "#ffffff",
+                      "on-error-container": "#93000a",
+                      "surface": "#FFFFFF",
+                      "secondary": "#5f5e5c",
+                      "on-tertiary-container": "#292a29",
+                      "success": "#4D7A5B",
+                      "surface-variant": "#f1dfd6",
+                      "warm-gray": "#77736D",
+                      "tangerine-pale": "#FCF3EA",
+                      "outline-variant": "#dbc1b3",
+                      "on-secondary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "secondary-container": "#e5e2de",
+                      "surface-container": "#fdeae1",
+                      "tertiary-container": "#91918f",
+                      "surface-container-highest": "#f1dfd6",
+                      "primary-fixed-dim": "#ffb689"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "20px",
+                      "touch-target": "44px",
+                      "inline-gap": "12px",
+                      "section-gap": "32px",
+                      "compact": "8px",
+                      "block-gap": "20px"
+              },
+              "fontFamily": {
+                      "body": [
+                              "Inter"
+                      ],
+                      "nav-title": [
+                              "Inter"
+                      ],
+                      "recipe-title": [
+                              "Inter"
+                      ],
+                      "section-title": [
+                              "Inter"
+                      ],
+                      "display-serif": [
+                              "Noto Serif"
+                      ],
+                      "editorial-numeral": [
+                              "Noto Serif"
+                      ],
+                      "metadata": [
+                              "Inter"
+                      ],
+                      "body-emphasis": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "body": [
+                              "16px",
+                              {
+                                      "lineHeight": "26px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "nav-title": [
+                              "34px",
+                              {
+                                      "lineHeight": "41px",
+                                      "letterSpacing": "-0.025em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "recipe-title": [
+                              "26px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.015em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "section-title": [
+                              "22px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "display-serif": [
+                              "37px",
+                              {
+                                      "lineHeight": "44px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "editorial-numeral": [
+                              "64px",
+                              {
+                                      "lineHeight": "1.0",
+                                      "letterSpacing": "-0.05em",
+                                      "fontWeight": "300"
+                              }
+                      ],
+                      "metadata": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-emphasis": [
+                              "16px",
+                              {
+                                      "lineHeight": "26px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        /* Hide scrollbar for horizontal scrolling but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+      </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-canvas text-on-background font-body min-h-screen flex flex-col items-center">
+<div class="w-full max-w-[430px] relative pb-32">
+<!-- TopAppBar: Re-using logic from JSON but adapted for this specific page intent -->
+<header class="flex justify-between items-center px-gutter py-4 w-full sticky top-0 z-50 bg-canvas/85 backdrop-blur-xl">
+<button aria-label="返回" class="w-10 h-10 flex items-center justify-center rounded-full border border-divider hover:opacity-80 transition-opacity active:scale-90 transition-transform bg-surface">
+<span class="material-symbols-outlined text-on-background text-[20px]">arrow_back</span>
+</button>
+<h1 class="font-section-title text-section-title text-on-background">菠萝咕噜肉</h1>
+<div class="flex gap-2">
+<button aria-label="收藏" class="w-10 h-10 flex items-center justify-center rounded-full border border-divider hover:opacity-80 transition-opacity active:scale-90 transition-transform bg-surface">
+<span class="material-symbols-outlined text-on-background text-[20px]">bookmark_border</span>
+</button>
+<button aria-label="更多" class="w-10 h-10 flex items-center justify-center rounded-full border border-divider hover:opacity-80 transition-opacity active:scale-90 transition-transform bg-surface">
+<span class="material-symbols-outlined text-on-background text-[20px]">more_horiz</span>
+</button>
+</div>
+</header>
+<main class="w-full pt-4">
+<!-- Ingredients Section -->
+<section class="mb-section-gap">
+<div class="px-gutter flex justify-between items-end mb-4">
+<h2 class="font-section-title text-section-title text-on-background">备料</h2>
+<button class="text-warm-gray text-metadata font-metadata hover:text-primary transition-colors">全部勾选</button>
+</div>
+<div class="w-full overflow-x-auto no-scrollbar pl-gutter pb-4">
+<div class="flex gap-4 pr-gutter w-max">
+<!-- Ingredient 1 -->
+<div class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform w-[72px]">
+<div class="w-[72px] h-[72px] rounded-full relative mb-2 shadow-sm">
+<img class="w-full h-full object-cover rounded-full" data-alt="A top-down view of a small white ceramic bowl filled with cubed raw pork tenderloin. The lighting is soft and natural, emphasizing the fresh pink color of the meat. Minimalist background, high-key light mode aesthetic. Food photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1RtuBJw-UzZW78CXY3zSDGjeMthKlOEGbywdYbEt9MeLueuSuV2jGWPGeMaZ54VfGcspU7vNODh2hGgrUc5FieR9yNP8brz8no35Z3soFl6snxa5sw3tZNWZi2REapyyJQbZuAlg4bU9lVvq15l8zLUZJVPND4XEHHLy1dfJBOmcPE6WVWqeofUC6mgVf7XDj_PObK4trUwiq_Zn-b7PvGQ3Zyl3SzWWamYMTqAjEWweRPiGsiau1gaOuQ9awv4IHWlHPc85YXICf"/>
+<div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-tangerine flex items-center justify-center border-2 border-canvas">
+<span class="material-symbols-outlined text-white text-[14px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+</div>
+<span class="font-body-emphasis text-body-emphasis text-on-background truncate w-full text-center">里脊肉</span>
+<span class="font-metadata text-metadata text-warm-gray-light">500克</span>
+</div>
+<!-- Ingredient 2 -->
+<div class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform w-[72px]">
+<div class="w-[72px] h-[72px] rounded-full relative mb-2 shadow-sm">
+<img class="w-full h-full object-cover rounded-full" data-alt="A top-down view of a small white ceramic bowl filled with bright yellow pineapple chunks. The lighting is bright and clean, making the fruit look juicy and fresh. Minimalist background, high-key light mode aesthetic. Food photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDC_8IcbY3D_bUszA8B3uRQF37NbL0h0cwU4LxBQ6NbTC9_xdUF_jM-hEIAeI-LvHrxHU7glVtQtxSPHurDrsr-Wbv7Qz-G-U101KQTyeeNnkw-9QHQQi1Nr_tuzK2oQWBAEBjxto5y9rrmcbVqi9zXEMDmNPkVsDG6zYi9WLg_IFrOtifa8QNpGtYM9Cf8u9EI0kO35nr4eYDDdHZrjiHK_6-VzNiUE9NbREA9gWUDEW49nptSWrUgw2rG4owI4zr1DoMpOd81X4fI"/>
+<div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-tangerine flex items-center justify-center border-2 border-canvas">
+<span class="material-symbols-outlined text-white text-[14px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+</div>
+<span class="font-body-emphasis text-body-emphasis text-on-background truncate w-full text-center">菠萝</span>
+<span class="font-metadata text-metadata text-warm-gray-light">半个</span>
+</div>
+<!-- Ingredient 3 -->
+<div class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform w-[72px]">
+<div class="w-[72px] h-[72px] rounded-full relative mb-2 shadow-sm">
+<img class="w-full h-full object-cover rounded-full" data-alt="A top-down view of a small white ceramic bowl filled with chopped green bell peppers. The green is vibrant against the white bowl. Lighting is soft and even. Minimalist background, high-key light mode aesthetic. Food photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCUICaiHu-cywYcUNaf-Ztpw-S5U5QEmNbBjtB8a9-dAg2iAmsRFGpinV_FIPFUa3lN5rRt6OsPcEpf7Bii08u1-wHa0pTyh8toAlzV8TS66qxgx0ENQEkL5sfHfph7rjZ_gva5cQnXqdzWHUXLLPFxdgjsggxJ7b3wEg8bz-Cen_Jqm9qkaKCAblm3AxScbprF1uc20TznH6mcDCm8lJI3A7IGHB_qmggaNeCg5fJb6jEnHcjaczAVKOfAhZgvbF_a0YRnw37MEr5"/>
+<div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-tangerine flex items-center justify-center border-2 border-canvas">
+<span class="material-symbols-outlined text-white text-[14px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+</div>
+<span class="font-body-emphasis text-body-emphasis text-on-background truncate w-full text-center">青椒</span>
+<span class="font-metadata text-metadata text-warm-gray-light">1个</span>
+</div>
+<!-- Ingredient 4 -->
+<div class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform w-[72px]">
+<div class="w-[72px] h-[72px] rounded-full relative mb-2 shadow-sm">
+<img class="w-full h-full object-cover rounded-full" data-alt="A top-down view of a small white ceramic bowl containing smooth, rich red tomato ketchup. The surface of the sauce catches a soft reflection from the light source. Minimalist background, high-key light mode aesthetic. Food photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBU0wVwH_8mBw9XHxGdZjmhi80o47t_Npqj_KqDqAXc4htAe07SbMdL3w0i85ayWMdwOGoznXDVXeuvcB9RoV7tyPOo4AvSQ_mqtgdK0wzyBL_gyrLKUGJwrWEZ0dFtj0hTreT3PR2tbCKLFLSTC62bblkfCoVIp-wy-nMemMpLSrWSORYHL5zl1d2UBTg3pnUtrzy18u20GqVz5PH5WjWbO0rJGSzYwC7wAs1WAaelOuFlpecJ18Pp-IvH_eVepGTC4ipa9HZE__T9"/>
+<div class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-tangerine flex items-center justify-center border-2 border-canvas">
+<span class="material-symbols-outlined text-white text-[14px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+</div>
+<span class="font-body-emphasis text-body-emphasis text-on-background truncate w-full text-center">番茄酱</span>
+<span class="font-metadata text-metadata text-warm-gray-light">3勺</span>
+</div>
+<!-- Ingredient 5 -->
+<div class="flex flex-col items-center group cursor-pointer active:scale-95 transition-transform w-[72px]">
+<div class="w-[72px] h-[72px] rounded-full relative mb-2 shadow-sm">
+<img class="w-full h-full object-cover rounded-full" data-alt="A top-down view of a small white ceramic bowl filled with fine white cornstarch powder. The texture is soft and powdery, clearly visible under even, diffused lighting. Minimalist background, high-key light mode aesthetic. Food photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC2PlFlBNLA70agD9ML5GXodHL7y0Ts-kiAG90ibfvyV-RsU645F3NPzntijpHKyx4XNt2gUU1TQ3fXW6_MY60S-kD-MuWlPojq07faLokuQ-gWIerY9k6UUmEW_ksWfMQh5SpLiCcd0q4BnouAEebowZPxAXS15DbqYtuwOBe6GTtlfo5ZqPjJ0NBGruyxTUfAlDddsRNtARnssjnJq6eedD3bnfXnDuqq-BNiZjivFK8GKSYEDsnCm7JmDH4TQuN2D02uEvUzYq0J"/>
+<!-- No checkmark for this one to show unchecked state -->
+</div>
+<span class="font-body-emphasis text-body-emphasis text-on-background truncate w-full text-center">淀粉</span>
+<span class="font-metadata text-metadata text-warm-gray-light">适量</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Steps Section -->
+<section class="px-gutter">
+<div class="flex justify-between items-end mb-8">
+<h2 class="font-section-title text-section-title text-on-background">制作步骤</h2>
+<span class="font-metadata text-metadata text-warm-gray tracking-widest">1 / 6</span>
+</div>
+<div class="flex flex-col">
+<!-- Step 1 -->
+<div class="flex gap-6 mb-8 relative">
+<div class="font-editorial-numeral text-editorial-numeral text-outline-variant flex-shrink-0 w-16">01</div>
+<div class="flex flex-col pt-3">
+<p class="font-body text-body text-on-background mb-3">里脊肉切块，加入盐和淀粉抓匀。</p>
+<div class="flex items-center gap-3">
+<div class="w-0.5 h-4 bg-tangerine rounded-full"></div>
+<p class="font-metadata text-metadata text-warm-gray">腌制 10 分钟更入味</p>
+</div>
+</div>
+</div>
+<hr class="border-divider border-t mb-8"/>
+<!-- Step 2 -->
+<div class="flex gap-6 mb-8 relative">
+<div class="font-editorial-numeral text-editorial-numeral text-outline-variant flex-shrink-0 w-16">02</div>
+<div class="flex flex-col pt-3">
+<p class="font-body text-body text-on-background mb-3">油温六成热，下锅炸至表面金黄。</p>
+<div class="flex items-center gap-3">
+<div class="w-0.5 h-4 bg-tangerine rounded-full"></div>
+<p class="font-metadata text-metadata text-warm-gray">复炸一次口感更酥脆</p>
+</div>
+</div>
+</div>
+<hr class="border-divider border-t mb-8"/>
+<!-- Step 3 -->
+<div class="flex gap-6 mb-8 relative">
+<div class="font-editorial-numeral text-editorial-numeral text-outline-variant flex-shrink-0 w-16">03</div>
+<div class="flex flex-col pt-3">
+<p class="font-body text-body text-on-background mb-3">加入菠萝、青椒和酱汁，快速翻炒均匀。</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Bar (Timer) -->
+<div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[390px] h-[72px] bg-surface/85 backdrop-blur-xl rounded-full shadow-[0_4px_24px_rgba(32,32,30,0.08)] flex items-center justify-between px-4 z-50">
+<div class="flex items-center gap-3 bg-canvas rounded-full px-2 py-1.5 border border-divider">
+<button aria-label="减少时间" class="w-8 h-8 flex items-center justify-center rounded-full bg-surface shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-on-background text-[18px]">remove</span>
+</button>
+<div class="flex flex-col items-center min-w-[50px]">
+<span class="font-metadata text-[10px] text-warm-gray leading-none">计时</span>
+<span class="font-body-emphasis text-[18px] text-tangerine leading-tight">05:00</span>
+</div>
+<button aria-label="增加时间" class="w-8 h-8 flex items-center justify-center rounded-full bg-surface shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-on-background text-[18px]">add</span>
+</button>
+</div>
+<button class="bg-tangerine hover:opacity-90 active:scale-98 transition-all h-[44px] px-6 rounded-full flex items-center justify-center">
+<span class="font-body-emphasis text-[15px] text-white">开始做菜</span>
+</button>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,68 @@
+{
+  "source": {
+    "projectId": "11371438272675460660",
+    "designSystem": "assets/8d9091a183ef44c883a2c9ba4d16d85b",
+    "verifiedAgainst": [
+      ".stitch/designs/01-recipe-confirm.html",
+      ".stitch/designs/02-image-review.html",
+      ".stitch/designs/03-cooking-mode.html",
+      ".stitch/designs/04-import-sheet.html",
+      ".stitch/designs/05-parsing-progress.html",
+      ".stitch/designs/06-recipe-detail.html",
+      ".stitch/designs/07-cooking-guide.html",
+      ".stitch/designs/08-recipe-review-sheet.html",
+      ".stitch/designs/09-recipe-list.html",
+      ".stitch/designs/10-home-nav.html"
+    ]
+  },
+  "colors": {
+    "canvas": "#FAF9F6",
+    "surface": "#FFFFFF",
+    "surfaceBright": "#FFF8F5",
+    "surfaceContainerLow": "#FFF1EA",
+    "surfaceContainer": "#FDEAE1",
+    "surfaceContainerHigh": "#F7E5DC",
+    "surfaceContainerHighest": "#F1DFD6",
+    "ink": "#20201E",
+    "onSurface": "#231A14",
+    "onSurfaceVariant": "#554338",
+    "warmGray": "#77736D",
+    "warmGrayLight": "#A8A39C",
+    "divider": "#E8E6E1",
+    "track": "#F2F1EE",
+    "tangerine": "#D97832",
+    "tangerinePale": "#FCF3EA",
+    "error": "#B54A43",
+    "success": "#4D7A5B"
+  },
+  "fontFamilies": {
+    "body": ["Inter", "-apple-system", "BlinkMacSystemFont", "PingFang SC", "sans-serif"],
+    "editorial": ["Noto Serif", "Songti SC", "serif"]
+  },
+  "fontSizes": {
+    "navTitle": { "size": "34px", "lineHeight": "41px", "weight": 700, "letterSpacing": "-0.025em" },
+    "displaySerif": { "size": "37px", "lineHeight": "44px", "weight": 700 },
+    "recipeTitle": { "size": "26px", "lineHeight": "32px", "weight": 700, "letterSpacing": "-0.015em" },
+    "sectionTitle": { "size": "22px", "lineHeight": "28px", "weight": 700 },
+    "body": { "size": "16px", "lineHeight": "26px", "weight": 400 },
+    "bodyEmphasis": { "size": "16px", "lineHeight": "26px", "weight": 600 },
+    "metadata": { "size": "14px", "lineHeight": "20px", "weight": 400 },
+    "editorialNumeral": { "size": "64px", "lineHeight": 1, "weight": 300, "letterSpacing": "-0.05em" }
+  },
+  "spacing": {
+    "gutter": "20px",
+    "sectionGap": "32px",
+    "blockGap": "20px",
+    "inlineGap": "12px",
+    "compact": "8px",
+    "touchTarget": "44px"
+  },
+  "borderRadius": {
+    "default": "0.25rem",
+    "lg": "0.5rem",
+    "xl": "0.75rem",
+    "full": "9999px",
+    "floatingSurface": "20px",
+    "sheet": "24px"
+  }
+}

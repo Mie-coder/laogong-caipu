@@ -1,0 +1,34 @@
+{
+  "name": "assets/8d9091a183ef44c883a2c9ba4d16d85b",
+  "version": "1",
+  "displayName": "Porcelain & Tangerine",
+  "projectId": "11371438272675460660",
+  "sourcePriority": "This Stitch V3 design system is the sole visual source of truth for implementation.",
+  "colors": {
+    "canvas": "#FAF9F6",
+    "surface": "#FFFFFF",
+    "track": "#F2F1EE",
+    "ink": "#20201E",
+    "warmGray": "#77736D",
+    "warmGrayLight": "#A8A39C",
+    "divider": "#E8E6E1",
+    "tangerine": "#D97832",
+    "tangerinePale": "#FCF3EA",
+    "error": "#B54A43",
+    "success": "#4D7A5B"
+  },
+  "fonts": {
+    "body": "Inter",
+    "headline": "Noto Serif",
+    "chineseFallback": "PingFang SC"
+  },
+  "spacing": {
+    "gutter": "20px",
+    "sectionGap": "32px",
+    "blockGap": "20px",
+    "inlineGap": "12px",
+    "compact": "8px",
+    "touchTarget": "44px"
+  },
+  "sourceNote": "The requested Design System entry is a Stitch design-system asset, not a screen, so it has no standalone screenshot or HTML export."
+}

@@ -1,0 +1,245 @@
+<!DOCTYPE html><html class="light" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>老公菜谱 - 做菜进行中</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Noto+Serif:wght@300;700&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-high": "#f7e5dc",
+                    "on-surface": "#231a14",
+                    "secondary-fixed-dim": "#c8c6c3",
+                    "inverse-on-surface": "#ffede5",
+                    "surface-container": "#fdeae1",
+                    "outline": "#887367",
+                    "secondary-container": "#e5e2de",
+                    "on-tertiary": "#ffffff",
+                    "success": "#4D7A5B",
+                    "error": "#B54A43",
+                    "warm-gray-light": "#A8A39C",
+                    "secondary": "#5f5e5c",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#392e28",
+                    "on-secondary-fixed-variant": "#474744",
+                    "canvas": "#FAF9F6",
+                    "warm-gray": "#77736D",
+                    "track": "#F2F1EE",
+                    "on-error-container": "#93000a",
+                    "primary-fixed-dim": "#ffb689",
+                    "tertiary-container": "#91918f",
+                    "on-surface-variant": "#554338",
+                    "surface-container-low": "#fff1ea",
+                    "on-primary-fixed-variant": "#743500",
+                    "on-secondary": "#ffffff",
+                    "divider": "#E8E6E1",
+                    "outline-variant": "#dbc1b3",
+                    "on-secondary-container": "#656462",
+                    "surface-variant": "#f1dfd6",
+                    "background": "#fff8f5",
+                    "on-background": "#231a14",
+                    "surface-container-highest": "#f1dfd6",
+                    "tangerine": "#D97832",
+                    "tangerine-pale": "#FCF3EA",
+                    "surface-bright": "#fff8f5",
+                    "on-secondary-fixed": "#1c1c1a",
+                    "tertiary-fixed-dim": "#c7c6c4",
+                    "surface-dim": "#e8d7ce",
+                    "primary-container": "#d97832",
+                    "on-tertiary-fixed": "#1a1c1a",
+                    "surface": "#FFFFFF",
+                    "on-primary": "#ffffff",
+                    "tertiary-fixed": "#e3e2e0",
+                    "surface-tint": "#984800",
+                    "on-primary-fixed": "#311300",
+                    "ink": "#20201E",
+                    "inverse-primary": "#ffb689",
+                    "primary-fixed": "#ffdbc8",
+                    "error-container": "#ffdad6",
+                    "tertiary": "#5e5f5d",
+                    "on-tertiary-container": "#292a29",
+                    "on-tertiary-fixed-variant": "#464745",
+                    "on-primary-container": "#481f00",
+                    "secondary-fixed": "#e5e2de",
+                    "primary": "#984800",
+                    "surface-container-lowest": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "touch-target": "44px",
+                    "gutter": "20px",
+                    "compact": "8px",
+                    "inline-gap": "12px",
+                    "block-gap": "20px",
+                    "section-gap": "32px"
+            },
+            "fontFamily": {
+                    "section-title": [
+                            "Inter"
+                    ],
+                    "recipe-title": [
+                            "Inter"
+                    ],
+                    "metadata": [
+                            "Inter"
+                    ],
+                    "display-serif": [
+                            "Noto Serif"
+                    ],
+                    "body": [
+                            "Inter"
+                    ],
+                    "editorial-numeral": [
+                            "Noto Serif"
+                    ],
+                    "body-emphasis": [
+                            "Inter"
+                    ],
+                    "nav-title": [
+                            "Inter"
+                    ]
+            },
+            "fontSize": {
+                    "section-title": [
+                            "22px",
+                            {
+                                    "lineHeight": "28px",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "recipe-title": [
+                            "26px",
+                            {
+                                    "lineHeight": "32px",
+                                    "letterSpacing": "-0.015em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "metadata": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "display-serif": [
+                            "37px",
+                            {
+                                    "lineHeight": "44px",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body": [
+                            "16px",
+                            {
+                                    "lineHeight": "26px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "editorial-numeral": [
+                            "64px",
+                            {
+                                    "lineHeight": "1.0",
+                                    "letterSpacing": "-0.05em",
+                                    "fontWeight": "300"
+                            }
+                    ],
+                    "body-emphasis": [
+                            "16px",
+                            {
+                                    "lineHeight": "26px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "nav-title": [
+                            "34px",
+                            {
+                                    "lineHeight": "41px",
+                                    "letterSpacing": "-0.025em",
+                                    "fontWeight": "700"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", STHeiti, "Microsoft Yahei", Tahoma, Simsun, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-canvas text-on-background min-h-screen flex flex-col justify-between selection:bg-tangerine selection:text-white">
+<!-- Top Navigation (Transactional/Focused Journey) -->
+<header class="flex justify-between items-center px-gutter py-4 w-full sticky top-0 z-50 glass-panel border-b-0 shadow-sm shadow-black/5">
+<button aria-label="返回" class="h-touch-target w-touch-target flex items-center justify-center rounded-full hover:bg-black/5 transition-colors active:scale-95 text-ink">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-body-emphasis text-body-emphasis text-ink flex-1 text-center pr-touch-target">做菜进行中</h1>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 px-gutter py-section-gap flex flex-col items-center justify-center relative overflow-hidden">
+<!-- Decorative Background Numeral -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] font-editorial-numeral text-[180px] text-tangerine-pale opacity-50 pointer-events-none select-none z-0">
+            01
+        </div>
+<!-- Hero Circular Image -->
+<div class="relative z-10 mb-section-gap w-64 h-64 rounded-full overflow-hidden shadow-2xl shadow-tangerine/10 border-4 border-white/50">
+<img alt="菠萝咕噜肉" class="w-full h-full object-cover" data-alt="A top-down, high-quality editorial food photography shot of vibrant sweet and sour pork (菠萝咕噜肉) served on a minimalist white ceramic plate. The lighting is soft, natural, and airy, reflecting a premium lifestyle magazine aesthetic. The dish features glossy, caramelized pieces of pork mixed with bright yellow pineapple chunks and green bell peppers. The background is a clean, slightly out-of-focus soft porcelain surface (#FAF9F6) to maintain a modern light-mode feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqvbq5MgtdLJI4WNlza1JIn-0LYIvSgoBM5vYOtZ1oV8VGEq7c9di5jkIgYYfXwoS27kPhz4AVLTqEaQvtd8Huf7B32EIhf8e_0yU2F2FDnno_85OMXIzIHRvKRHV2vKiOoc864IeeiUBFmeiPldOqNfw6kS2m0qDMxQIUDIZOsLmgCM99Do9xHWpsS_HJu4vECvaLJf3SEvKp1pG0GckqJjhZtW0zmVKS5TFzKCBZCAxfWCDF8SgOy4TRsiIEo4Nh14CcZahcGNg8">
+</div>
+<!-- Messaging -->
+<div class="text-center z-10 max-w-sm w-full space-y-6">
+<h2 class="font-recipe-title text-recipe-title text-ink">
+                准备好了吗？<br>我们将进入做菜模式。
+            </h2>
+<div class="glass-panel rounded-2xl p-6 text-left flex items-start gap-4">
+<span class="material-symbols-outlined text-tangerine mt-1" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+<p class="font-body text-body text-warm-gray">
+<strong class="text-ink font-body-emphasis">提示：</strong><br>
+                    在接下来的步骤中，您可以点击已完成的步骤来标记进度，或者使用语音播报功能解放双手。
+                </p>
+</div>
+</div>
+</main>
+<!-- Bottom Action Area -->
+<footer class="w-full px-gutter pb-8 pt-4 glass-panel border-t-0 sticky bottom-0 z-50">
+<button class="w-full h-[56px] rounded-full bg-tangerine text-white font-body-emphasis text-body-emphasis flex items-center justify-center gap-2 hover:bg-tangerine/90 active:scale-[0.98] transition-all shadow-lg shadow-tangerine/20">
+            进入第 1 步
+            <span class="material-symbols-outlined text-xl">arrow_forward</span>
+</button>
+</footer>
+<script>
+        // Simple micro-interaction for the main button
+        const startBtn = document.querySelector('footer button');
+        startBtn.addEventListener('click', function() {
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1)';
+                // Navigation logic would go here
+            }, 150);
+        });
+    </script>
+</body></html>

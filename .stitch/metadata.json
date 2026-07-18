@@ -1,0 +1,105 @@
+{
+  "projectId": "11371438272675460660",
+  "title": "老公菜谱 H5 设计系统",
+  "deviceType": "MOBILE",
+  "Last Sync Time": "2026-07-18T03:37:34Z",
+  "projectUpdateTime": "2026-07-18T03:13:03.505766Z",
+  "designSystem": "assets/8d9091a183ef44c883a2c9ba4d16d85b",
+  "embeddedAssets": {
+    "count": 28,
+    "directory": "assets",
+    "manifest": "assets/manifest.json"
+  },
+  "screens": {
+    "297577d996c34a9db3daf4a3203cf657": {
+      "label": "菜谱确认编辑",
+      "sourceScreen": "projects/11371438272675460660/screens/297577d996c34a9db3daf4a3203cf657",
+      "logicalDimensions": { "width": 390, "height": 1200 },
+      "advertisedExportDimensions": { "width": 780, "height": 2556 },
+      "downloadedDimensions": { "width": 390, "height": 1200 },
+      "canvasPosition": { "x": 8884, "y": 7 },
+      "files": { "html": "designs/01-recipe-confirm.html", "screenshot": "designs/01-recipe-confirm.png" }
+    },
+    "91aa035ec66148b5a8e567d9acf3e10a": {
+      "label": "图片审核",
+      "sourceScreen": "projects/11371438272675460660/screens/91aa035ec66148b5a8e567d9acf3e10a",
+      "logicalDimensions": { "width": 390, "height": 884 },
+      "advertisedExportDimensions": { "width": 780, "height": 1768 },
+      "downloadedDimensions": { "width": 780, "height": 1768 },
+      "canvasPosition": { "x": 6896, "y": null },
+      "files": { "html": "designs/02-image-review.html", "screenshot": "designs/02-image-review.png" }
+    },
+    "b03461c2568c454e998e922c05086fe4": {
+      "label": "做菜模式",
+      "sourceScreen": "projects/11371438272675460660/screens/b03461c2568c454e998e922c05086fe4",
+      "logicalDimensions": { "width": 390, "height": 884 },
+      "advertisedExportDimensions": { "width": 780, "height": 1768 },
+      "downloadedDimensions": { "width": 780, "height": 1768 },
+      "canvasPosition": { "x": 7863, "y": 7 },
+      "files": { "html": "designs/03-cooking-mode.html", "screenshot": "designs/03-cooking-mode.png" }
+    },
+    "b5f3e4ac1b9641ba9151215f192e5942": {
+      "label": "导入抽屉",
+      "sourceScreen": "projects/11371438272675460660/screens/b5f3e4ac1b9641ba9151215f192e5942",
+      "logicalDimensions": { "width": 390, "height": 884 },
+      "advertisedExportDimensions": { "width": 780, "height": 1768 },
+      "downloadedDimensions": { "width": 780, "height": 1768 },
+      "canvasPosition": { "x": 6442, "y": null },
+      "files": { "html": "designs/04-import-sheet.html", "screenshot": "designs/04-import-sheet.png" }
+    },
+    "2c90dc8399ec42b99e1e70aa2b567631": {
+      "label": "解析进度",
+      "sourceScreen": "projects/11371438272675460660/screens/2c90dc8399ec42b99e1e70aa2b567631",
+      "logicalDimensions": { "width": 390, "height": 688 },
+      "advertisedExportDimensions": { "width": 780, "height": 1768 },
+      "downloadedDimensions": { "width": 780, "height": 1768 },
+      "canvasPosition": { "x": 5988, "y": null },
+      "files": { "html": "designs/05-parsing-progress.html", "screenshot": "designs/05-parsing-progress.png" }
+    },
+    "aa73e93a171e427ca27f6e8bb417354d": {
+      "label": "菜谱详情",
+      "sourceScreen": "projects/11371438272675460660/screens/aa73e93a171e427ca27f6e8bb417354d",
+      "logicalDimensions": { "width": 390, "height": 941 },
+      "advertisedExportDimensions": { "width": 780, "height": 2086 },
+      "downloadedDimensions": { "width": 390, "height": 941 },
+      "canvasPosition": { "x": 5341, "y": -14 },
+      "files": { "html": "designs/06-recipe-detail.html", "screenshot": "designs/06-recipe-detail.png" }
+    },
+    "d4dcc58287ef48bda5951a87dc04d00c": {
+      "label": "进入做菜指引",
+      "sourceScreen": "projects/11371438272675460660/screens/d4dcc58287ef48bda5951a87dc04d00c",
+      "logicalDimensions": { "width": 390, "height": 776 },
+      "advertisedExportDimensions": { "width": 780, "height": 1768 },
+      "downloadedDimensions": { "width": 780, "height": 1768 },
+      "canvasPosition": { "x": 8353, "y": 23 },
+      "files": { "html": "designs/07-cooking-guide.html", "screenshot": "designs/07-cooking-guide.png" }
+    },
+    "8150ac8a97e343f4af9ef48c2d756aac": {
+      "label": "菜谱详情-复盘抽屉交互优化",
+      "sourceScreen": "projects/11371438272675460660/screens/8150ac8a97e343f4af9ef48c2d756aac",
+      "logicalDimensions": { "width": 390, "height": 941 },
+      "advertisedExportDimensions": { "width": 780, "height": 2082 },
+      "downloadedDimensions": { "width": 390, "height": 941 },
+      "canvasPosition": { "x": 5330, "y": 1098 },
+      "files": { "html": "designs/08-recipe-review-sheet.html", "screenshot": "designs/08-recipe-review-sheet.png" }
+    },
+    "7b38e30bda4043e9a3b0ead67d196a19": {
+      "label": "菜谱列表",
+      "sourceScreen": "projects/11371438272675460660/screens/7b38e30bda4043e9a3b0ead67d196a19",
+      "logicalDimensions": { "width": 390, "height": 874 },
+      "advertisedExportDimensions": { "width": 780, "height": 1892 },
+      "downloadedDimensions": { "width": 390, "height": 874 },
+      "canvasPosition": { "x": 4746, "y": 13 },
+      "files": { "html": "designs/09-recipe-list.html", "screenshot": "designs/09-recipe-list.png" }
+    },
+    "c6e8909e2e72419fa7f800e13a2454fa": {
+      "label": "首页-导航优化",
+      "sourceScreen": "projects/11371438272675460660/screens/c6e8909e2e72419fa7f800e13a2454fa",
+      "logicalDimensions": { "width": 390, "height": 962 },
+      "advertisedExportDimensions": { "width": 780, "height": 2116 },
+      "downloadedDimensions": { "width": 780, "height": 2116 },
+      "canvasPosition": { "x": 4232, "y": -21 },
+      "files": { "html": "designs/10-home-nav.html", "screenshot": "designs/10-home-nav.png" }
+    }
+  }
+}

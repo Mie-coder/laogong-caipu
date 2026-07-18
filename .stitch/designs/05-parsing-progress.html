@@ -1,0 +1,233 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>Parsing Progress</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS with configuration -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#231a14",
+                        "on-tertiary-fixed": "#1a1c1a",
+                        "on-secondary-fixed-variant": "#474744",
+                        "inverse-surface": "#392e28",
+                        "secondary-fixed": "#e5e2de",
+                        "warm-gray-light": "#A8A39C",
+                        "on-secondary-container": "#656462",
+                        "surface-container-low": "#fff1ea",
+                        "tertiary-fixed-dim": "#c7c6c4",
+                        "outline": "#887367",
+                        "on-tertiary-fixed-variant": "#464745",
+                        "primary": "#984800",
+                        "on-surface": "#231a14",
+                        "error": "#B54A43",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#d97832",
+                        "secondary-fixed-dim": "#c8c6c3",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#ffede5",
+                        "on-primary-container": "#481f00",
+                        "surface-dim": "#e8d7ce",
+                        "on-primary-fixed-variant": "#743500",
+                        "track": "#F2F1EE",
+                        "on-primary-fixed": "#311300",
+                        "on-secondary-fixed": "#1c1c1a",
+                        "primary-fixed": "#ffdbc8",
+                        "tertiary": "#5e5f5d",
+                        "ink": "#20201E",
+                        "surface-bright": "#fff8f5",
+                        "surface-tint": "#984800",
+                        "surface-container-high": "#f7e5dc",
+                        "tertiary-fixed": "#e3e2e0",
+                        "canvas": "#FAF9F6",
+                        "divider": "#E8E6E1",
+                        "tangerine": "#D97832",
+                        "on-surface-variant": "#554338",
+                        "background": "#fff8f5",
+                        "inverse-primary": "#ffb689",
+                        "on-primary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "surface": "#FFFFFF",
+                        "secondary": "#5f5e5c",
+                        "on-tertiary-container": "#292a29",
+                        "success": "#4D7A5B",
+                        "surface-variant": "#f1dfd6",
+                        "warm-gray": "#77736D",
+                        "tangerine-pale": "#FCF3EA",
+                        "outline-variant": "#dbc1b3",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "secondary-container": "#e5e2de",
+                        "surface-container": "#fdeae1",
+                        "tertiary-container": "#91918f",
+                        "surface-container-highest": "#f1dfd6",
+                        "primary-fixed-dim": "#ffb689"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "20px",
+                        "touch-target": "44px",
+                        "inline-gap": "12px",
+                        "section-gap": "32px",
+                        "compact": "8px",
+                        "block-gap": "20px"
+                    },
+                    "fontFamily": {
+                        "body": ["Inter", "sans-serif"],
+                        "nav-title": ["Inter", "sans-serif"],
+                        "recipe-title": ["Inter", "sans-serif"],
+                        "section-title": ["Inter", "sans-serif"],
+                        "display-serif": ["Noto Serif", "serif"],
+                        "editorial-numeral": ["Noto Serif", "serif"],
+                        "metadata": ["Inter", "sans-serif"],
+                        "body-emphasis": ["Inter", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "body": ["16px", { "lineHeight": "26px", "fontWeight": "400" }],
+                        "nav-title": ["34px", { "lineHeight": "41px", "letterSpacing": "-0.025em", "fontWeight": "700" }],
+                        "recipe-title": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+                        "section-title": ["22px", { "lineHeight": "28px", "fontWeight": "700" }],
+                        "display-serif": ["37px", { "lineHeight": "44px", "fontWeight": "700" }],
+                        "editorial-numeral": ["64px", { "lineHeight": "1.0", "letterSpacing": "-0.05em", "fontWeight": "300" }],
+                        "metadata": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-emphasis": ["16px", { "lineHeight": "26px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom smooth pulse animation for the active state */
+        @keyframes subtle-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.85); }
+        }
+        .animate-subtle-pulse {
+            animation: subtle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Background ambient glow to keep it airy */
+        .ambient-glow {
+            position: absolute;
+            top: -10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 300px;
+            background: radial-gradient(circle, rgba(217, 120, 50, 0.08) 0%, rgba(250, 249, 246, 0) 70%);
+            z-index: 0;
+            pointer-events: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-canvas text-on-background font-body min-h-screen flex flex-col relative overflow-hidden">
+<!-- Ambient Background -->
+<div class="ambient-glow"></div>
+<!-- Main Container -->
+<div class="relative z-10 flex flex-col h-full min-h-screen max-w-[430px] mx-auto w-full">
+<!-- Compact Header -->
+<header class="pt-16 pb-6 px-gutter flex flex-col items-center justify-center">
+<h1 class="font-section-title text-section-title text-on-background flex items-center gap-2">
+<span class="material-symbols-outlined text-[24px] text-tangerine animate-spin" style="animation-duration: 3s;">hourglass_empty</span>
+                正在解析
+            </h1>
+<p class="font-metadata text-metadata text-warm-gray mt-1">预计还需要几秒钟...</p>
+</header>
+<!-- Content Area -->
+<main class="flex-grow flex flex-col px-gutter">
+<!-- Summary Card (Glassmorphism) -->
+<div class="bg-surface/80 backdrop-blur-xl rounded-xl p-5 shadow-[0_4px_24px_rgba(35,26,20,0.04)] border border-white mb-10 flex gap-4 items-start">
+<div class="w-10 h-10 rounded-full bg-tangerine-pale flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-tangerine text-[20px]">content_paste</span>
+</div>
+<div class="flex-grow">
+<p class="font-metadata text-metadata text-warm-gray mb-0.5">来源：剪贴板内容</p>
+<p class="font-body text-body text-on-surface-variant line-clamp-2">【小红书】超好吃得秘制红烧肉做法，肥而不腻，入口即化，新手一看就会的零失败教程...</p>
+</div>
+</div>
+<!-- Vertical Timeline -->
+<div class="px-4">
+<!-- Stage 1: Completed -->
+<div class="flex gap-6 relative">
+<!-- Connecting Line -->
+<div class="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-tangerine/30 rounded-full"></div>
+<!-- Indicator -->
+<div class="relative z-10 flex flex-col items-center pt-1">
+<div class="w-6 h-6 rounded-full bg-tangerine text-white flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+</div>
+<!-- Content -->
+<div class="pb-10">
+<p class="font-body-emphasis text-body-emphasis text-on-background">识别分享内容</p>
+<p class="font-metadata text-metadata text-warm-gray mt-0.5">已提取图文基础信息</p>
+</div>
+</div>
+<!-- Stage 2: In Progress -->
+<div class="flex gap-6 relative">
+<!-- Connecting Line -->
+<div class="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-divider rounded-full"></div>
+<!-- Indicator -->
+<div class="relative z-10 flex flex-col items-center pt-1">
+<div class="w-6 h-6 rounded-full border-[2px] border-tangerine bg-canvas flex items-center justify-center">
+<div class="w-2.5 h-2.5 rounded-full bg-tangerine animate-subtle-pulse"></div>
+</div>
+</div>
+<!-- Content -->
+<div class="pb-10">
+<p class="font-body-emphasis text-body-emphasis text-tangerine">读取菜谱正文</p>
+<p class="font-metadata text-metadata text-tangerine/70 mt-0.5">AI正在解析做法与配料...</p>
+</div>
+</div>
+<!-- Stage 3: Pending -->
+<div class="flex gap-6 relative">
+<!-- Connecting Line -->
+<div class="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-divider rounded-full"></div>
+<!-- Indicator -->
+<div class="relative z-10 flex flex-col items-center pt-1">
+<div class="w-6 h-6 rounded-full border-[2px] border-outline-variant bg-canvas"></div>
+</div>
+<!-- Content -->
+<div class="pb-10">
+<p class="font-body text-body text-warm-gray opacity-70">整理食材步骤</p>
+</div>
+</div>
+<!-- Stage 4: Pending -->
+<div class="flex gap-6 relative">
+<!-- No bottom line for last item -->
+<!-- Indicator -->
+<div class="relative z-10 flex flex-col items-center pt-1">
+<div class="w-6 h-6 rounded-full border-[2px] border-outline-variant bg-canvas"></div>
+</div>
+<!-- Content -->
+<div class="pb-4">
+<p class="font-body text-body text-warm-gray opacity-70">筛选图片</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Action -->
+<footer class="px-gutter pb-10 pt-6 mt-auto">
+<button class="w-full h-touch-target rounded-full border border-divider bg-surface/50 backdrop-blur-sm text-on-surface-variant font-body-emphasis text-body-emphasis flex items-center justify-center hover:bg-surface-container-highest transition-colors active:scale-[0.98]">
+                取消解析
+            </button>
+</footer>
+</div>
+</body></html>

@@ -1,19 +1,21 @@
-# 老公菜谱 V2 UI 实施进度
+# 老公菜谱 Stitch V3 实施进度
 
 > 本文件是任务进度的唯一可信入口。每次运行先按 `AGENTS.md` 核对 Git 状态，再从“下一步”继续。
 
 ## 最新任务快照
 
-- 更新时间：2026-07-08（8 张设计稿 1:1 复刻定向完成，等待真实导入流与视觉验收）
+- 更新时间：2026-07-18（Stitch V3 规格已批准，实施计划已完成自审，等待选择执行方式后开始 Task 1）
 - 分支：`master`
 - Task 5 代码 HEAD：`73aa869 docs: record task 5 completion`
 - 1:1 复刻提交：`7604460 feat: replicate home and recipe list designs`
 - 导入/详情/复盘 1:1 复刻提交：`1233318 feat: replicate remaining recipe flows`
-- 当前阶段：当前任务为“复刻1:1设计稿”；01 首页、02 导入抽屉、03 解析中、04 图片审核、05 菜谱确认、06 菜谱页、07 详情页、08 复盘抽屉均已完成定向复刻，等待真实导入流与用户视觉验收
-- 实施计划：`docs/superpowers/plans/2026-07-02-v2-ui-redesign.md`
-- 设计基准：`.agents/rules/style.md`、`.agents/rules/global-style.md`、`.agents/rules/复刻1:1设计规范.md`、`docs/ui-concepts/01-home.png` 至 `08-cook-review.png`
+- 当前阶段：Stitch V3 的 10 屏设计、实现约束和验收模板已同步；规格 `e2731be` 已获用户批准；新版实施计划已写入并通过规格覆盖、未决项和类型一致性自审，尚未修改业务代码
+- 实施规格：`docs/superpowers/specs/2026-07-18-stitch-v3-redesign-design.md`
+- 实施计划：`docs/superpowers/plans/2026-07-18-stitch-v3-redesign.md`
+- 旧版复刻基准：`.agents/rules/style.md`、`.agents/rules/global-style.md`、`.agents/rules/复刻1:1设计规范.md`、`docs/ui-concepts/01-home.png` 至 `08-cook-review.png`
+- 新版 Stitch 设计基准：`.stitch/designs/`、`.stitch/design-system.json`、`resources/style-guide.json`
 
-## Task 状态
+## 旧版 Task 状态
 
 | Task | 状态 | Commit / 验收 |
 | --- | --- | --- |
@@ -22,6 +24,17 @@
 | 3. 编辑式菜谱列表 | 已完成 | `6b1190e..74b4244`；review 和 controller verification 通过 |
 | 4. 菜谱详情与做菜复盘 | 已完成 | `8cc64f1..af2e025`；review、18/18 定向测试、66/66 完整测试和 build 通过 |
 | 5. Playwright 三尺寸浏览器验收与截图 | 已完成 | `e86f6dd..73aa869`；主控独立完成 68/68 单测、build、12/12 E2E 与 24 张截图验收；`73aa869` 记录完成文档 |
+
+## Stitch V3 Task 状态
+
+| Task | 状态 | Commit / 验收 |
+| --- | --- | --- |
+| 1. Stitch token、shadcn/ui 与应用壳 | 待开始 | 规格与计划已完成，尚未修改业务代码 |
+| 2. 首页、菜谱列表与导航 | 待开始 | 依赖 Task 1 |
+| 3. 导入抽屉、解析、图片审核与确认编辑 | 待开始 | 依赖 Task 1-2 |
+| 4. 菜谱详情、收藏持久化与复盘抽屉 | 待开始 | 依赖 Task 1-3 |
+| 5. 做菜指引、会话、计时、步骤进度与语音 | 待开始 | 依赖 Task 1-4 |
+| 6. 完整 E2E、三尺寸视觉验收和 Claude Code 交接 | 待开始 | 依赖全部实现 Task |
 
 ## Task 4 完成记录
 
@@ -191,11 +204,64 @@
 - `PATH=/Users/mie/.hermes/node/bin:$PATH npm run test -- tests/unit/import-flow-v2.test.tsx tests/unit/recipe-list-v2.test.tsx tests/unit/recipe-card.test.tsx tests/unit/v2-shell.test.tsx`：4 files / 39 tests 通过。
 - 本轮未运行 `npm run build`；为保持用户当前预览服务不断开，未停止 dev server。
 
+## Stitch 设计系统交付（2026-07-17）
+
+完成内容：
+
+- 用户确认以 Apple 的层级与触控原则结合 Cookly 的轻量烹饪风，旧版视觉不再作为新版约束。
+- 新增四张新版视觉基准：`09-home-apple-cookly.png`、`10-recipe-detail-apple-cookly.png`、`11-cooking-mode-apple-cookly.png`、`12-recipe-list-apple-cookly.png`。
+- 新增根目录 `DESIGN.md`，作为 Stitch 进一步生成屏幕的语义设计系统和唯一规则入口。
+- `DESIGN.md` 覆盖视觉气质、精确色值、字体、尺寸、圆角、材质、图像、组件、页面配方、动效、无障碍、Stitch 提示模板、禁止项和验收清单。
+- 橙色规则已按用户反馈收敛：普通屏幕约 5%，上限 8%；每屏最多一个实心橙色主操作；首页导入入口和详情页分段控件不得使用大面积橙色填充。
+- 做菜模式采用横向滚动备料和纵向连续步骤；菜谱列表采用圆形菜品图、轻分隔线和双栏底部导航。
+
+验收：
+
+- `wc -l DESIGN.md`：520 行。
+- `rg -n "TBD|TODO|待定|占位|\\?\\?|—|–|#FF6B6B|Instrument|Fraunces" DESIGN.md`：无匹配。
+- `rg -n "Muted Tangerine|orange|橙色|segmented|分段" DESIGN.md`：颜色预算、组件限制和页面级橙色规则均存在。
+- `git diff --check`：通过。
+- 本轮仅新增设计文档和设计稿，未修改业务代码，因此未运行单元测试、E2E 或构建。
+- 当前工作区：`DESIGN.md` 与 `docs/ui-concepts/09-12` 为未跟踪新版设计产物；既有 `output/playwright-v2/`、`output/playwright/home-393.png`、`output/playwright/home-430.png` 保持未跟踪且未清理。
+
 ## 下一步
 
-1. 用户浏览器验收 01-08 已复刻页面，以及真实导入生成的 `http://127.0.0.1:3000/recipes/6` 菠萝咕噜肉详情页；若指出视觉差异，继续按”单点反馈 → 定向测试 → CSS/结构修正 → 浏览器验收”的方式调整。
-2. 后续复刻规格从 `.agents/rules/style.md`、`.agents/rules/global-style.md`、`.agents/rules/复刻1:1设计规范.md` 读取；若 agent 不能读取 `docs/ui-concepts/*.png`，先补量化页面复刻包。
-3. 全部视觉验收通过后，停止 dev server、清理 `.next`，补跑完整 `npm run test` 和 `npm run build`，再更新完成记录。
+1. 以 Stitch 第三版作为唯一视觉基准；根目录 `DESIGN.md` 和早期概念图仅保留为历史资料，不再约束实施。
+2. 用户已确认做菜模式中的收藏持久化、计时、步骤完成进度和语音播报全部纳入真实功能，不允许只做视觉占位。
+3. 规格已批准，实施计划已完成；按用户选择使用 subagent-driven 或 inline 方式执行 Task 1。
+4. Task 1 先建立最小 shadcn/ui、Stitch token 和 Apple motion 基础，完成 RED/GREEN、双重 review、完整测试和 build 后才能进入 Task 2。
+5. 跨项目组件库和自进化机制推迟到本项目完成后，根据真实复用和验收证据另行设计。
+
+## Stitch 第三版同步与评估（2026-07-18）
+
+完成内容：
+
+- 从 Stitch 项目 `11371438272675460660` 同步用户指定的 10 个业务屏幕，每屏均保存生成 HTML 与截图到 `.stitch/designs/`。
+- 下载 10 份 HTML 内引用的 28 张菜品与食材图片到 `.stitch/assets/`，并生成 `manifest.json` 保存远程 URL 与本地文件映射。
+- 逐张视觉审阅菜谱确认、图片审核、做菜模式、导入抽屉、解析进度、菜谱详情、进入做菜指引、复盘抽屉、菜谱列表和首页导航优化。
+- 确认 Design System 条目是资产 `assets/8d9091a183ef44c883a2c9ba4d16d85b`，不是普通屏幕；其结构化信息保存为 `.stitch/design-system.json`。
+- 新增 `.stitch/metadata.json`，记录同步时间、屏幕 ID、逻辑尺寸、下载尺寸、画布位置和本地文件映射。
+- 从 10 份 HTML 的 `<head>` 提取并核对颜色、字体、字号、间距和圆角 token，保存为 `resources/style-guide.json`。
+- 本轮只同步和评估设计产物，没有修改业务代码，也没有初始化 shadcn/ui。
+
+发现的关键实现问题：
+
+- 用户已确认以 Stitch 第三版为唯一视觉基准；Stitch HTML 中的 Inter、Noto Serif / 宋体感标题和第三版 token 可直接进入实施，不再受根目录 `DESIGN.md` 的冲突规则约束。
+- 菜谱详情分段控件 HTML 同时包含“食材 / 步骤”，但导出截图只清晰显示“步骤”，实现时应修正为完整双分段控件，不能照搬截图缺陷。
+- 用户已确认做菜模式新增的计时、步骤进度、语音播报和收藏都必须真实可用；现有代码只有食材勾选与复盘，实施时需要补充前端状态、浏览器语音能力和收藏持久化。
+- 当前项目没有 `components.json`、Radix、CVA 或 shadcn/ui 组件，后续需要先建立最小 shadcn 基础再迁移常用控件。
+- 通用图标优先使用 Lucide/shadcn 可访问 SVG；只有缺少合适系统图标的独特图形才生成并切出本地资源。
+- 新增 `.agents/rules/stitch-v3-implementation-constraints.md` 作为所有实现 agent、修正 agent 和 reviewer 的强制输入，明确 shadcn/ui 优先、禁止重写通用原语、Lucide 图标、Apple 动效、样式 token、TDD、文件范围和退回规则。
+- 用户授权复杂任务使用子 agent 开发，由主控负责架构、集成、完整测试、三尺寸视觉验收和最终效果判断；实现任务顺序执行，独立审查和失败排查可并行。
+- 用户要求子 agent 并发最多 5 个；当前运行环境只有 4 个并发槽位且包含主控，因此实际硬上限为“主控 + 3 个子 agent”。默认只运行 1 个实现子 agent，只有互不写同一文件的只读审查或失败分析才临时并行。
+- 项目完成时必须填写并完成 `docs/qa/最终验收报告.md`，记录 commit 范围、环境、验收命令与原始结果摘要、10 屏三尺寸视觉矩阵、完整交互矩阵、动效与无障碍检查、失败退回记录、已知差异、截图索引和最终结论，供用户使用 Claude Code 再次独立验收。模板初始状态全部为“待执行”，禁止预填通过。
+
+验收：
+
+- `.stitch/designs/`：10 份 HTML + 10 张截图；`.stitch/assets/`：28 张内部图片；全部下载命令退出码 0。
+- 10 张截图均通过本地原图查看完成视觉审阅。
+- 10 份 HTML 的核心色值和六个间距 token 完全一致。
+- 本轮未运行单元测试、E2E 或构建；仅新增设计同步产物与进度记录。
 
 ## 导入抽屉 1:1 复刻（2026-07-07）
 
