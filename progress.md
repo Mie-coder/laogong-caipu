@@ -4,12 +4,12 @@
 
 ## 最新任务快照
 
-- 更新时间：2026-07-18（Stitch V3 Task 4 已提交并通过验收，准备进入 Task 5）
-- 分支：`master`
-- Task 5 代码 HEAD：`73aa869 docs: record task 5 completion`
+- 更新时间：2026-07-18（Stitch V3 Task 5 已提交并通过验收，准备进入 Task 6）
+- 分支：独立 worktree detached HEAD（用户已确认）
+- 当前代码 HEAD：`07b5bd7 feat: add the Stitch V3 cooking experience`
 - 1:1 复刻提交：`7604460 feat: replicate home and recipe list designs`
 - 导入/详情/复盘 1:1 复刻提交：`1233318 feat: replicate remaining recipe flows`
-- 当前阶段：Stitch V3 Task 4 已完成；最终规格 PASS、质量 APPROVED，下一步执行 Task 5 做菜指引与做菜模式
+- 当前阶段：Stitch V3 Task 5 已完成；最终规格 PASS、质量 APPROVED，下一步执行 Task 6 完整 E2E、三尺寸视觉验收和 Claude Code 交接
 - 实施规格：`docs/superpowers/specs/2026-07-18-stitch-v3-redesign-design.md`
 - 实施计划：`docs/superpowers/plans/2026-07-18-stitch-v3-redesign.md`
 - 旧版复刻基准：`.agents/rules/style.md`、`.agents/rules/global-style.md`、`.agents/rules/复刻1:1设计规范.md`、`docs/ui-concepts/01-home.png` 至 `08-cook-review.png`
@@ -42,7 +42,7 @@
 | 2. 首页、菜谱列表与导航 | 已完成 | `98db6f6`；Spec PASS / Quality APPROVED；focused 43/43、主控 full 103/103、build 9/9、静态审计通过；Home/List 375/390/430 六图、无横向溢出及列表滚动/固定栏复验通过 |
 | 3. 导入抽屉、解析、图片审核与确认编辑 | 已完成 | `8b05064`、`005f30d`、`f599b55`、`b02386b`、`7e6c88b`；最终 Spec PASS / Quality APPROVED；25/25 定向、107/107 全量、build 9/9，四屏 390px 通过 |
 | 4. 菜谱详情、收藏持久化与复盘抽屉 | 已完成 | `48b8199`、`fa74337`、`4c86043`、`ab59bce`、`214a5ac`；最终 Spec PASS / Quality APPROVED；22/22 定向、111/111 全量、build 9/9，详情/复盘 390px 通过 |
-| 5. 做菜指引、会话、计时、步骤进度与语音 | 待开始 | 依赖 Task 1-4 |
+| 5. 做菜指引、会话、计时、步骤进度与语音 | 已完成 | `07b5bd7`；最终 Spec PASS / Quality APPROVED；当前 5 个相关文件 21 项均有通过证据，主控 full 123/123、build 9/9；四张 390px 真浏览器证据通过 |
 | 6. 完整 E2E、三尺寸视觉验收和 Claude Code 交接 | 待开始 | 依赖全部实现 Task |
 
 ## Task 1 当前记录（2026-07-18）
@@ -104,6 +104,16 @@
 - `rg -n "canvas-confetti|confetti\\(|glass-card|rounded-pill|👨‍🍳|📝|😔|😐|🙂|😋|😍|⭐" src/components/recipe-detail.tsx src/components/cooking-log-sheet.tsx`：无匹配（退出码 1，符合预期）。
 - `git diff --check`：通过。
 - 工作区：Task 4 代码已提交；仅保留受保护的未跟踪设计产物。
+
+## Stitch V3 Task 5 完成记录（2026-07-18）
+
+- 实现提交：`07b5bd7 feat: add the Stitch V3 cooking experience`。
+- 完成真实详情→全高 shadcn 指引 Drawer→`/recipes/[id]/cook`，以及版本化 sessionStorage 会话、绝对截止时间计时、可撤销步骤、用户触发 `zh-CN` 语音、共享收藏和复盘 Drawer。
+- reviewer 三轮退回并关闭 storage 不可用、异步步骤 hydrate、重复完成值、死按钮、390px footer 过宽；主控真浏览器再发现并关闭 speech 同步异常冒泡。
+- 最终 reviewer：Spec PASS / Quality APPROVED，Critical / Important / Minor 均为 None。
+- 主控：22 files / 123 tests、production build 9/9，均 exit 0；最后语音隔离修正由 3/3 定向测试复验。
+- 390px：指引 Drawer 390×844；做菜页无横向溢出、BottomNav 隐藏、footer 390×75/bottom 844，5 个动作均完整且 ≥44px；步骤刷新恢复 3/3；复盘 Drawer bottom 844；语音 `zh-CN` 调用且无 runtime error。
+- 证据：`output/playwright/task5-final/`；375/430 和完整串行 E2E 依精简模式留给 Task 6。
 
 ## 工作区保护
 
