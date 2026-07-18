@@ -3,22 +3,59 @@
 @tailwind utilities;
 
 :root {
-  --color-bg: #fff9f5;
-  --color-surface: #ffffff;
-  --color-ink: #2e2725;
-  --color-text: #3d3633;
-  --color-muted: #6f6865;
-  --color-subtle: #9a928e;
-  --color-line: #e9e3df;
-  --color-accent: #ff6b6b;
-  --color-accent-soft: #fff0ed;
-  --color-overlay: rgba(24, 20, 18, 0.52);
-  --color-disabled: #c9c2be;
+  --color-bg: hsl(var(--canvas));
+  --color-surface: hsl(var(--surface));
+  --color-ink: hsl(var(--ink));
+  --color-text: hsl(var(--on-surface-variant));
+  --color-muted: hsl(var(--on-surface-variant));
+  --color-subtle: hsl(var(--on-surface-variant));
+  --color-line: hsl(var(--divider));
+  --color-accent: hsl(var(--primary));
+  --color-accent-soft: hsl(var(--surface-low));
+  --color-overlay: hsl(var(--on-surface) / 0.52);
+  --color-disabled: hsl(var(--track));
   --app-max-width: 430px;
   --app-gutter: clamp(20px, 5.8vw, 25px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   color: var(--color-text);
   background: var(--color-bg);
+}
+
+/* Stitch V3 semantic tokens. */
+:root {
+  --canvas: 40 33% 97%;
+  --surface: 0 0% 100%;
+  --surface-low: 20 73% 96%;
+  --surface-container: 20 82% 94%;
+  --ink: 60 3% 12%;
+  --on-surface: 26 28% 11%;
+  --on-surface-variant: 26 21% 28%;
+  --divider: 40 13% 90%;
+  --track: 40 13% 94%;
+  --primary: 25 66% 52%;
+  --destructive: 4 46% 49%;
+  --success: 140 23% 39%;
+  --radius: 0.5rem;
+  --app-max-width: 430px;
+  --app-gutter: 20px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --background: var(--canvas);
+  --foreground: var(--on-surface);
+  --card: var(--surface);
+  --card-foreground: var(--on-surface);
+  --popover: var(--surface);
+  --popover-foreground: var(--on-surface);
+  --primary-foreground: var(--surface);
+  --secondary: var(--surface-low);
+  --secondary-foreground: var(--on-surface);
+  --muted: var(--surface-low);
+  --muted-foreground: var(--on-surface-variant);
+  --accent: var(--surface-container);
+  --accent-foreground: var(--on-surface);
+  --destructive-foreground: var(--surface);
+  --border: var(--divider);
+  --input: var(--divider);
+  --ring: var(--primary);
 }
 
 * {
@@ -2456,5 +2493,13 @@ select {
       padding: 0 6px;
       font-size: 14px;
     }
+  }
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }

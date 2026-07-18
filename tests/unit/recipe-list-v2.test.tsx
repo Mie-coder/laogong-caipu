@@ -239,6 +239,7 @@ describe("RecipeList v2", () => {
       })
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
     fireEvent.click(screen.getByRole("button", { name: "全部" }));
 
     await waitFor(() =>

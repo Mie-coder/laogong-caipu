@@ -29,12 +29,27 @@
 
 | Task | 状态 | Commit / 验收 |
 | --- | --- | --- |
-| 1. Stitch token、shadcn/ui 与应用壳 | 待开始 | 规格与计划已完成，尚未修改业务代码 |
+| 1. Stitch token、shadcn/ui 与应用壳 | 实现与验证完成，待主控复审 | 本次 Task 1 commit；79/79 tests、build、原语审计与 `git diff --check` 通过 |
 | 2. 首页、菜谱列表与导航 | 待开始 | 依赖 Task 1 |
 | 3. 导入抽屉、解析、图片审核与确认编辑 | 待开始 | 依赖 Task 1-2 |
 | 4. 菜谱详情、收藏持久化与复盘抽屉 | 待开始 | 依赖 Task 1-3 |
 | 5. 做菜指引、会话、计时、步骤进度与语音 | 待开始 | 依赖 Task 1-4 |
 | 6. 完整 E2E、三尺寸视觉验收和 Claude Code 交接 | 待开始 | 依赖全部实现 Task |
+
+## Task 1 当前记录（2026-07-18）
+
+- 基线检查在依赖变更前完成：`PATH=/Users/mie/.hermes/node/bin:$PATH npm run test` 失败，`sh: vitest: command not found`；`PATH=/Users/mie/.hermes/node/bin:$PATH npm run build` 失败，`sh: next: command not found`。
+- 原因：当前 linked worktree 未安装 `node_modules`；尚未修改业务代码或依赖清单。
+
+### Task 1 实现与验证记录（2026-07-18）
+
+- TDD RED：`PATH=/Users/mie/.hermes/node/bin:$PATH npm run test -- tests/unit/stitch-v3-foundation.test.tsx` 因缺少 `@/components/ui/button` 失败；随后使用精确兼容版本 `shadcn@2.1.8` 初始化并添加 Button、Input、Textarea、Label、Checkbox、Tabs、Drawer、Dialog、AlertDialog、DropdownMenu、Skeleton 和 Sonner。
+- 兼容性决议：保留 Next.js 14 + Tailwind CSS 3；最初 `shadcn@latest` 的 Base UI/Tailwind 4 未提交产物已移除；`shadcn@2.10.0` 因 `Validation failed: tailwind: Required` 被放弃。
+- TDD GREEN：新增的 foundation test 2/2 通过；完整回归 `PATH=/Users/mie/.hermes/node/bin:$PATH npm run test` 为 15 files / 79 tests 通过。
+- 生产验证：`PATH=/Users/mie/.hermes/node/bin:$PATH npm run build` 成功，Next.js 14.2.35 完成类型检查、9/9 静态页面生成和优化。
+- 原语审计：`bottom-sheet.tsx` 与 `skeleton-card.tsx` 没有手写按钮、输入、文本域或 dialog；仅 shadcn 的 Input / Textarea 原语保留对应原生标签。`git diff --check` 通过。
+- 为适配 Vaul 的模态抽屉和 Sonner 全局提示，最小更新既有 `v2-shell`、菜谱列表和详情测试：抽屉交互先关闭再访问背景内容，Toast 断言改为 Sonner 调用；业务实现范围未扩大。
+- 实现已提交，等待主控按实施约束完成独立规格与质量复审后再将 Task 标为完成。
 
 ## Task 4 完成记录
 
@@ -228,8 +243,8 @@
 
 1. 以 Stitch 第三版作为唯一视觉基准；根目录 `DESIGN.md` 和早期概念图仅保留为历史资料，不再约束实施。
 2. 用户已确认做菜模式中的收藏持久化、计时、步骤完成进度和语音播报全部纳入真实功能，不允许只做视觉占位。
-3. 规格已批准，实施计划已完成；按用户选择使用 subagent-driven 或 inline 方式执行 Task 1。
-4. Task 1 先建立最小 shadcn/ui、Stitch token 和 Apple motion 基础，完成 RED/GREEN、双重 review、完整测试和 build 后才能进入 Task 2。
+3. Task 1 已完成实现、测试和构建，主控应完成独立规格与代码质量复审，并在通过后标记完成。
+4. 主控复审通过后，按 Task 2 迁移首页、菜谱列表与导航。
 5. 跨项目组件库和自进化机制推迟到本项目完成后，根据真实复用和验收证据另行设计。
 
 ## Stitch 第三版同步与评估（2026-07-18）

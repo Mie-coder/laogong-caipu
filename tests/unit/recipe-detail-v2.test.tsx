@@ -10,13 +10,16 @@ const mockState = vi.hoisted(() => {
     getRecipeApi: vi.fn(),
     addCookingLogApi: vi.fn(),
     deleteRecipeApi: vi.fn(),
-    reducedMotion: false
+    reducedMotion: false,
+    toast: vi.fn()
   };
 });
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockState.push })
 }));
+
+vi.mock("sonner", () => ({ toast: mockState.toast }));
 
 vi.mock("@/lib/http/api-client", () => ({
   getRecipeApi: mockState.getRecipeApi,
@@ -256,7 +259,7 @@ describe("RecipeDetail v2", () => {
     fireEvent.change(screen.getByLabelText("下次改进"), { target: { value: "再辣一点" } });
     fireEvent.click(screen.getByRole("button", { name: "保存复盘" }));
 
-    expect(await screen.findByText("已保存复盘")).toBeInTheDocument();
+    await waitFor(() => expect(mockState.toast).toHaveBeenCalledWith("已保存复盘"));
     expect(await screen.findByText("更下饭了")).toBeInTheDocument();
     expect(screen.getByText("再辣一点")).toBeInTheDocument();
     expect(screen.getByText("砂锅保温很好")).toBeInTheDocument();
@@ -301,7 +304,7 @@ describe("RecipeDetail v2", () => {
     fireEvent.click(within(menu).getByRole("menuitem", { name: "删除菜谱" }));
 
     expect(confirmSpy).toHaveBeenCalled();
-    expect(await screen.findByText("删除失败")).toBeInTheDocument();
+    await waitFor(() => expect(mockState.toast).toHaveBeenCalledWith("删除失败"));
     expect(screen.getByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
     expect(mockState.push).not.toHaveBeenCalled();
   });

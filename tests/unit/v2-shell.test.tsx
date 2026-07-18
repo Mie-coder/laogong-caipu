@@ -9,8 +9,11 @@ import { Toast } from "@/components/toast";
 
 const mockState = vi.hoisted(() => ({
   pathname: "/",
-  reducedMotion: false
+  reducedMotion: false,
+  toast: vi.fn()
 }));
+
+vi.mock("sonner", () => ({ toast: mockState.toast }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockState.pathname
@@ -102,10 +105,10 @@ describe("v2 application shell", () => {
     );
 
     expect(screen.getByRole("button", { name: "关闭" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "关闭弹层" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "筛选图片" })).toBeInTheDocument();
   });
 
-  it("calls onClose when Escape is pressed", () => {
+  it("calls onClose from the Drawer close control", () => {
     const onClose = vi.fn();
 
     render(
@@ -114,12 +117,12 @@ describe("v2 application shell", () => {
       </BottomSheet>
     );
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "关闭" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("removes positional animation and duration for bottom sheet and toast under reduced motion", async () => {
+  it("delegates reduced-motion sheet behavior to Vaul and sends toast through Sonner", async () => {
     mockState.reducedMotion = true;
 
     render(
@@ -131,18 +134,11 @@ describe("v2 application shell", () => {
       </>
     );
 
-    const dialog = screen.getByRole("dialog");
-    const toast = await screen.findByText("保存成功");
-
-    expect(dialog).toHaveAttribute("data-initial", JSON.stringify({ y: 0, opacity: 0 }));
-    expect(dialog).toHaveAttribute("data-exit", JSON.stringify({ y: 0, opacity: 0 }));
-    expect(dialog).toHaveAttribute("data-transition", JSON.stringify({ duration: 0 }));
-    expect(toast).toHaveAttribute("data-initial", JSON.stringify({ opacity: 0, y: 0 }));
-    expect(toast).toHaveAttribute("data-exit", JSON.stringify({ opacity: 0, y: 0 }));
-    expect(toast).toHaveAttribute("data-transition", JSON.stringify({ duration: 0 }));
+    expect(screen.getByRole("dialog", { name: "筛选图片" })).toBeInTheDocument();
+    await waitFor(() => expect(mockState.toast).toHaveBeenCalledWith("保存成功"));
   });
 
-  it("keeps motion when reduced motion is not requested", async () => {
+  it("does not duplicate unchanged Sonner messages", async () => {
     render(
       <>
         <BottomSheet open title="筛选图片" onClose={vi.fn()}>
@@ -152,9 +148,6 @@ describe("v2 application shell", () => {
       </>
     );
 
-    await waitFor(() => expect(screen.getByText("保存成功")).toBeInTheDocument());
-
-    expect(screen.getByRole("dialog")).toHaveAttribute("data-initial", JSON.stringify({ y: 24, opacity: 0 }));
-    expect(screen.getByText("保存成功")).toHaveAttribute("data-initial", JSON.stringify({ opacity: 0, y: -8 }));
+    await waitFor(() => expect(mockState.toast).toHaveBeenCalled());
   });
 });
