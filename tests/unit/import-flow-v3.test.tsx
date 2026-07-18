@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RecipeDraft } from "@/lib/domain/recipe";
 import {
@@ -143,7 +143,10 @@ describe("ImportFlow V3 screens", () => {
   it("toggles selected thumbnails, changes cover, and retains a fixed no-image action", () => {
     const toggle = vi.fn(); const cover = vi.fn(); const confirm = vi.fn();
     render(<ImageReviewScreen urls={["https://images.example/a.jpg", "https://images.example/b.jpg"]} selectedUrls={["https://images.example/a.jpg"]} coverUrl="https://images.example/a.jpg" onBack={vi.fn()} onToggle={toggle} onCover={cover} onConfirm={confirm} />);
-    fireEvent.click(screen.getByRole("button", { name: "预览第 2 张图片" }));
+    expect(screen.getByRole("button", { name: "取消选择第 1 张图片" })).toHaveAttribute("aria-pressed", "true");
+    const secondThumbnail = screen.getByRole("button", { name: "选择第 2 张图片" });
+    expect(secondThumbnail).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(secondThumbnail);
     expect(toggle).toHaveBeenCalledWith("https://images.example/b.jpg");
     fireEvent.click(screen.getByRole("button", { name: "设为封面" }));
     expect(cover).toHaveBeenCalledWith("https://images.example/b.jpg");
@@ -173,6 +176,20 @@ describe("ImportFlow V3 screens", () => {
     expect(screen.getByRole("button", { name: "添加标签" })).toBeInTheDocument();
     expect(screen.getByTestId("recipe-confirm-form")).toHaveClass("recipe-confirm-form");
     expect(screen.queryByLabelText("标签")).not.toBeInTheDocument();
+  });
+
+  it("renames a tag without duplicates and deletes an existing tag", () => {
+    const onChange = vi.fn();
+    const initialDraft = { ...draft, tags: ["家常菜", "快手菜"] };
+    const { rerender } = render(<RecipeConfirmForm draft={initialDraft} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "编辑标签 家常菜" }));
+    fireEvent.change(screen.getByLabelText("标签名称"), { target: { value: "快手菜" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存修改" }));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ tags: ["快手菜"] }));
+    rerender(<RecipeConfirmForm draft={{ ...initialDraft, tags: ["快手菜"] }} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "编辑标签 快手菜" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "删除标签 快手菜" }));
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ tags: [] }));
   });
 
   it("adds ingredients and steps through compact section-heading controls", async () => {
