@@ -34,6 +34,7 @@ function makeRecipe(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   state.push.mockReset(); state.getRecipe.mockReset(); state.addCookingLog.mockReset(); state.deleteRecipe.mockReset(); state.setFavorite.mockReset();
+  window.sessionStorage.clear();
   state.getRecipe.mockResolvedValue({ recipe: makeRecipe() }); state.addCookingLog.mockResolvedValue({ ok: true }); state.deleteRecipe.mockResolvedValue({ ok: true }); state.setFavorite.mockResolvedValue({ isFavorite: true });
   Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
 });
@@ -113,6 +114,12 @@ describe("Recipe detail V3", () => {
 
     state.push.mockReset(); window.sessionStorage.setItem("recipe-list-return", "坏数据");
     rerender(<RecipeDetail id={8} />);
+    await screen.findByRole("heading", { name: "番茄炖牛腩" });
+    fireEvent.click(screen.getByRole("button", { name: "返回菜谱列表" }));
+    expect(state.push).toHaveBeenCalledWith("/recipes");
+
+    state.push.mockReset(); window.sessionStorage.removeItem("recipe-list-return");
+    rerender(<RecipeDetail id={9} />);
     await screen.findByRole("heading", { name: "番茄炖牛腩" });
     fireEvent.click(screen.getByRole("button", { name: "返回菜谱列表" }));
     expect(state.push).toHaveBeenCalledWith("/recipes");
