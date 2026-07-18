@@ -4,12 +4,12 @@
 
 ## 最新任务快照
 
-- 更新时间：2026-07-18（Stitch V3 规格已批准，实施计划已完成自审，等待选择执行方式后开始 Task 1）
+- 更新时间：2026-07-18（Stitch V3 Task 1 已通过三轮独立复审与主控验收，准备开始 Task 2）
 - 分支：`master`
 - Task 5 代码 HEAD：`73aa869 docs: record task 5 completion`
 - 1:1 复刻提交：`7604460 feat: replicate home and recipe list designs`
 - 导入/详情/复盘 1:1 复刻提交：`1233318 feat: replicate remaining recipe flows`
-- 当前阶段：Stitch V3 的 10 屏设计、实现约束和验收模板已同步；规格 `e2731be` 已获用户批准；新版实施计划已写入并通过规格覆盖、未决项和类型一致性自审，尚未修改业务代码
+- 当前阶段：Stitch V3 Task 1 已完成；shadcn/Radix/Vaul 基础、Stitch token、Apple reduced-motion 和 44px 触控契约已落地，下一步为首页、菜谱列表与导航
 - 实施规格：`docs/superpowers/specs/2026-07-18-stitch-v3-redesign-design.md`
 - 实施计划：`docs/superpowers/plans/2026-07-18-stitch-v3-redesign.md`
 - 旧版复刻基准：`.agents/rules/style.md`、`.agents/rules/global-style.md`、`.agents/rules/复刻1:1设计规范.md`、`docs/ui-concepts/01-home.png` 至 `08-cook-review.png`
@@ -29,7 +29,7 @@
 
 | Task | 状态 | Commit / 验收 |
 | --- | --- | --- |
-| 1. Stitch token、shadcn/ui 与应用壳 | 实现与验证完成，待主控复审 | 本次 Task 1 commit；79/79 tests、build、原语审计与 `git diff --check` 通过 |
+| 1. Stitch token、shadcn/ui 与应用壳 | 已完成 | `d882719`、`416c46b`、`d86c574`；三轮独立复审最终 Spec PASS / Quality APPROVED；主控 85/85 tests、build 与范围审计通过 |
 | 2. 首页、菜谱列表与导航 | 待开始 | 依赖 Task 1 |
 | 3. 导入抽屉、解析、图片审核与确认编辑 | 待开始 | 依赖 Task 1-2 |
 | 4. 菜谱详情、收藏持久化与复盘抽屉 | 待开始 | 依赖 Task 1-3 |
@@ -50,6 +50,15 @@
 - 原语审计：`bottom-sheet.tsx` 与 `skeleton-card.tsx` 没有手写按钮、输入、文本域或 dialog；仅 shadcn 的 Input / Textarea 原语保留对应原生标签。`git diff --check` 通过。
 - 为适配 Vaul 的模态抽屉和 Sonner 全局提示，最小更新既有 `v2-shell`、菜谱列表和详情测试：抽屉交互先关闭再访问背景内容，Toast 断言改为 Sonner 调用；业务实现范围未扩大。
 - 实现已提交，等待主控按实施约束完成独立规格与质量复审后再将 Task 标为完成。
+
+### Task 1 最终验收记录（2026-07-18）
+
+- 实现提交：`d882719 feat: establish Stitch V3 UI foundation`。
+- 第一轮修正：`416c46b fix: address Stitch V3 foundation review`，关闭 reduced-motion、44px 触控目标、destructive foreground 和测试完整性问题。
+- 第二轮修正：`d86c574 fix: preserve checkbox checked styling`，修复 Tailwind 3 Checkbox 父状态选择器并补实 Drawer CSS 契约。
+- 独立 reviewer 第三轮结论：`Spec Compliance: PASS`、`Task Quality: APPROVED`，Critical / Important / Minor 均为 None。
+- 主控独立验收：`PATH=/Users/mie/.hermes/node/bin:$PATH npm run test` 为 15 files / 85 tests 通过；`npm run build` 成功并生成 9/9 静态页面；`git diff --check 0ec856b..d86c574` 通过。
+- 受保护的 `DESIGN.md`、`docs/ui-concepts/09-12` 和 `output/playwright*` 未进入提交。
 
 ### Task 1 复审修正记录（2026-07-18）
 
