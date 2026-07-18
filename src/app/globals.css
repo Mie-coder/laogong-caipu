@@ -2885,3 +2885,60 @@ main:has([data-transaction-screen="true"]) > .v3-bottom-nav { display: none; }
 .cook-review-time-row { min-height: 0; padding-top: 0.75rem; }
 .cook-review-footer { flex: 0 0 4.75rem; min-height: 4.75rem; margin-top: 0; padding: 0.75rem 1.25rem; }
 .cook-review-submit { width: 100%; min-height: 2.75rem; }
+
+/* Task 5: focused cooking guide and session mode, aligned to Stitch 07 / 03. */
+.cooking-guide-drawer { height: 100dvh; max-height: 100dvh; overflow: hidden; border-radius: 0; }
+.cooking-guide-header { display: flex; justify-content: flex-end; padding: 0.75rem 1.25rem; }
+.cooking-guide-body { position: relative; display: grid; place-items: center; align-content: center; gap: 1.5rem; flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 0 1.25rem 1.5rem; text-align: center; }
+.cooking-guide-numeral { position: absolute; z-index: -1; color: hsl(var(--primary) / 0.08); font-family: ui-serif, Georgia, serif; font-size: 11rem; line-height: 1; }
+.cooking-guide-image { width: min(16rem, 66vw); aspect-ratio: 1; border: 0.25rem solid hsl(var(--surface)); border-radius: 9999px; background: hsl(var(--surface-container)); object-fit: cover; box-shadow: 0 1rem 2.5rem hsl(var(--on-surface) / 0.12); }
+.cooking-guide-image-fallback { display: grid; place-items: center; color: hsl(var(--on-surface-variant)); }
+.cooking-guide-body h2 { margin: 0; color: hsl(var(--on-surface)); font-size: 1.625rem; line-height: 1.25; letter-spacing: -0.015em; }
+.cooking-guide-tip { display: flex; width: min(100%, 22rem); gap: 0.75rem; border-radius: 1rem; background: hsl(var(--surface) / 0.78); color: hsl(var(--on-surface-variant)); padding: 1rem; text-align: left; backdrop-filter: blur(1rem); }
+.cooking-guide-tip svg { flex: 0 0 auto; color: hsl(var(--primary)); }
+.cooking-guide-tip p { margin: 0; font-size: 0.9375rem; line-height: 1.55; }
+.cooking-guide-tip strong { color: hsl(var(--on-surface)); }
+.cooking-guide-footer { flex: 0 0 auto; border-top: 1px solid hsl(var(--divider)); background: hsl(var(--surface) / 0.94); padding: 1rem 1.25rem calc(env(safe-area-inset-bottom) + 1rem); backdrop-filter: blur(1rem); }
+.cooking-guide-start { min-height: 3.5rem; border-radius: 9999px; }
+
+.cooking-mode { overflow-x: clip; background: hsl(var(--canvas)); color: hsl(var(--on-surface)); padding: 0 0 calc(env(safe-area-inset-bottom) + 11rem); }
+.cooking-mode-header { position: sticky; z-index: 20; top: 0; display: grid; grid-template-columns: 2.75rem minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; background: hsl(var(--canvas) / 0.9); padding: 0.75rem 1.25rem; backdrop-filter: blur(1rem); }
+.cooking-mode-header h1 { overflow: hidden; margin: 0; font-size: 1.125rem; line-height: 1.35; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.cooking-mode-header > div { display: flex; gap: 0.25rem; }
+.cooking-mode-header > button, .cooking-mode-header > div button { border: 1px solid hsl(var(--divider)); border-radius: 9999px; background: hsl(var(--surface)); }
+.cooking-ingredients { padding: 1.25rem 0 0; }
+.cooking-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; padding: 0 1.25rem; }
+.cooking-section-heading h2 { margin: 0; font-size: 1.375rem; line-height: 1.3; }
+.cooking-section-heading > span { color: hsl(var(--on-surface-variant)); font-size: 0.875rem; letter-spacing: 0.08em; }
+.cooking-section-heading > button { color: hsl(var(--on-surface-variant)); }
+.cooking-ingredient-rail { display: flex; gap: 1rem; overflow-x: auto; overscroll-behavior-x: contain; padding: 1rem 1.25rem 0.5rem; touch-action: pan-x pan-y; }
+.cooking-ingredient { display: grid; flex: 0 0 4.5rem; min-height: 8rem; grid-template-rows: 4.5rem auto auto; gap: 0.25rem; border-radius: 0; padding: 0; text-align: center; }
+.cooking-ingredient-avatar { display: grid; place-items: center; width: 4.5rem; height: 4.5rem; border-radius: 9999px; background: hsl(var(--surface-container)); color: hsl(var(--primary)); font-size: 1.125rem; }
+.cooking-ingredient[aria-pressed="true"] .cooking-ingredient-avatar { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.cooking-ingredient strong { overflow: hidden; color: hsl(var(--on-surface)); font-size: 0.875rem; text-overflow: ellipsis; white-space: nowrap; }
+.cooking-ingredient small { color: hsl(var(--on-surface-variant)); }
+.cooking-speech { display: flex; align-items: center; gap: 0.5rem; padding: 1.25rem; }
+.cooking-speech button { min-height: 2.75rem; border-radius: 9999px; }
+.cooking-speech span { color: hsl(var(--on-surface-variant)); font-size: 0.75rem; }
+.cooking-steps { padding-top: 0.5rem; }
+.cooking-steps ol { display: grid; margin: 1.25rem 0 0; padding: 0 1.25rem; list-style: none; }
+.cooking-steps li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem; border-bottom: 1px solid hsl(var(--divider)); padding: 1.25rem 0; }
+.cooking-step-copy { display: grid; grid-template-columns: 3.25rem minmax(0, 1fr); min-height: 4.5rem; gap: 0.75rem; justify-items: start; border-radius: 0; padding: 0; text-align: left; white-space: normal; }
+.cooking-step-copy > span { color: hsl(var(--primary) / 0.45); font-family: ui-serif, Georgia, serif; font-size: 2rem; font-weight: 700; line-height: 1; }
+.cooking-step-copy p { margin: 0; color: hsl(var(--on-surface)); font-size: 1rem; line-height: 1.65; }
+.cooking-steps li.is-current .cooking-step-copy > span { color: hsl(var(--primary)); }
+.cooking-step-actions { display: flex; align-items: start; gap: 0.125rem; }
+.cooking-mode-footer { position: fixed; z-index: 30; right: 0; bottom: 0; left: 0; display: flex; align-items: center; gap: 0.25rem; width: min(100%, var(--app-max-width)); margin: 0 auto; border-top: 1px solid hsl(var(--divider)); background: hsl(var(--surface) / 0.94); padding: 0.75rem 1.25rem calc(env(safe-area-inset-bottom) + 0.75rem); backdrop-filter: blur(1rem); }
+.cooking-timer { display: flex; flex: 1 1 auto; align-items: center; gap: 0.125rem; min-width: 0; }
+.cooking-timer-controls, .cooking-timer-actions { display: flex; min-width: 0; align-items: center; gap: 0.125rem; border: 1px solid hsl(var(--divider)); border-radius: 9999px; background: hsl(var(--canvas)); padding: 0.125rem; }
+.cooking-timer-actions { border: 0; background: transparent; padding: 0; }
+.cooking-timer-controls button, .cooking-timer-actions button { min-height: 2.75rem; min-width: 2.75rem; border-radius: 9999px; padding: 0; }
+.cooking-timer p { display: grid; min-width: 3.25rem; margin: 0; text-align: center; }
+.cooking-timer p span { color: hsl(var(--on-surface-variant)); font-size: 0.625rem; line-height: 1; }
+.cooking-timer p strong { color: hsl(var(--primary)); font-size: 1rem; }
+.cooking-finish { flex: 0 0 auto; min-height: 2.75rem; border-radius: 9999px; padding-inline: 0.625rem; }
+.cooking-finish { white-space: nowrap; }
+.cooking-mode-loading, .cooking-mode-error { display: grid; gap: 1rem; min-height: 100dvh; place-content: center; padding: 1.25rem; }
+[data-app-shell]:has(.cooking-mode) { padding: 0; }
+@media (prefers-reduced-motion: reduce) { .cooking-guide-drawer *, .cooking-mode * { scroll-behavior: auto; transition-duration: 1ms !important; } }
+@media (prefers-reduced-transparency: reduce) { .cooking-guide-tip, .cooking-guide-footer, .cooking-mode-header, .cooking-mode-footer { background: hsl(var(--surface)); backdrop-filter: none; } }

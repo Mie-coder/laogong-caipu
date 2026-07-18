@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CookingLogSheet } from "@/components/cooking-log-sheet";
+import { CookingGuideDrawer } from "@/components/cooking/cooking-guide-drawer";
 import { DIFFICULTY_LABELS } from "@/components/difficulty-stars";
 import { FavoriteButton } from "@/components/recipe/favorite-button";
 import { SkeletonCard } from "@/components/skeleton-card";
@@ -37,6 +38,7 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
   const [error, setError] = useState<{ message: string; notFound: boolean } | null>(null);
   const [notice, setNotice] = useState("");
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [activeTab, setActiveTab] = useState("ingredients");
@@ -94,9 +96,10 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
       {recipe.tips ? <section className="recipe-detail-v3-tips"><h2>小贴士</h2><p>{recipe.tips}</p></section> : null}
     </section>
 
-    <footer className={`recipe-detail-v3-footer ${onStartCooking ? "" : "is-single-action"}`}><Button variant="outline" data-press-feedback="apple" onClick={() => setReviewOpen(true)}>查看复盘</Button>{onStartCooking ? <Button data-press-feedback="apple" onClick={() => onStartCooking(recipe.id)}>开始做菜</Button> : null}</footer>
+    <footer className="recipe-detail-v3-footer"><Button variant="outline" data-press-feedback="apple" onClick={() => setReviewOpen(true)}>查看复盘</Button><Button data-press-feedback="apple" onClick={() => onStartCooking ? onStartCooking(recipe.id) : setGuideOpen(true)}>开始做菜</Button></footer>
     {notice ? <p className="recipe-detail-v3-notice" role="status">{notice}</p> : null}
     <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>删除这道菜谱？</AlertDialogTitle><AlertDialogDescription>删除后无法恢复，相关图片和复盘记录也会一并删除。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel data-press-feedback="apple">取消</AlertDialogCancel><AlertDialogAction data-press-feedback="apple" onClick={() => void deleteRecipe()}>删除菜谱</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     <CookingLogSheet open={reviewOpen} onClose={() => setReviewOpen(false)} onSubmit={async (input) => { await addCookingLogApi(id, input); setReviewOpen(false); setNotice("已保存复盘"); await load(); }} />
+    <CookingGuideDrawer open={guideOpen} recipe={recipe} onOpenChange={setGuideOpen} />
   </main>;
 }

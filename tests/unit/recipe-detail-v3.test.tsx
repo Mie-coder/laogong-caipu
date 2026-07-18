@@ -82,7 +82,7 @@ describe("Recipe detail V3", () => {
     const { rerender } = render(<RecipeDetail id={7} />);
     await screen.findByRole("heading", { name: "番茄炖牛腩" });
     expect(screen.queryByRole("button", { name: "编辑菜谱" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "开始做菜" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "开始做菜" })).toBeInTheDocument();
 
     rerender(<RecipeDetail id={7} onStartCooking={startCooking} onEditRecipe={editRecipe} />);
     fireEvent.click(screen.getByRole("button", { name: "编辑菜谱" }));
