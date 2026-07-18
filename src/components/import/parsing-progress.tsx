@@ -23,6 +23,6 @@ export function ParsingProgress({ step, source, onCancel }: ParsingProgressProps
       </li>)}
     </ol>
     <p role="status" className="import-parsing-live-status">正在安全保存你的输入，请稍候。</p>
-    <AlertDialog><AlertDialogTrigger asChild><Button variant="outline" className="import-parsing-cancel">取消解析</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>取消这次解析？</AlertDialogTitle><AlertDialogDescription>已粘贴的分享文本会保留在导入抽屉中。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>继续解析</AlertDialogCancel><AlertDialogAction onClick={onCancel}>取消解析</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog><AlertDialogTrigger asChild><Button variant="outline" className="import-parsing-cancel" data-press-feedback="apple">取消解析</Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>取消这次解析？</AlertDialogTitle><AlertDialogDescription>已粘贴的分享文本会保留在导入抽屉中。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel data-press-feedback="apple">继续解析</AlertDialogCancel><AlertDialogAction data-press-feedback="apple" onClick={onCancel}>取消解析</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
   </main>;
 }

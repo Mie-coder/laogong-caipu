@@ -25,6 +25,7 @@ export type ImportFlowEvent =
   | { type: "IMAGE_TOGGLED"; url: string }
   | { type: "COVER_SELECTED"; url: string | null }
   | { type: "CONFIRM_OPENED"; withoutImages?: boolean }
+  | { type: "CONFIRM_BACK" }
   | { type: "DRAFT_CHANGED"; draft: RecipeDraft }
   | { type: "SAVE_STARTED" }
   | { type: "SAVE_FAILED"; message: string }
@@ -73,6 +74,7 @@ export function importFlowReducer(state: ImportFlowState, event: ImportFlowEvent
     case "CONFIRM_OPENED": return event.withoutImages
       ? { ...state, stage: "recipeConfirm", selectedUrls: [], coverUrl: null, dirty: true, error: null }
       : { ...state, stage: "recipeConfirm", dirty: true, error: null };
+    case "CONFIRM_BACK": return { ...state, stage: "imageReview", error: null };
     case "DRAFT_CHANGED": return { ...state, draft: event.draft, dirty: true, error: null };
     case "SAVE_STARTED": return { ...state, stage: "saving", error: null };
     case "SAVE_FAILED": return { ...state, stage: "recipeConfirm", error: event.message, dirty: true };

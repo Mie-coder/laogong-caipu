@@ -8,12 +8,18 @@ const RequestSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  let body: z.infer<typeof RequestSchema>;
   try {
-    const body = RequestSchema.parse(await request.json());
-    const fallbackImages = filterLikelyRecipeImages(body.imageUrls.filter(isSafeImageUrl));
+    body = RequestSchema.parse(await request.json());
+  } catch (error) {
+    return apiError("invalid_image_filter_request", error instanceof Error ? error.message : "图片筛选请求无效", 400);
+  }
+
+  const safeImages = [...new Set(body.imageUrls.filter(isSafeImageUrl))];
+  try {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ imageUrls: fallbackImages });
+      return NextResponse.json({ imageUrls: safeImages });
     }
 
     const prompt = body.recipeName
@@ -34,7 +40,7 @@ export async function POST(request: Request) {
     });
 
     if (!response.ok) {
-      return NextResponse.json({ imageUrls: fallbackImages });
+      return NextResponse.json({ imageUrls: safeImages });
     }
 
     const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -42,28 +48,13 @@ export async function POST(request: Request) {
     const stripJson = content.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
     const parsed = JSON.parse(stripJson);
     const returned = z.object({ imageUrls: z.array(z.string()).default([]) }).safeParse(parsed);
-    return NextResponse.json({ imageUrls: returned.success ? returned.data.imageUrls.filter(isSafeImageUrl) : fallbackImages });
+    return NextResponse.json({ imageUrls: returned.success ? returned.data.imageUrls.filter(isSafeImageUrl) : safeImages });
 
-  } catch (error) {
-    return apiError("image_filter_failed", error instanceof Error ? error.message : "图片筛选失败", 500);
+  } catch {
+    return NextResponse.json({ imageUrls: safeImages });
   }
 }
 
 function isSafeImageUrl(value: string) {
   try { const url = new URL(value); return url.protocol === "http:" || url.protocol === "https:"; } catch { return false; }
-}
-
-function filterLikelyRecipeImages(imageUrls: string[]): string[] {
-  const primaryNoteImages = imageUrls.filter((url) =>
-    /sns-webpic[^/]*\.xhscdn\.com/.test(url) && url.includes("/notes_pre_post/")
-  );
-  if (primaryNoteImages.length > 0) {
-    return [...new Set(primaryNoteImages)];
-  }
-
-  return [...new Set(imageUrls.filter((url) =>
-    !url.includes("sns-avatar") &&
-    !url.includes("picasso-static") &&
-    !url.includes("/comment/")
-  ))];
 }

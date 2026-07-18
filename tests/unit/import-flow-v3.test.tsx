@@ -99,6 +99,12 @@ describe("ImportFlow V3 reducer", () => {
   it("returns from image review without discarding parsed recipe state", () => {
     expect(importFlowReducer(parsedState(), { type: "REVIEW_BACK" })).toMatchObject({ stage: "home", draft, reviewUrls: ["https://images.example/a.jpg", "https://images.example/b.jpg"] });
   });
+
+  it("round-trips confirmation to image review without resetting a non-first cover", () => {
+    const review = importFlowReducer(parsedState(), { type: "COVER_SELECTED", url: "https://images.example/b.jpg" });
+    const confirmed = importFlowReducer(review, { type: "CONFIRM_OPENED" });
+    expect(importFlowReducer(confirmed, { type: "CONFIRM_BACK" })).toMatchObject({ stage: "imageReview", draft, selectedUrls: review.selectedUrls, coverUrl: "https://images.example/b.jpg" });
+  });
 });
 
 describe("ImportFlow V3 screens", () => {
@@ -124,6 +130,13 @@ describe("ImportFlow V3 screens", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "取消解析" }));
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  });
+
+  it("marks parsing and confirmation actions for press feedback that can be disabled for reduced motion", () => {
+    render(<ParsingProgress step={0} source="来源" onCancel={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "取消解析" })).toHaveAttribute("data-press-feedback", "apple");
+    fireEvent.click(screen.getByRole("button", { name: "取消解析" }));
+    expect(screen.getByRole("button", { name: "继续解析" })).toHaveAttribute("data-press-feedback", "apple");
   });
 
   it("toggles selected thumbnails, changes cover, and retains a fixed no-image action", () => {
@@ -156,5 +169,41 @@ describe("ImportFlow V3 screens", () => {
     expect(signal.aborted).toBe(true);
     resolve({ recipe: draft, imageUrls: [], needsSupplement: false, crawlStatus: "ok", crawlError: "" });
     await waitFor(() => expect(mocks.filterImages).not.toHaveBeenCalled());
+  });
+
+  it("shows validation feedback for an empty name and no meaningful step", async () => {
+    mocks.parseImportApi.mockResolvedValue({ recipe: { ...draft, name: "", steps: [{ order: 1, text: "" }] }, imageUrls: [], needsSupplement: false, crawlStatus: "ok", crawlError: "" });
+    mocks.filterImages.mockResolvedValue([]);
+    render(<ImportFlow />);
+    fireEvent.click(await screen.findByRole("button", { name: "导入新菜谱" }));
+    fireEvent.change(screen.getByLabelText("分享文本"), { target: { value: "分享文本" } });
+    fireEvent.click(screen.getByRole("button", { name: "开始解析" }));
+    fireEvent.click(await screen.findByRole("button", { name: "无图保存" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存菜谱" }));
+    expect(await screen.findByText("请填写菜名")).toBeInTheDocument();
+    expect(screen.getByText("请至少填写一个步骤")).toBeInTheDocument();
+  });
+
+  it("keeps rendered edits visible when saving fails", async () => {
+    mocks.parseImportApi.mockResolvedValue({ recipe: draft, imageUrls: [], needsSupplement: false, crawlStatus: "ok", crawlError: "" });
+    mocks.filterImages.mockResolvedValue([]); mocks.saveRecipeWithImages.mockRejectedValue(new Error("保存失败"));
+    render(<ImportFlow />);
+    fireEvent.click(await screen.findByRole("button", { name: "导入新菜谱" })); fireEvent.change(screen.getByLabelText("分享文本"), { target: { value: "分享文本" } }); fireEvent.click(screen.getByRole("button", { name: "开始解析" })); fireEvent.click(await screen.findByRole("button", { name: "无图保存" }));
+    fireEvent.change(screen.getByLabelText("菜名"), { target: { value: "保留的编辑" } }); fireEvent.click(screen.getByRole("button", { name: "保存菜谱" }));
+    expect(await screen.findByText("保存失败")).toBeInTheDocument(); expect(screen.getByDisplayValue("保留的编辑")).toBeInTheDocument();
+  });
+
+  it("clears session draft and navigates after a successful save", async () => {
+    mocks.saveRecipeWithImages.mockResolvedValue({ id: 42 }); window.sessionStorage.setItem("import-flow-draft", JSON.stringify({ ...initialImportFlowState, stage: "recipeConfirm", draft, dirty: true }));
+    render(<ImportFlow />);
+    fireEvent.click(await screen.findByRole("button", { name: "保存菜谱" }));
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/recipes/42")); expect(window.sessionStorage.getItem("import-flow-draft")).toBeNull();
+  });
+
+  it("falls back to every source image when image filtering rejects", async () => {
+    mocks.parseImportApi.mockResolvedValue({ recipe: draft, imageUrls: ["https://images.example/a.jpg", "https://images.example/b.jpg"], needsSupplement: false, crawlStatus: "ok", crawlError: "" }); mocks.filterImages.mockRejectedValue(new Error("筛图失败"));
+    render(<ImportFlow />);
+    fireEvent.click(await screen.findByRole("button", { name: "导入新菜谱" })); fireEvent.change(screen.getByLabelText("分享文本"), { target: { value: "分享文本" } }); fireEvent.click(screen.getByRole("button", { name: "开始解析" }));
+    expect(await screen.findByText("已选择 2 张")).toBeInTheDocument();
   });
 });

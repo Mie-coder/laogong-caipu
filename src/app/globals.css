@@ -15,6 +15,11 @@
   transform: scale(0.98);
 }
 
+.import-parsing-page [data-press-feedback="apple"]:active,
+[role="alertdialog"] [data-press-feedback="apple"]:active {
+  transform: scale(0.98);
+}
+
 .image-review-thumbnails {
   display: flex;
   gap: 0.75rem;
@@ -39,6 +44,11 @@
   .recipe-confirm-page * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .import-parsing-page [data-press-feedback="apple"]:active,
+  [role="alertdialog"] [data-press-feedback="apple"]:active {
+    transform: none;
   }
 }
 
