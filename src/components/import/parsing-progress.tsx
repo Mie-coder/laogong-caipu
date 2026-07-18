@@ -15,7 +15,7 @@ type ParsingProgressProps = { step: 0 | 1 | 2 | 3; source: string; onCancel: () 
 
 export function ParsingProgress({ step, source, onCancel }: ParsingProgressProps) {
   const reduceMotion = useReducedMotion();
-  return <main data-testid="import-parsing-page" className="import-parsing-page mx-auto min-h-dvh max-w-[430px] px-5 pt-12">
+  return <main data-testid="import-parsing-page" data-transaction-screen="true" className="import-parsing-page mx-auto min-h-dvh max-w-[430px] px-5 pt-12">
     <h1 className="import-parsing-title">正在解析</h1><p className="import-parsing-estimate">预计只需几秒钟</p><section className="import-parsing-source-card"><p>解析来源</p><strong>{source}</strong></section>
     <ol aria-label="解析进度" className="import-parsing-timeline mt-12 grid gap-6">
       {labels.map(([label, description], index) => <li key={label} data-testid="import-parsing-step" className={`import-parsing-step ${index < step ? "is-done" : ""} ${index === step ? "is-current" : ""}`}>

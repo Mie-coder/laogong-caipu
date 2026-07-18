@@ -110,6 +110,7 @@ describe("ImportFlow V3 reducer", () => {
 describe("ImportFlow V3 screens", () => {
   beforeEach(() => {
     mocks.push.mockReset(); mocks.parseImportApi.mockReset(); mocks.filterImages.mockReset(); mocks.saveRecipeWithImages.mockReset(); mocks.listRecipesApi.mockReset(); mocks.listRecipesApi.mockResolvedValue({ recipes: [] });
+    window.sessionStorage.clear();
   });
 
   it("keeps drawer input, exposes the paste hint, and disables an empty orange parse action", () => {
@@ -149,12 +150,39 @@ describe("ImportFlow V3 screens", () => {
     expect(screen.getByRole("button", { name: "无图保存" }).closest("footer")).toHaveClass("fixed");
   });
 
+  it("uses a transaction screen contract without review arrows or a cancel-selection action", () => {
+    render(<ImageReviewScreen urls={["https://images.example/a.jpg"]} selectedUrls={["https://images.example/a.jpg"]} coverUrl="https://images.example/a.jpg" onBack={vi.fn()} onToggle={vi.fn()} onCover={vi.fn()} onConfirm={vi.fn()} />);
+    expect(screen.getByTestId("image-review-page")).toHaveAttribute("data-transaction-screen", "true");
+    expect(screen.queryByRole("button", { name: "上一张图片" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "下一张图片" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "取消选择" })).not.toBeInTheDocument();
+    expect(screen.getByText("封面图")).toBeInTheDocument();
+  });
+
   it("preserves confirmation edits and exposes metadata controls", () => {
     const onChange = vi.fn(); render(<RecipeConfirmForm draft={draft} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText("菜名"), { target: { value: "更新菜名" } });
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ name: "更新菜名" }));
     expect(screen.getByLabelText("烹饪时间")).toBeInTheDocument();
     expect(screen.getByLabelText("难度")).toBeInTheDocument();
+  });
+
+  it("renders closed tag chips with an add action and inline metadata", () => {
+    render(<RecipeConfirmForm draft={{ ...draft, tags: ["家常菜"] }} onChange={vi.fn()} />);
+    expect(screen.getByText("家常菜")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "添加标签" })).toBeInTheDocument();
+    expect(screen.getByTestId("recipe-confirm-form")).toHaveClass("recipe-confirm-form");
+    expect(screen.queryByLabelText("标签")).not.toBeInTheDocument();
+  });
+
+  it("adds ingredients and steps through compact section-heading controls", async () => {
+    const onChange = vi.fn();
+    render(<RecipeConfirmForm draft={draft} onChange={onChange} />);
+    fireEvent.keyDown(screen.getByRole("button", { name: "添加食材或调料" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "添加食材" }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ ingredients: [expect.objectContaining({ type: "ingredient" })] }));
+    fireEvent.click(screen.getByRole("button", { name: "添加步骤" }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ steps: expect.arrayContaining([expect.objectContaining({ order: 2 })]) }));
   });
 
   it("aborts a stale parse on unmount and ignores its late response", async () => {
@@ -198,6 +226,14 @@ describe("ImportFlow V3 screens", () => {
     render(<ImportFlow />);
     fireEvent.click(await screen.findByRole("button", { name: "保存菜谱" }));
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/recipes/42")); expect(window.sessionStorage.getItem("import-flow-draft")).toBeNull();
+  });
+
+  it("automatically persists a dirty confirmation draft", async () => {
+    render(<ImportFlow />);
+    fireEvent.click(await screen.findByRole("button", { name: "导入新菜谱" }));
+    mocks.parseImportApi.mockResolvedValue({ recipe: draft, imageUrls: [], needsSupplement: false, crawlStatus: "ok", crawlError: "" }); mocks.filterImages.mockResolvedValue([]);
+    fireEvent.change(screen.getByLabelText("分享文本"), { target: { value: "分享文本" } }); fireEvent.click(screen.getByRole("button", { name: "开始解析" })); fireEvent.click(await screen.findByRole("button", { name: "无图保存" }));
+    await waitFor(() => expect(window.sessionStorage.getItem("import-flow-draft")).toContain("recipeConfirm"));
   });
 
   it("falls back to every source image when image filtering rejects", async () => {
