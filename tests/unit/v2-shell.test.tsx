@@ -6,10 +6,11 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { BottomSheet } from "@/components/bottom-sheet";
 import { BottomNav } from "@/components/bottom-nav";
 import { Toast } from "@/components/toast";
+import { PageTransition } from "@/components/page-transition";
 
 const mockState = vi.hoisted(() => ({
   pathname: "/",
-  reducedMotion: false,
+  reducedMotion: false as boolean | null,
   toast: vi.fn()
 }));
 
@@ -51,6 +52,7 @@ vi.mock("framer-motion", async () => {
 beforeEach(() => {
   mockState.pathname = "/";
   mockState.reducedMotion = false;
+  mockState.toast.mockReset();
 });
 
 describe("v2 application shell", () => {
@@ -122,32 +124,49 @@ describe("v2 application shell", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("delegates reduced-motion sheet behavior to Vaul and sends toast through Sonner", async () => {
-    mockState.reducedMotion = true;
+  it("calls onClose when Escape closes the modal Drawer", () => {
+    const onClose = vi.fn();
 
     render(
-      <>
-        <BottomSheet open title="筛选图片" onClose={vi.fn()}>
-          <div>内容</div>
-        </BottomSheet>
-        <Toast message="保存成功" />
-      </>
+      <BottomSheet open title="筛选图片" onClose={onClose}>
+        <div>内容</div>
+      </BottomSheet>
     );
 
-    expect(screen.getByRole("dialog", { name: "筛选图片" })).toBeInTheDocument();
-    await waitFor(() => expect(mockState.toast).toHaveBeenCalledWith("保存成功"));
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("does not duplicate unchanged Sonner messages", async () => {
+  it.each([true, null] as const)("suppresses Drawer slide and page spatial motion when reduced motion is %s", (reducedMotion) => {
+    mockState.reducedMotion = reducedMotion;
+
     render(
       <>
         <BottomSheet open title="筛选图片" onClose={vi.fn()}>
           <div>内容</div>
         </BottomSheet>
-        <Toast message="保存成功" />
+        <PageTransition><span>页面内容</span></PageTransition>
       </>
     );
 
-    await waitFor(() => expect(mockState.toast).toHaveBeenCalled());
+    expect(screen.getByRole("dialog", { name: "筛选图片" })).toHaveAttribute("data-reduced-motion", "true");
+    expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-initial", JSON.stringify({ opacity: 0, y: 0 }));
+    expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-transition", JSON.stringify({ duration: 0.01 }));
+  });
+
+  it("keeps Drawer and page motion when reduced motion is explicitly false", () => {
+    render(<PageTransition><span>页面内容</span></PageTransition>);
+
+    expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-initial", JSON.stringify({ opacity: 0, y: 8 }));
+    expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-transition", JSON.stringify({ duration: 0.16, ease: "easeOut" }));
+  });
+
+  it("does not duplicate unchanged Sonner messages after rerender", async () => {
+    const { rerender } = render(<Toast message="保存成功" />);
+
+    await waitFor(() => expect(mockState.toast).toHaveBeenCalledTimes(1));
+    rerender(<Toast message="保存成功" />);
+    expect(mockState.toast).toHaveBeenCalledTimes(1);
   });
 });

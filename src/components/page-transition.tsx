@@ -5,7 +5,7 @@ import { fadeMotion } from "@/lib/motion";
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const reduceMotion = useReducedMotion();
-  const reduced = reduceMotion ?? false;
+  const reduced = reduceMotion !== false;
 
   return (
     <motion.div

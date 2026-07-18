@@ -58,6 +58,13 @@
   --ring: var(--primary);
 }
 
+/* Preserve Vaul's drag transform while reducing only automatic open/close motion. */
+[data-reduced-motion="true"][data-vaul-drawer],
+[data-reduced-motion="true"][data-vaul-overlay] {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
 * {
   box-sizing: border-box;
 }

@@ -51,6 +51,15 @@
 - 为适配 Vaul 的模态抽屉和 Sonner 全局提示，最小更新既有 `v2-shell`、菜谱列表和详情测试：抽屉交互先关闭再访问背景内容，Toast 断言改为 Sonner 调用；业务实现范围未扩大。
 - 实现已提交，等待主控按实施约束完成独立规格与质量复审后再将 Task 标为完成。
 
+### Task 1 复审修正记录（2026-07-18）
+
+- 修复 commit：`fix: address Stitch V3 foundation review`（基线 Task 1：`d882719`）。
+- 独立复审指出 reduced-motion 的 `null` 安全态、Vaul 自动动画、触控命中盒和 destructive foreground token 四项 Important；已按最小范围修正。
+- 新增 RED 证明：基础/壳层定向契约在旧实现下 4 项失败；实现后 `tests/unit/stitch-v3-foundation.test.tsx tests/unit/v2-shell.test.tsx` 为 2 files / 15 tests 通过。
+- PageTransition 仅在 `useReducedMotion() === false` 时保留空间位移；Drawer 的 `data-reduced-motion` 只缩短自动动画/过渡，不覆盖 Vaul 拖拽 transform，modal、portal、焦点和 Escape 关闭保持可用。
+- 44px 命中盒覆盖 Input、Checkbox、Tabs、Dialog close、Dropdown 和 AlertDialog 操作；Checkbox 视觉框保持 16px，Textarea 保持 60px。
+- 最终验收：`PATH=/Users/mie/.hermes/node/bin:$PATH npm run test` 为 15 files / 84 tests 通过；`PATH=/Users/mie/.hermes/node/bin:$PATH npm run build` 成功（9/9 静态页）；`git diff --check` 通过。
+
 ## Task 4 完成记录
 
 完成内容：
