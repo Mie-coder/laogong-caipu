@@ -4,38 +4,27 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useReducedMotion } from "framer-motion";
 import {
-  ArrowRight,
   Check,
   ChevronLeft,
-  ChevronRight,
   Circle,
   Cloud,
   Clipboard,
   Clock3,
-  Ellipsis,
-  Image as ImageIcon,
   LoaderCircle,
-  Sparkles
+  X
 } from "lucide-react";
 import { RecipeDraft } from "@/lib/domain/recipe";
 import { filterImages, listRecipesApi, parseImportApi, saveRecipeWithImages } from "@/lib/http/api-client";
-import { BottomSheet } from "@/components/bottom-sheet";
+import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { Textarea } from "@/components/ui/textarea";
 import { ImageCarousel } from "@/components/image-carousel";
 import { RecipeConfirmForm } from "@/components/recipe-confirm-form";
 import { Toast } from "@/components/toast";
+import { HomeScreen } from "@/components/home/home-screen";
+import type { RecipeSummary } from "@/lib/domain/recipe-api";
 
-type Stage = "home" | "parsing" | "images" | "confirm";
-
-type RecipeListItem = {
-  id: number;
-  name: string;
-  cookedCount: number;
-  cookTimeMinutes?: number | null;
-  difficulty?: string;
-  mainCategory?: string;
-  wifeRating?: number;
-  coverImageUrl?: string | null;
-};
+type Stage = "home" | "parsed" | "parsing" | "images" | "confirm";
 
 const STORAGE_KEY = "import-flow-draft";
 const PARSING_LABELS = ["识别分享内容", "读取菜谱正文", "整理食材和步骤", "筛选菜谱图片"];
@@ -72,23 +61,6 @@ function normalizeSteps(draft: RecipeDraft): RecipeDraft {
 
 function hasValidSteps(draft: RecipeDraft) {
   return draft.steps.some((step) => step.text.trim());
-}
-
-function formatRating(value: number) {
-  return Number.isInteger(value) ? value.toFixed(1) : String(value);
-}
-
-function formatRecentMeta(recipe: RecipeListItem) {
-  const parts = [];
-  if (recipe.cookTimeMinutes) {
-    parts.push(`${recipe.cookTimeMinutes} 分钟`);
-  }
-  if (recipe.wifeRating && recipe.wifeRating > 0) {
-    parts.push(`老婆评分 ${formatRating(recipe.wifeRating)}`);
-  } else {
-    parts.push(`做过 ${recipe.cookedCount} 次`);
-  }
-  return parts.join(" · ");
 }
 
 function formatParsingSource(rawInput: string, draft?: RecipeDraft | null) {
@@ -129,14 +101,13 @@ export function ImportFlow(): JSX.Element {
   const [listState, setListState] = useState<{
     loading: boolean;
     error: string;
-    recipes: RecipeListItem[];
+    recipes: RecipeSummary[];
   }>({ loading: true, error: "", recipes: [] });
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState("");
   const [stepsError, setStepsError] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [hasParsedResult, setHasParsedResult] = useState(false);
 
   useEffect(() => {
     const savedDraft = window.sessionStorage.getItem(STORAGE_KEY);
@@ -152,7 +123,6 @@ export function ImportFlow(): JSX.Element {
       setSelectedUrls(payload.selectedUrls ?? []);
       setReviewUrls(payload.selectedUrls ?? []);
       setCoverUrl(payload.coverUrl ?? null);
-      setHasParsedResult(true);
       setStage("confirm");
       setHasUnsavedChanges(true);
     } catch {
@@ -168,7 +138,7 @@ export function ImportFlow(): JSX.Element {
       try {
         const result = await listRecipesApi();
         if (cancelled) return;
-        const recipes = (result.recipes as RecipeListItem[])
+        const recipes = result.recipes
           .filter((recipe) => recipe.cookedCount > 0)
           .slice(0, 2);
         setListState({ loading: false, error: "", recipes });
@@ -209,7 +179,7 @@ export function ImportFlow(): JSX.Element {
     setListState((current) => ({ ...current, loading: true, error: "" }));
     try {
       const result = await listRecipesApi();
-      const recipes = (result.recipes as RecipeListItem[])
+      const recipes = result.recipes
         .filter((recipe) => recipe.cookedCount > 0)
         .slice(0, 2);
       setListState({ loading: false, error: "", recipes });
@@ -254,7 +224,6 @@ export function ImportFlow(): JSX.Element {
     setStage("parsing");
     setParsingStep(0);
     setSaveError("");
-    setHasParsedResult(false);
     await Promise.resolve();
 
     try {
@@ -273,7 +242,6 @@ export function ImportFlow(): JSX.Element {
       setReviewUrls(imageUrls);
       setSelectedUrls(filteredUrls);
       setCoverUrl(filteredUrls[0] ?? null);
-      setHasParsedResult(true);
       setHasUnsavedChanges(false);
       setStage("images");
     } catch (error) {
@@ -329,7 +297,7 @@ export function ImportFlow(): JSX.Element {
   }
 
   function handleReturnToParsedResult() {
-    setStage("home");
+    setStage("parsed");
     setSheetOpen(false);
   }
 
@@ -382,160 +350,32 @@ export function ImportFlow(): JSX.Element {
 
   return (
     <>
-      {stage === "home" && (
-        <section data-testid="home-page" className="home-page">
-          <header className="home-header">
-            <div>
-              <h1 className="home-brand-title">老公菜谱</h1>
-              <p className="home-brand-subtitle">今晚做什么</p>
-            </div>
-            <button type="button" aria-label="查看历史" className="home-history-button">
-              <Clock3 className="home-history-icon" aria-hidden="true" />
-            </button>
-          </header>
+      {stage === "home" && <>
+        <HomeScreen
+          recent={listState.loading ? { status: "loading" } : listState.error ? { status: "error", message: listState.error } : { status: "ready", data: listState.recipes }}
+          onImport={openSheet}
+          onRetry={() => void loadRecentRecipesAgain()}
+        />
+      </>}
 
-          <div className="home-hero-frame">
-            <img
-              src="/ui-concepts/home-hero.png"
-              alt="今晚认真做一道菜"
-              className="home-hero-image"
-            />
-          </div>
+      {stage === "parsed" && draft && <main className="v3-parsed-result" data-testid="parsed-result">
+        <p>解析完成</p>
+        <h1>{draft.name || "已整理好待确认的菜谱"}</h1>
+        <span>{[draft.mainCategory, `${reviewUrls.length} 张待审核图片`].filter(Boolean).join(" · ")}</span>
+        <Button onClick={() => setStage("images")}>继续审核图片</Button>
+        <Button variant="ghost" onClick={() => goToConfirm()}>直接确认菜谱</Button>
+      </main>}
 
-          <section className="home-promise">
-            <h2 className="home-promise-title">今晚认真做一道菜</h2>
-            <p className="home-promise-copy">把收藏整理成真正能照着做的步骤</p>
-          </section>
-
-          <button
-            type="button"
-            aria-label="从小红书导入菜谱"
-            className="home-import-row"
-            onClick={openSheet}
-          >
-            <span className="home-import-icon" aria-hidden="true">
-              <Sparkles />
-            </span>
-            <span className="home-import-copy">
-              <span className="home-import-title">从小红书导入菜谱</span>
-              <span className="home-import-subtitle">粘贴分享文字，自动整理食材与步骤</span>
-            </span>
-            <ArrowRight className="home-import-arrow" aria-hidden="true" />
-          </button>
-
-          {hasParsedResult && draft ? (
-            <section className="mx-[var(--page-x)] mt-8 space-y-4 border-b border-line pb-6">
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-muted">解析完成</p>
-                <h3 className="text-[24px] font-bold leading-[1.3] text-ink">{draft.name || "已整理好待确认的菜谱"}</h3>
-                <p className="text-sm leading-[1.5] text-muted">
-                  {[draft.mainCategory, draft.difficulty, `${reviewUrls.length} 张待审核图片`].filter(Boolean).join(" · ")}
-                </p>
-              </div>
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  className="min-h-12 w-full rounded-[8px] bg-ink px-5 py-3 text-base font-semibold text-white"
-                  onClick={() => setStage("images")}
-                >
-                  继续审核图片
-                </button>
-                <button type="button" className="text-sm text-ink" onClick={() => goToConfirm()}>
-                  直接确认菜谱
-                </button>
-              </div>
-            </section>
-          ) : null}
-
-          <section className="home-recent">
-            <div className="home-recent-header">
-              <h3 className="home-recent-title">最近做过</h3>
-              <a href="/recipes" className="home-recent-all">
-                查看全部
-                <ChevronRight aria-hidden="true" />
-              </a>
-            </div>
-
-            {listState.loading && (
-              <div>
-                {[0, 1].map((index) => (
-                  <div key={index} className="home-recent-item border-b border-line">
-                    <div className="home-recent-thumb bg-[#f1ebe6]" />
-                    <div className="min-w-0 space-y-2">
-                      <div className="h-4 w-24 rounded bg-[#f1ebe6]" />
-                      <div className="h-3 w-40 rounded bg-[#f5efeb]" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!listState.loading && listState.error && (
-              <div className="space-y-3 border-b border-line py-4 text-sm text-muted">
-                <p>{listState.error}</p>
-                <button type="button" className="text-ink underline underline-offset-4" onClick={() => void loadRecentRecipesAgain()}>
-                  重试
-                </button>
-              </div>
-            )}
-
-            {!listState.loading && !listState.error && listState.recipes.length === 0 && (
-              <div className="space-y-3 border-b border-line py-4 text-sm text-muted">
-                <p>还没有做过的菜谱，先导入一道试试。</p>
-                <button type="button" className="text-ink underline underline-offset-4" onClick={openSheet}>
-                  从小红书导入菜谱
-                </button>
-              </div>
-            )}
-
-            {!listState.loading && !listState.error && listState.recipes.length > 0 && (
-              <div>
-                {listState.recipes.map((recipe) => (
-                  <div key={recipe.id} className="home-recent-item border-b border-line">
-                    <div className="home-recent-thumb bg-[#f1ebe6]">
-                      {recipe.coverImageUrl ? (
-                        <img
-                          src={recipe.coverImageUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          referrerPolicy="no-referrer"
-                          crossOrigin="anonymous"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-subtle">
-                          <ImageIcon className="h-5 w-5" aria-hidden="true" />
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="min-w-0 text-left"
-                      onClick={() => router.push(`/recipes/${recipe.id}`)}
-                    >
-                      <p className="home-recent-name">{recipe.name}</p>
-                      <p className="home-recent-meta">
-                        {formatRecentMeta(recipe)}
-                      </p>
-                    </button>
-                    <button type="button" aria-label={`更多 ${recipe.name}`} className="home-recent-more">
-                      <Ellipsis aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </section>
-      )}
-
-      <BottomSheet open={sheetOpen} title="导入菜谱" onClose={closeSheet}>
+      <Drawer open={sheetOpen} onOpenChange={(open) => { if (!open) closeSheet(); }}>
+        <DrawerContent aria-describedby="import-sheet-description" className="v3-import-drawer">
+          <DrawerHeader className="flex-row items-center justify-between"><DrawerTitle>导入菜谱</DrawerTitle><Button variant="ghost" size="icon" aria-label="关闭" onClick={closeSheet}><X aria-hidden="true" /></Button></DrawerHeader>
         <div className="flex min-h-[58vh] max-h-[72vh] flex-col">
           <div className="space-y-3 pb-4">
-            <p className="import-sheet-lead text-[14px] leading-[22px] text-muted">把分享文本贴进来，我会按菜谱结构整理好，图片也会先帮你筛一遍。</p>
+            <p id="import-sheet-description" className="import-sheet-lead text-[14px] leading-[22px] text-muted">把分享文本贴进来，我会按菜谱结构整理好，图片也会先帮你筛一遍。</p>
 
             <label className="block">
               <span className="mb-2 block text-[14px] leading-[20px] text-ink">分享文本</span>
-              <textarea
+              <Textarea
                 ref={textareaRef}
                 aria-label="分享文本"
                 className="import-sheet-textarea min-h-[120px] w-full rounded-input border border-line bg-white px-4 py-3 text-[16px] leading-[25px] text-text outline-none placeholder:text-subtle focus:border-ink"
@@ -545,27 +385,27 @@ export function ImportFlow(): JSX.Element {
               />
             </label>
 
-            <button type="button" className="inline-flex min-h-[44px] items-center gap-2 text-[14px] font-semibold leading-[20px] text-ink" onClick={() => void handlePaste()}>
+            <Button type="button" variant="ghost" className="justify-start" onClick={() => void handlePaste()}>
               <Clipboard className="h-[18px] w-[18px]" aria-hidden="true" />
               粘贴分享文本
-            </button>
+            </Button>
 
             <p className="import-sheet-hint text-[12px] leading-[17px] text-subtle">支持小红书分享口令、短链和正文片段。关闭抽屉不会清空你已经粘贴的内容。</p>
           </div>
 
           <div className="mt-auto space-y-3 border-t border-line pb-[calc(var(--safe-bottom)+10px)] pt-4">
             {sheetError ? <p className="import-sheet-error text-sm text-[#d45b5b]">{sheetError}</p> : null}
-            <button
-              type="button"
+            <Button
               className="import-sheet-submit min-h-[48px] w-full rounded-input bg-ink px-5 py-3 text-[16px] font-semibold text-white disabled:bg-disabled"
               disabled={!rawInput.trim() || isParsing}
               onClick={() => void handleParse()}
             >
               开始智能解析
-            </button>
+            </Button>
           </div>
         </div>
-      </BottomSheet>
+        </DrawerContent>
+      </Drawer>
 
       {stage === "parsing" && (
         <section data-testid="import-parsing-page" className="import-parsing-page">

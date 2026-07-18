@@ -85,7 +85,7 @@ function deferred<T>() {
 }
 
 async function openImportSheet() {
-  fireEvent.click(screen.getByRole("button", { name: "从小红书导入菜谱" }));
+  fireEvent.click(screen.getByRole("button", { name: "导入新菜谱" }));
   expect(await screen.findByRole("dialog")).toBeInTheDocument();
 }
 
@@ -107,8 +107,8 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("ImportFlow v2 state flow", () => {
-  it("renders the v2 home with an import row instead of a textarea", async () => {
+describe("ImportFlow state flow", () => {
+  it("renders the Stitch V3 home with the real import entry instead of a textarea", async () => {
     mockState.listRecipesApi.mockResolvedValue({
       recipes: [
         { id: 1, name: "番茄炒蛋", cookedCount: 2, difficulty: "easy", mainCategory: "家常菜", wifeRating: 4, coverImageUrl: "cover-1" },
@@ -120,13 +120,12 @@ describe("ImportFlow v2 state flow", () => {
 
     render(<ImportFlow />);
 
-    expect(screen.getByTestId("home-page")).toHaveClass("home-page");
+    expect(screen.getByTestId("home-page")).toHaveClass("v3-home");
     expect(screen.getByText("老公菜谱")).toBeInTheDocument();
-    expect(screen.getByText("今晚做什么")).toBeInTheDocument();
-    expect(screen.getByText("今晚认真做一道菜")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "今晚认真做一道菜" })).toHaveClass("home-hero-image");
-    expect(screen.getByRole("button", { name: "从小红书导入菜谱" })).toHaveClass("home-import-row");
-    expect(screen.getByText("粘贴分享文字，自动整理食材与步骤")).toBeInTheDocument();
+    expect(screen.getByText("今晚吃点好的")).toBeInTheDocument();
+    expect(screen.getByText("今天想做什么")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "菠萝咕噜肉" })).toHaveAttribute("src", "/stitch-v3/stitch-image-20.jpg");
+    expect(screen.getByRole("button", { name: "导入新菜谱" })).toHaveClass("v3-import-action");
     expect(screen.getByRole("link", { name: "查看全部" })).toHaveAttribute("href", "/recipes");
     expect(screen.queryByPlaceholderText(/小红书/i)).not.toBeInTheDocument();
     expect(await screen.findByText("番茄炒蛋")).toBeInTheDocument();
@@ -146,7 +145,7 @@ describe("ImportFlow v2 state flow", () => {
     render(<ImportFlow />);
 
     expect(await screen.findByText("番茄炖牛腩")).toBeInTheDocument();
-    expect(screen.getByText("45 分钟 · 老婆评分 4.8")).toBeInTheDocument();
+    expect(screen.getByText("45 分钟 · 评分 4.8")).toBeInTheDocument();
     expect(screen.getByText("蒜香鸡翅")).toBeInTheDocument();
     expect(screen.getByText("30 分钟 · 做过 3 次")).toBeInTheDocument();
   });
@@ -158,7 +157,7 @@ describe("ImportFlow v2 state flow", () => {
     render(<ImportFlow />);
 
     await openImportSheet();
-    expect(screen.getByRole("dialog")).toHaveClass("bottom-sheet");
+    expect(screen.getByRole("dialog")).toHaveClass("v3-import-drawer");
     expect(screen.getByTestId("home-page")).toBeInTheDocument();
     expect(screen.getByLabelText("分享文本")).toHaveClass("import-sheet-textarea");
     expect(screen.getByRole("button", { name: "开始智能解析" })).toHaveClass("import-sheet-submit");

@@ -4,16 +4,25 @@
 
 ## 最新任务快照
 
-- 更新时间：2026-07-18（Stitch V3 Task 1 已通过三轮独立复审与主控验收，准备开始 Task 2）
+- 更新时间：2026-07-18（Stitch V3 Task 2 代码、视觉与响应式验收通过，待提交）
 - 分支：`master`
 - Task 5 代码 HEAD：`73aa869 docs: record task 5 completion`
 - 1:1 复刻提交：`7604460 feat: replicate home and recipe list designs`
 - 导入/详情/复盘 1:1 复刻提交：`1233318 feat: replicate remaining recipe flows`
-- 当前阶段：Stitch V3 Task 1 已完成；shadcn/Radix/Vaul 基础、Stitch token、Apple reduced-motion 和 44px 触控契约已落地，下一步为首页、菜谱列表与导航
+- 当前阶段：Stitch V3 Task 2 已完成最终六张三宽度截图、390px Stitch 基准目视对照和列表滚动/固定栏复验；规格 PASS、质量 APPROVED，提交后进入 Task 3
 - 实施规格：`docs/superpowers/specs/2026-07-18-stitch-v3-redesign-design.md`
 - 实施计划：`docs/superpowers/plans/2026-07-18-stitch-v3-redesign.md`
 - 旧版复刻基准：`.agents/rules/style.md`、`.agents/rules/global-style.md`、`.agents/rules/复刻1:1设计规范.md`、`docs/ui-concepts/01-home.png` 至 `08-cook-review.png`
 - 新版 Stitch 设计基准：`.stitch/designs/`、`.stitch/design-system.json`、`resources/style-guide.json`
+
+## 精简验收模式（2026-07-18 起）
+
+- 每个 Task 默认只使用 1 个实现 Agent 和 1 个合并 reviewer；通常并发不超过 3 个活跃角色。
+- 开发中仅运行受影响的定向测试；Task 收口时运行一次完整测试和一次 production build，主控不重复相同验证。
+- reviewer 修正只跑关联测试；仅 Critical / Important 触发返工，Minor 记录后不单独开启复审轮次。
+- 视觉开发以 390px 为主；375px、430px、完整 E2E 和最终截图集中在 Task 6 验收，除非当前 Task 的布局风险必须提前检查。
+- 普通视觉样式不强制新增单元测试；数据、状态、导航、持久化、计时等核心行为继续保留测试。
+- 子 Agent 仅汇报改动文件、验证结果和遗留问题，不回传完整日志或长篇过程分析。
 
 ## 旧版 Task 状态
 
@@ -30,7 +39,7 @@
 | Task | 状态 | Commit / 验收 |
 | --- | --- | --- |
 | 1. Stitch token、shadcn/ui 与应用壳 | 已完成 | `d882719`、`416c46b`、`d86c574`；三轮独立复审最终 Spec PASS / Quality APPROVED；主控 85/85 tests、build 与范围审计通过 |
-| 2. 首页、菜谱列表与导航 | 待开始 | 依赖 Task 1 |
+| 2. 首页、菜谱列表与导航 | 已验收，待提交 | Spec PASS / Quality APPROVED；focused 43/43、主控 full 103/103、build 9/9、静态审计通过；Home/List 375/390/430 六图、无横向溢出及列表滚动/固定栏复验通过 |
 | 3. 导入抽屉、解析、图片审核与确认编辑 | 待开始 | 依赖 Task 1-2 |
 | 4. 菜谱详情、收藏持久化与复盘抽屉 | 待开始 | 依赖 Task 1-3 |
 | 5. 做菜指引、会话、计时、步骤进度与语音 | 待开始 | 依赖 Task 1-4 |

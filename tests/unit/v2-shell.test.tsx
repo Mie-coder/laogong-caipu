@@ -11,6 +11,7 @@ import { PageTransition } from "@/components/page-transition";
 const mockState = vi.hoisted(() => ({
   pathname: "/",
   reducedMotion: false as boolean | null,
+  reducedMotionCalls: 0,
   toast: vi.fn()
 }));
 
@@ -24,7 +25,7 @@ vi.mock("framer-motion", async () => {
   const React = await import("react");
 
   const createMotion = (tag: "div" | "section") =>
-    forwardRef<HTMLElement, Record<string, unknown>>(({ children, initial, animate, exit, transition, ...props }, ref) =>
+    forwardRef<HTMLElement, Record<string, unknown>>(({ children, initial, animate, exit, transition, layoutId, ...props }, ref) =>
       React.createElement(
         tag,
         {
@@ -45,13 +46,14 @@ vi.mock("framer-motion", async () => {
       div: createMotion("div"),
       section: createMotion("section")
     },
-    useReducedMotion: () => mockState.reducedMotion
+    useReducedMotion: () => { mockState.reducedMotionCalls += 1; return mockState.reducedMotion; }
   };
 });
 
 beforeEach(() => {
   mockState.pathname = "/";
   mockState.reducedMotion = false;
+  mockState.reducedMotionCalls = 0;
   mockState.toast.mockReset();
 });
 
@@ -65,6 +67,17 @@ describe("v2 application shell", () => {
     expect(importArrowRule).toContain("justify-self: end;");
   });
 
+  it("uses scoped V3 controls so Tailwind's rounded utility cannot flatten the Stitch shapes", () => {
+    const css = fs.readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+
+    expect(css).toMatch(/\.v3-home \.v3-import-action\s*\{[^}]*border-radius: 999px;/);
+    expect(css).toMatch(/\.v3-home \.v3-history\s*\{[^}]*border-radius: 999px;/);
+    expect(css).toMatch(/\.v3-home \.v3-history\s*\{[^}]*width: 44px;[^}]*height: 44px;/);
+    expect(css).toMatch(/\.v3-list-header-actions \.v3-list-header-button\s*\{[^}]*border-radius: 999px;/);
+    expect(css).toMatch(/\.v3-list \.v3-segmented button\s*\{[^}]*border-radius: 8px;/);
+    expect(css).toMatch(/\.v3-list \.v3-list-fab\s*\{[^}]*position: fixed;[^}]*bottom: calc\(112px \+ var\(--safe-bottom\)\);[^}]*width: 56px;[^}]*height: 56px;/);
+  });
+
   it("renders two restrained navigation items with an accessible active state", () => {
     render(<BottomNav />);
 
@@ -76,6 +89,7 @@ describe("v2 application shell", () => {
     expect(screen.getByRole("link", { name: "导入" }).className).not.toContain("btn-primary");
     expect(screen.getByRole("navigation").className).not.toContain("glass-nav");
     expect(screen.queryByText("分类")).not.toBeInTheDocument();
+    expect(document.querySelector(".v3-bottom-nav-indicator")).toBeInTheDocument();
   });
 
   it("marks the recipes route as active and treats categories as part of the recipe section", () => {
@@ -97,6 +111,15 @@ describe("v2 application shell", () => {
     render(<BottomNav />);
 
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+  });
+
+  it("keeps hook order stable across list-detail-list rerenders", () => {
+    const { rerender } = render(<BottomNav />);
+    mockState.pathname = "/recipes/1";
+    expect(() => rerender(<BottomNav />)).not.toThrow();
+    expect(mockState.reducedMotionCalls).toBe(2);
+    mockState.pathname = "/recipes";
+    expect(() => rerender(<BottomNav />)).not.toThrow();
   });
 
   it("renders an accessible close button when the bottom sheet is open", () => {
@@ -162,7 +185,7 @@ describe("v2 application shell", () => {
     expect(css).not.toContain('data-reduced-motion="true"][data-vaul-drawer] {\n  transform:');
   });
 
-  it("keeps Drawer and page motion when reduced motion is explicitly false", () => {
+  it("keeps a hydration-stable page fade when reduced motion is explicitly false", () => {
     render(
       <>
         <BottomSheet open title="筛选图片" onClose={vi.fn()}><div>内容</div></BottomSheet>
@@ -171,7 +194,7 @@ describe("v2 application shell", () => {
     );
 
     expect(screen.getByRole("dialog", { name: "筛选图片" })).not.toHaveAttribute("data-reduced-motion");
-    expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-initial", JSON.stringify({ opacity: 0, y: 8 }));
+    expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-initial", JSON.stringify({ opacity: 0, y: 0 }));
     expect(screen.getByText("页面内容").parentElement).toHaveAttribute("data-transition", JSON.stringify({ duration: 0.16, ease: "easeOut" }));
   });
 

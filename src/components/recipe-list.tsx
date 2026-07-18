@@ -1,538 +1,136 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, Filter, Search, Trash2, X } from "lucide-react";
-import { BottomSheet } from "@/components/bottom-sheet";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Check, MoreHorizontal, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { RecipeCard } from "@/components/recipe-card";
+import type { RecipeSummary } from "@/lib/domain/recipe-api";
 import { deleteRecipeApi, listRecipesApi } from "@/lib/http/api-client";
-import { RecipeCard, RecipeCardSummary } from "@/components/recipe-card";
-import { SkeletonCard } from "@/components/skeleton-card";
 
-type FilterValue = {
-  category: string;
-  tag: string;
-  difficulty: string;
-};
-
-type SnapshotOptions = {
-  categories: string[];
-  tags: string[];
-};
-
+type Filters = { category: string; tag: string; difficulty: string };
 type QuickFilter = "" | "cooked";
-
 const STORAGE_KEY = "recipe-list-return";
 
-function buildListUrl(params: { query?: string; category?: string; tag?: string; difficulty?: string }) {
-  const search = new URLSearchParams();
-  if (params.query) search.set("query", params.query);
-  if (params.category) search.set("category", params.category);
-  if (params.tag) search.set("tag", params.tag);
-  if (params.difficulty) search.set("difficulty", params.difficulty);
-  const query = search.toString();
-  return query ? `/recipes?${query}` : "/recipes";
+function buildListUrl(query: string, filters: Filters, quickFilter: QuickFilter = "") {
+  const params = new URLSearchParams();
+  if (query) params.set("query", query);
+  for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
+  if (quickFilter === "cooked") params.set("recent", "cooked");
+  return params.size ? `/recipes?${params}` : "/recipes";
 }
 
-function collectSnapshotOptions(recipes: RecipeCardSummary[]): SnapshotOptions {
-  const categories = new Set<string>();
-  const tags = new Set<string>();
-
-  for (const recipe of recipes) {
-    if (recipe.mainCategory) categories.add(recipe.mainCategory);
-    for (const tag of recipe.tags) {
-      if (tag) tags.add(tag);
-    }
-  }
-
-  return {
-    categories: [...categories],
-    tags: [...tags]
-  };
-}
-
-function formatCookStatus(count: number) {
-  return count > 0 ? `做过 ${count} 次` : "还没做过";
-}
-
-function formatCookTime(minutes?: number | null) {
-  return minutes ? `${minutes} 分钟` : "时间未定";
-}
-
-function formatFeaturedMetadata(recipe: RecipeCardSummary) {
-  const parts = [recipe.mainCategory, formatCookTime(recipe.cookTimeMinutes), formatCookStatus(recipe.cookedCount)];
-  if (recipe.wifeRating > 0) {
-    parts.push(`老婆评分 ${recipe.wifeRating.toFixed(1)}`);
-  }
-  return parts.join(" · ");
-}
-
-export function RecipeList({ category, tag }: { category?: string; tag?: string }) {
+export function RecipeList({ category = "", tag = "" }: { category?: string; tag?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const highlightId = searchParams.get("new");
-  const reduceMotion = useReducedMotion();
   const [query, setQuery] = useState(searchParams.get("query") ?? "");
-  const [filters, setFilters] = useState<FilterValue>({
-    category: category ?? "",
-    tag: tag ?? "",
-    difficulty: ""
-  });
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>("");
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [recipes, setRecipes] = useState<RecipeCardSummary[]>([]);
+  const [filters, setFilters] = useState<Filters>({ category: searchParams.get("category") ?? category, tag: searchParams.get("tag") ?? tag, difficulty: searchParams.get("difficulty") ?? "" });
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>(searchParams.get("recent") === "cooked" ? "cooked" : "");
+  const [view, setView] = useState<"recipes" | "categories">("recipes");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
+  const [snapshot, setSnapshot] = useState<RecipeSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingLayoutSettled, setLoadingLayoutSettled] = useState(false);
   const [error, setError] = useState("");
   const [deleteError, setDeleteError] = useState("");
-  const [deleteMode, setDeleteMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [optionSnapshot, setOptionSnapshot] = useState<SnapshotOptions>({ categories: [], tags: [] });
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const restoredRef = useRef(false);
-  const currentUrl = buildListUrl({
-    query,
-    category: filters.category,
-    tag: filters.tag,
-    difficulty: filters.difficulty
-  });
+  const [manage, setManage] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const restored = useRef(false);
+  const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClick = useRef(false);
+  const controller = useRef<AbortController | null>(null);
+  const currentUrl = buildListUrl(query, filters, quickFilter);
 
-  const load = useCallback(async () => {
-    setLoadingLayoutSettled(false);
-    setLoading(true);
-    setError("");
-
+  async function load(signal?: AbortSignal) {
+    setLoading(true); setError("");
     try {
-      const result = await listRecipesApi({
-        query,
-        category: filters.category,
-        tag: filters.tag,
-        difficulty: filters.difficulty
-      });
+      const result = await listRecipesApi({ query, ...filters }, signal);
+      if (signal?.aborted) return;
       setRecipes(result.recipes);
-      setOptionSnapshot((current) => {
-        if (current.categories.length || current.tags.length) {
-          return current;
-        }
-        return collectSnapshotOptions(result.recipes);
-      });
-    } catch (loadError) {
+      setSnapshot((current) => current.length ? current : result.recipes);
+    } catch (cause) {
+      if (signal?.aborted) return;
       setRecipes([]);
-      setError(loadError instanceof Error ? loadError.message : "加载失败，请重试");
+      setError(cause instanceof Error ? cause.message : "加载失败，请重试");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  }, [filters.category, filters.difficulty, filters.tag, query]);
+  }
 
   useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    if (loading || !loadingLayoutSettled || restoredRef.current || recipes.length === 0) {
-      return;
-    }
-
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return;
-    }
-
-    try {
-      const saved = JSON.parse(raw) as { url?: string; scrollY?: number };
-      if (saved.url === currentUrl && typeof saved.scrollY === "number") {
-        window.scrollTo(0, saved.scrollY);
-        restoredRef.current = true;
-      }
-    } catch {
-      window.sessionStorage.removeItem(STORAGE_KEY);
-    }
-  }, [currentUrl, loading, loadingLayoutSettled, recipes.length, searchParams]);
-
-  useEffect(() => {
-    restoredRef.current = false;
+    controller.current?.abort();
+    const next = new AbortController();
+    controller.current = next;
+    void load(next.signal);
+    return () => next.abort();
+  // Query and server filters deliberately trigger a new, cancellable request.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, filters.category, filters.tag, filters.difficulty]);
 
-  const visibleRecipes = useMemo(
-    () => (quickFilter === "cooked" ? recipes.filter((recipe) => recipe.cookedCount > 0) : recipes),
-    [quickFilter, recipes]
-  );
-  const featuredRecipe = visibleRecipes[0];
-  const rowRecipes = visibleRecipes.slice(1);
-  const quickFilters = useMemo(
-    () => [
-      {
-        label: "全部",
-        active: !query && !filters.category && !filters.tag && !filters.difficulty && !quickFilter,
-        onClick: () => {
-          setQuery("");
-          setQuickFilter("");
-          setFilters({ category: "", tag: "", difficulty: "" });
-        }
-      },
-      {
-        label: "最近做过",
-        active: quickFilter === "cooked",
-        onClick: () => setQuickFilter((current) => (current === "cooked" ? "" : "cooked"))
-      },
-      { label: "简单", active: filters.difficulty === "easy", onClick: () => setFilters((current) => ({ ...current, difficulty: current.difficulty === "easy" ? "" : "easy" })) }
-    ],
-    [filters.category, filters.difficulty, filters.tag, query, quickFilter]
-  );
-
-  function saveReturnState() {
-    window.sessionStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        url: currentUrl,
-        scrollY: window.scrollY
-      })
-    );
-  }
-
-  function exitDeleteMode() {
-    setDeleteMode(false);
-    setSelectedIds(new Set());
-    setDeleteError("");
-  }
-
-  function toggleSelect(id: number) {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }
-
-  async function handleDeleteSelected() {
-    if (selectedIds.size === 0) {
-      return;
-    }
-    if (!window.confirm("确认删除选中的菜谱吗？")) {
-      return;
-    }
-
-    setDeleteError("");
-
+  useEffect(() => { restored.current = false; }, [query, filters.category, filters.tag, filters.difficulty]);
+  useEffect(() => { if (pathname === "/recipes") router.replace(buildListUrl(query, filters, quickFilter), { scroll: false }); }, [pathname, query, filters, quickFilter, router]);
+  useEffect(() => {
+    if (loading || restored.current || recipes.length === 0) return;
     try {
-      for (const id of selectedIds) {
-        await deleteRecipeApi(id);
+      const saved = window.sessionStorage.getItem(STORAGE_KEY);
+      const value = saved ? JSON.parse(saved) as { url?: string; scrollY?: number } : null;
+      if (value?.url === currentUrl && typeof value.scrollY === "number") {
+        window.scrollTo(0, value.scrollY);
+        restored.current = true;
       }
-      exitDeleteMode();
-      await load();
-    } catch {
-      setDeleteError("删除失败，请重试");
-    }
+    } catch { window.sessionStorage.removeItem(STORAGE_KEY); }
+  }, [currentUrl, loading, recipes.length]);
+
+  const visible = quickFilter === "cooked" ? recipes.filter((recipe) => recipe.cookedCount > 0) : recipes;
+  const categories = useMemo(() => ["全部", ...Array.from(new Set(snapshot.map((recipe) => recipe.mainCategory).filter(Boolean)))], [snapshot]);
+  const tags = useMemo(() => ["全部", ...Array.from(new Set(snapshot.flatMap((recipe) => recipe.tags).filter(Boolean)))], [snapshot]);
+  const difficulties = [["", "全部"], ["easy", "简单"], ["medium", "中等"], ["hard", "困难"]] as const;
+
+  function openRecipe(recipe: RecipeSummary) {
+    if (suppressClick.current) { suppressClick.current = false; return; }
+    if (manage) { toggleSelected(recipe.id); return; }
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ url: currentUrl, scrollY: window.scrollY }));
+    router.push(`/recipes/${recipe.id}`);
   }
-
-  function handlePointerDown(id: number) {
-    longPressTimer.current = setTimeout(() => {
-      setDeleteMode(true);
-      setSelectedIds(new Set([id]));
-    }, 500);
+  function toggleSelected(id: number) { setSelected((old) => { const next = new Set(old); next.has(id) ? next.delete(id) : next.add(id); return next; }); }
+  function clearLongPress() { if (longPress.current) { clearTimeout(longPress.current); longPress.current = null; } }
+  function startLongPress(id: number) { clearLongPress(); longPress.current = setTimeout(() => { suppressClick.current = true; setManage(true); setSelected(new Set([id])); }, 500); }
+  function exitManagement() { clearLongPress(); setDeleteError(""); setManage(false); setSelected(new Set()); }
+  async function deleteSelected() {
+    setDeleteError("");
+    const failed = new Set<number>();
+    await Promise.all([...selected].map(async (id) => { try { await deleteRecipeApi(id); } catch { failed.add(id); } }));
+    setRecipes((old) => old.filter((recipe) => !selected.has(recipe.id) || failed.has(recipe.id)));
+    setSelected(failed);
+    setConfirmDelete(false);
+    if (failed.size) setDeleteError("删除失败，请重试"); else { setDeleteError(""); exitManagement(); }
   }
+  function setFilter<K extends keyof Filters>(key: K, value: Filters[K]) { setFilters((old) => ({ ...old, [key]: value })); setDrawerOpen(false); }
 
-  function clearLongPress() {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }
-
-  function handleOpenRecipe(id: number) {
-    if (deleteMode) {
-      toggleSelect(id);
-      return;
-    }
-    saveReturnState();
-    router.push(`/recipes/${id}`);
-  }
-
-  const highlightedTransition = reduceMotion ? { duration: 0 } : { duration: 0.18, ease: "easeOut" };
-
-  return (
-    <section className="recipe-list-page">
-      <div className="recipe-list-header">
-        <div>
-          <h1 className="recipe-list-title">我的菜谱</h1>
-          <p className="recipe-list-count">{`共 ${visibleRecipes.length} 道`}</p>
-        </div>
-        <div className="recipe-list-actions">
-          <button
-            type="button"
-            aria-label="搜索"
-            className="recipe-list-icon-button"
-            onClick={() => document.getElementById("recipe-list-search")?.focus()}
-          >
-            <Search className="recipe-list-action-icon" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="管理"
-            className="recipe-list-manage-button"
-            onClick={() => setDeleteMode(true)}
-          >
-            管理
-          </button>
-        </div>
-      </div>
-
-      <div className="recipe-list-search">
-        <label htmlFor="recipe-list-search" className="recipe-list-search-label">
-          <Search className="recipe-list-search-icon" aria-hidden="true" />
-          <input
-            id="recipe-list-search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索菜名"
-            className="recipe-list-search-input"
-          />
-        </label>
-      </div>
-
-      <div className="recipe-list-tabs">
-        <div className="recipe-list-tab-group">
-          {quickFilters.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              className={`recipe-list-tab ${item.active ? "is-active" : ""}`}
-              onClick={item.onClick}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          aria-label="筛选"
-          className="recipe-list-filter-button"
-          onClick={() => setSheetOpen(true)}
-        >
-          <Filter className="recipe-list-filter-icon" aria-hidden="true" />
-          <span>筛选</span>
-        </button>
-      </div>
-
-      {deleteError ? <p className="mt-4 text-[14px] leading-[1.5] text-accent">{deleteError}</p> : null}
-      {error ? (
-        <div className="mt-8">
-          <p className="text-[16px] leading-[1.65] text-ink">加载失败，请重试</p>
-          <button type="button" className="mt-3 text-[14px] leading-[1.5] text-ink underline underline-offset-4" onClick={() => void load()}>
-            重试
-          </button>
-        </div>
-      ) : null}
-
-      {!error && !loading && visibleRecipes.length === 0 ? (
-        <div className="mt-12">
-          <p className="text-[20px] font-semibold leading-[1.4] text-ink">还没有菜谱</p>
-          <Link href="/" className="mt-3 inline-block text-[14px] leading-[1.5] text-ink underline underline-offset-4">
-            去导入
-          </Link>
-        </div>
-      ) : null}
-
-      <AnimatePresence mode="wait" onExitComplete={() => setLoadingLayoutSettled(true)}>
-        {loading ? (
-          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-            <div className="recipe-list-loading">
-              <SkeletonCard featured />
-              <SkeletonCard />
-              <SkeletonCard />
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-
-      {!loading && !error && visibleRecipes.length > 0 ? (
-        <div className="recipe-list-content">
-          <h2 className="recipe-list-section-title">最近更新</h2>
-
-          {featuredRecipe ? (
-            <motion.div
-              key={featuredRecipe.id}
-              initial={highlightId === String(featuredRecipe.id) ? { opacity: 0 } : undefined}
-              animate={{ opacity: 1 }}
-              transition={highlightedTransition}
-              className="recipe-list-feature relative"
-            >
-              <button
-                type="button"
-                aria-label={deleteMode ? `选择菜谱 ${featuredRecipe.name}` : `查看菜谱 ${featuredRecipe.name}`}
-                className="recipe-list-feature-card"
-                onPointerDown={() => handlePointerDown(featuredRecipe.id)}
-                onPointerUp={clearLongPress}
-                onPointerLeave={clearLongPress}
-                onClick={() => handleOpenRecipe(featuredRecipe.id)}
-              >
-                <div className="recipe-list-feature-image">
-                  {featuredRecipe.coverImageUrl ? (
-                    <img
-                      src={featuredRecipe.coverImageUrl}
-                      alt={featuredRecipe.name}
-                      className="recipe-list-feature-photo"
-                      referrerPolicy="no-referrer"
-                      crossOrigin="anonymous"
-                    />
-                  ) : (
-                    <div className="recipe-list-empty-image">无图</div>
-                  )}
-                </div>
-                <div className="recipe-list-feature-copy">
-                  <h3 className="recipe-list-feature-title">{featuredRecipe.name}</h3>
-                  <p className="recipe-list-feature-meta">{formatFeaturedMetadata(featuredRecipe)}</p>
-                </div>
-              </button>
-              {deleteMode ? (
-                <span className="recipe-list-select-badge absolute right-0 top-4">
-                  {selectedIds.has(featuredRecipe.id) ? <Check className="h-4 w-4 text-accent" aria-hidden="true" /> : null}
-                </span>
-              ) : null}
-            </motion.div>
-          ) : null}
-
-          <div className="recipe-list-rows">
-            {rowRecipes.map((recipe) => {
-              const isSelected = selectedIds.has(recipe.id);
-
-              return (
-                <motion.div
-                  key={recipe.id}
-                  initial={highlightId === String(recipe.id) ? { opacity: 0 } : undefined}
-                  animate={{ opacity: 1 }}
-                  transition={highlightedTransition}
-                  className="recipe-list-row relative"
-                >
-                  <button
-                    type="button"
-                    aria-label={deleteMode ? `选择菜谱 ${recipe.name}` : `查看菜谱 ${recipe.name}`}
-                    className="recipe-list-row-button"
-                    onPointerDown={() => handlePointerDown(recipe.id)}
-                    onPointerUp={clearLongPress}
-                    onPointerLeave={clearLongPress}
-                    onClick={() => handleOpenRecipe(recipe.id)}
-                  >
-                    <RecipeCard recipe={recipe} disableLink variant="list" showChevron />
-                  </button>
-                  {deleteMode ? (
-                    <span className="recipe-list-row-select">
-                      {isSelected ? <Check className="h-4 w-4 text-accent" aria-hidden="true" /> : null}
-                    </span>
-                  ) : null}
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      <BottomSheet open={sheetOpen} title="筛选菜谱" onClose={() => setSheetOpen(false)}>
-        <div className="space-y-6 pb-4">
-          <div>
-            <p className="text-[14px] leading-[1.5] text-muted">分类</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                aria-label="分类 全部"
-                className={`rounded-[4px] border px-3 py-2 text-[14px] leading-[1.5] ${filters.category ? "border-line text-muted" : "border-accent text-ink"}`}
-                onClick={() => setFilters((current) => ({ ...current, category: "" }))}
-              >
-                全部
-              </button>
-              {optionSnapshot.categories.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  aria-label={`分类 ${item}`}
-                  className={`rounded-[4px] border px-3 py-2 text-[14px] leading-[1.5] ${filters.category === item ? "border-accent text-ink" : "border-line text-muted"}`}
-                  onClick={() => setFilters((current) => ({ ...current, category: item }))}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[14px] leading-[1.5] text-muted">标签</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                aria-label="标签 全部"
-                className={`rounded-[4px] border px-3 py-2 text-[14px] leading-[1.5] ${filters.tag ? "border-line text-muted" : "border-accent text-ink"}`}
-                onClick={() => setFilters((current) => ({ ...current, tag: "" }))}
-              >
-                全部
-              </button>
-              {optionSnapshot.tags.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  aria-label={`标签 ${item}`}
-                  className={`rounded-[4px] border px-3 py-2 text-[14px] leading-[1.5] ${filters.tag === item ? "border-accent text-ink" : "border-line text-muted"}`}
-                  onClick={() => setFilters((current) => ({ ...current, tag: item }))}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[14px] leading-[1.5] text-muted">难度</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {[
-                { value: "", label: "全部" },
-                { value: "easy", label: "简单" },
-                { value: "medium", label: "中等" },
-                { value: "hard", label: "困难" }
-              ].map((item) => (
-                <button
-                  key={item.value || "all"}
-                  type="button"
-                  aria-label={`难度 ${item.label}`}
-                  className={`rounded-[4px] border px-3 py-2 text-[14px] leading-[1.5] ${filters.difficulty === item.value ? "border-accent text-ink" : "border-line text-muted"}`}
-                  onClick={() => setFilters((current) => ({ ...current, difficulty: item.value }))}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </BottomSheet>
-
-      {deleteMode ? (
-        <div className="fixed inset-x-0 bottom-0 z-[35] flex justify-center bg-transparent px-5 pb-[calc(var(--safe-bottom)+16px)] pt-4">
-          <div className="flex w-full max-w-[var(--app-max-width)] items-center justify-between border-t border-line bg-surface pt-4">
-            <div>
-              <p className="text-[16px] font-medium leading-[1.5] text-ink">{`已选 ${selectedIds.size} 道`}</p>
-              {deleteError ? <p className="mt-1 text-[12px] leading-[1.4] text-accent">{deleteError}</p> : null}
-            </div>
-            <div className="flex items-center gap-3">
-              <button type="button" className="flex min-h-[44px] min-w-[44px] items-center justify-center text-ink" onClick={exitDeleteMode} aria-label="退出管理">
-                <X className="h-5 w-5" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                aria-label="删除已选"
-                className="flex h-12 items-center gap-2 rounded-[8px] bg-ink px-4 text-[16px] font-medium leading-[1.5] text-white disabled:bg-disabled"
-                disabled={selectedIds.size === 0}
-                onClick={() => void handleDeleteSelected()}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                删除
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </section>
-  );
+  return <main className="v3-list" data-testid="recipe-list-v3">
+    <header className="v3-list-header"><div><h1>我的菜谱</h1><p>收藏的每一道，都能认真做完</p><span className="sr-only">{`共 ${visible.length} 道`}</span></div><div className="v3-list-header-actions"><Button variant="ghost" size="icon" aria-label="搜索" className="v3-list-header-button" onClick={() => setSearchOpen((open) => !open)}><Search aria-hidden="true" /></Button><DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="更多" className="v3-list-header-button" onClick={() => setMoreOpen(true)}><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setManage(true); setMoreOpen(false); }}>管理菜谱</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></header>
+    <div className={`v3-list-search ${searchOpen ? "is-open" : ""}`} aria-hidden={!searchOpen}><Search aria-hidden="true" /><Input aria-label="搜索菜名" placeholder="搜索菜名" value={query} onChange={(event) => setQuery(event.target.value)} /><Button variant="ghost" size="icon" aria-label="筛选" onClick={() => setDrawerOpen(true)}><SlidersHorizontal aria-hidden="true" /></Button></div>
+    <div className="v3-segmented" role="tablist" aria-label="菜谱分段"><Button role="tab" variant={view === "recipes" ? "secondary" : "ghost"} aria-selected={view === "recipes"} onClick={() => setView("recipes")}>菜谱</Button><Button role="tab" variant={view === "categories" ? "secondary" : "ghost"} aria-selected={view === "categories"} onClick={() => setView("categories")}>分类</Button></div>
+    {view === "categories" ? <section className="v3-category-view" aria-label="菜谱分类">{categories.slice(1).map((item) => <Button key={item} variant="ghost" onClick={() => { setFilter("category", item); setView("recipes"); }}><span>{item}</span><span>{snapshot.filter((recipe) => recipe.mainCategory === item).length}</span></Button>)}</section> : <div className="v3-chips" aria-label="分类筛选"><Button variant="ghost" aria-pressed={quickFilter === "" && !filters.category && !filters.tag && !filters.difficulty && !query} className={!filters.category && !filters.tag && !filters.difficulty && !query ? "is-active" : ""} onClick={() => { setQuery(""); setQuickFilter(""); setFilters({ category: "", tag: "", difficulty: "" }); }}>全部</Button><Button variant="ghost" aria-pressed={quickFilter === "cooked"} className={quickFilter === "cooked" ? "is-active" : ""} onClick={() => setQuickFilter((value) => value === "cooked" ? "" : "cooked")}>最近做过</Button>{categories.slice(1).map((item) => <Button key={item} variant="ghost" aria-pressed={filters.category === item} className={filters.category === item ? "is-active" : ""} onClick={() => setFilter("category", item)}>{item}</Button>)}</div>}
+    {loading && <div className="v3-list-loading">{[0, 1, 2].map((key) => <Skeleton key={key} aria-label="菜谱加载中" className="h-28 w-full" />)}</div>}
+    {!loading && error && <section className="v3-state"><p>{error}</p><Button variant="link" onClick={() => { controller.current?.abort(); const next = new AbortController(); controller.current = next; void load(next.signal); }}>重试</Button></section>}
+    {!loading && !error && visible.length === 0 && <section className="v3-state"><p>还没有菜谱</p><Button variant="link" asChild><Link href="/">去导入</Link></Button></section>}
+    {!loading && !error && view === "recipes" && visible.length > 0 && <section className="v3-list-results" aria-label="菜谱列表">{visible.map((recipe, index) => <div key={recipe.id} className="v3-recipe-wrap" onPointerDown={() => startLongPress(recipe.id)} onPointerUp={clearLongPress} onPointerCancel={clearLongPress} onPointerLeave={clearLongPress}><RecipeCard recipe={recipe} fallbackImageUrl={`/stitch-v3/stitch-image-${["15", "14", "26", "01"][index % 4]}.jpg`} onOpen={() => openRecipe(recipe)} selected={selected.has(recipe.id)} onSelect={manage ? () => { if (suppressClick.current) { suppressClick.current = false; return; } toggleSelected(recipe.id); } : undefined} /></div>)}</section>}
+    {deleteError && <p className="v3-delete-error" role="status">{deleteError}</p>}
+    <Button asChild variant="outline" size="icon" className="v3-list-fab" aria-label="导入新菜谱"><Link href="/"><Plus aria-hidden="true" /></Link></Button>
+    {manage && <aside className="v3-manage" aria-label="菜谱管理"><Checkbox aria-label="全选" checked={selected.size === recipes.length && recipes.length > 0} onCheckedChange={() => setSelected(selected.size === recipes.length ? new Set() : new Set(recipes.map((recipe) => recipe.id)))} /><span>{`已选 ${selected.size} 道`}</span><Button variant="ghost" size="icon" aria-label="退出管理" onClick={exitManagement}><X aria-hidden="true" /></Button><Button variant="destructive" disabled={selected.size === 0} onClick={() => setConfirmDelete(true)}><Trash2 aria-hidden="true" />删除已选</Button></aside>}
+    <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>删除已选菜谱？</AlertDialogTitle><AlertDialogDescription>删除后无法恢复。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void deleteSelected()}>删除</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}><DrawerContent><DrawerHeader><DrawerTitle>筛选菜谱</DrawerTitle></DrawerHeader><div className="v3-filter-drawer"><section><h3>分类</h3>{categories.map((item) => <Button key={item} aria-label={`分类 ${item}`} variant={filters.category === (item === "全部" ? "" : item) ? "secondary" : "ghost"} onClick={() => setFilter("category", item === "全部" ? "" : item)}>{item}</Button>)}</section><section><h3>标签</h3>{tags.map((item) => <Button key={item} aria-label={`标签 ${item}`} variant={filters.tag === (item === "全部" ? "" : item) ? "secondary" : "ghost"} onClick={() => setFilter("tag", item === "全部" ? "" : item)}>{item}</Button>)}</section><section><h3>难度</h3>{difficulties.map(([value, label]) => <Button key={value} aria-label={`难度 ${label}`} variant={filters.difficulty === value ? "secondary" : "ghost"} onClick={() => setFilter("difficulty", value)}>{label}</Button>)}</section></div></DrawerContent></Drawer>
+  </main>;
 }

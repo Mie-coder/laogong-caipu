@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { RecipeCard } from "@/components/recipe-card";
 
 describe("RecipeCard", () => {
-  it("renders metadata in the required order without legacy styling", () => {
+  it("renders compact Stitch V3 metadata with wife rating priority", () => {
     const { container } = render(
       <RecipeCard
         recipe={{
@@ -12,6 +12,7 @@ describe("RecipeCard", () => {
           mainCategory: "家常菜",
           coverImageUrl: "https://example.com/cover.jpg",
           cookedCount: 2,
+          cookTimeMinutes: 30,
           difficulty: "easy",
           tags: ["下饭", "快手"],
           latestWifeFeedback: "好吃",
@@ -21,16 +22,11 @@ describe("RecipeCard", () => {
     );
 
     expect(container.textContent).toContain("丝瓜炒蛋");
-    expect(screen.getByText("家常菜")).toBeInTheDocument();
-    expect(screen.getByLabelText("难度：简单")).toBeInTheDocument();
-    expect(screen.getByText("做过 2 次")).toBeInTheDocument();
-    expect(screen.getByText("评分 4.0")).toBeInTheDocument();
-
-    const metadata = screen.getByText("家常菜").parentElement;
-    expect(metadata?.textContent).toContain("家常菜");
-    expect(metadata?.textContent).toContain("简单");
-    expect(metadata?.textContent).toContain("做过 2 次");
-    expect(metadata?.textContent).toContain("评分 4.0");
+    expect(screen.getByText("30 分钟 · 老婆评分 4.0")).toBeInTheDocument();
+    expect(container.querySelector(".v3-recipe-image")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("家常菜");
+    expect(container.textContent).not.toContain("简单");
+    expect(container.textContent).not.toContain("做过 2 次");
     expect(container.textContent).not.toContain("👨‍🍳");
     expect(container.textContent).not.toContain("🍳");
     expect(container.textContent).not.toContain("⭐");
@@ -57,6 +53,6 @@ describe("RecipeCard", () => {
     );
 
     expect(screen.getByText("无图")).toBeInTheDocument();
-    expect(screen.getByText("评分 --")).toBeInTheDocument();
+    expect(screen.getByText("时间未定 · 做过 0 次")).toBeInTheDocument();
   });
 });

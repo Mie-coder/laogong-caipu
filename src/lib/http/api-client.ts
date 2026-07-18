@@ -1,65 +1,47 @@
-import { RecipeDraft } from "@/lib/domain/recipe";
+import { z } from "zod";
+import { RecipeDraftSchema, type RecipeDraft } from "@/lib/domain/recipe";
+import { RecipeDetailResponseSchema, RecipeListResponseSchema, type RecipeSummary } from "@/lib/domain/recipe-api";
+import { ApiError, ApiErrorResponseSchema } from "@/lib/http/api-error";
 
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(init?.headers ?? {})
-    }
-  });
-  const payload = await response.json();
+async function requestJson<T>(url: string, schema: z.ZodType<T>, init: RequestInit = {}, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, { ...init, signal, headers: { "Content-Type": "application/json", ...init.headers } });
+  const text = await response.text();
+  let payload: unknown = null;
+  try { payload = text ? JSON.parse(text) : null; } catch { /* non-JSON server failure */ }
   if (!response.ok) {
-    throw new Error(payload.error ?? "请求失败");
+    const parsed = ApiErrorResponseSchema.safeParse(payload);
+    const error = parsed.success ? parsed.data.error : null;
+    throw new ApiError(error !== null && typeof error === "object" ? error.code : "http_error", error !== null && typeof error === "object" ? error.message : typeof error === "string" ? error : "请求失败，请稍后重试", response.status);
   }
-  return payload as T;
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) throw new ApiError("invalid_response", "服务响应异常，请稍后重试", response.status);
+  return parsed.data;
 }
 
-export function parseImportApi(input: { rawInput: string; manualSupplement?: string }) {
-  return requestJson<{ recipe: RecipeDraft; imageUrls: string[]; needsSupplement: boolean; crawlStatus: string; crawlError: string }>(
-    "/api/import/parse",
-    { method: "POST", body: JSON.stringify(input) }
-  );
-}
+const ImportParseResponseSchema = z.object({ recipe: RecipeDraftSchema, imageUrls: z.array(z.string()), needsSupplement: z.boolean(), crawlStatus: z.string(), crawlError: z.string() });
 
-export function saveRecipeApi(recipe: RecipeDraft) {
-  return requestJson<{ id: number }>("/api/recipes", { method: "POST", body: JSON.stringify(recipe) });
+export async function parseImportApi(input: { rawInput: string; manualSupplement?: string }): Promise<{ recipe: RecipeDraft; imageUrls: string[]; needsSupplement: boolean; crawlStatus: string; crawlError: string }> {
+  const result = await requestJson("/api/import/parse", ImportParseResponseSchema, { method: "POST", body: JSON.stringify(input) });
+  return { ...result, recipe: RecipeDraftSchema.parse(result.recipe) as RecipeDraft };
 }
-
-export function listRecipesApi(params: { query?: string; category?: string; tag?: string; difficulty?: string } = {}) {
+export function saveRecipeApi(recipe: RecipeDraft) { return requestJson("/api/recipes", z.object({ id: z.number() }), { method: "POST", body: JSON.stringify(recipe) }); }
+export async function listRecipesApi(params: { query?: string; category?: string; tag?: string; difficulty?: string } = {}, signal?: AbortSignal): Promise<{ recipes: RecipeSummary[] }> {
   const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value) search.set(key, value);
-  });
-  return requestJson<{ recipes: any[] }>(`/api/recipes?${search.toString()}`);
+  Object.entries(params).forEach(([key, value]) => { if (value) search.set(key, value); });
+  const result = await requestJson(`/api/recipes?${search}`, RecipeListResponseSchema, {}, signal);
+  return { recipes: result.recipes.map((recipe) => ({ ...recipe, isFavorite: recipe.isFavorite ?? false })) };
 }
-
-export function getRecipeApi(id: number) {
-  return requestJson<{ recipe: any }>(`/api/recipes/${id}`);
-}
-
-export function addCookingLogApi(id: number, input: { wifeFeedback: string; husbandImprovementNotes: string; notes: string; wifeRating: number }) {
-  return requestJson<{ ok: true }>(`/api/recipes/${id}/cook`, { method: "POST", body: JSON.stringify(input) });
-}
-
-export function deleteRecipeApi(id: number) {
-  return requestJson<{ ok: true }>(`/api/recipes/${id}`, { method: "DELETE" });
-}
-
+export function getRecipeApi(id: number, signal?: AbortSignal) { return requestJson(`/api/recipes/${id}`, RecipeDetailResponseSchema, {}, signal); }
+export function addCookingLogApi(id: number, input: { wifeFeedback: string; husbandImprovementNotes: string; notes: string; wifeRating: number }) { return requestJson(`/api/recipes/${id}/cook`, z.object({ ok: z.literal(true) }), { method: "POST", body: JSON.stringify(input) }); }
+export function deleteRecipeApi(id: number) { return requestJson(`/api/recipes/${id}`, z.object({ ok: z.literal(true) }), { method: "DELETE" }); }
 export async function filterImages(imageUrls: string[], recipeName: string): Promise<string[]> {
   try {
-    const response = await fetch("/api/images/filter", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ imageUrls, recipeName })
-    });
-    const payload = await response.json();
-    return payload.imageUrls ?? imageUrls;
+    const response = await fetch("/api/images/filter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageUrls, recipeName }) });
+    if (!response.ok) return imageUrls;
+    const payload: unknown = await response.json();
+    return z.object({ imageUrls: z.array(z.string()) }).parse(payload).imageUrls;
   } catch {
     return imageUrls;
   }
 }
-
-export async function saveRecipeWithImages(draft: RecipeDraft, selectedImageUrls: string[]): Promise<{ id: number }> {
-  return saveRecipeApi({ ...draft, imageUrls: selectedImageUrls });
-}
+export async function saveRecipeWithImages(draft: RecipeDraft, selectedImageUrls: string[]): Promise<{ id: number }> { return saveRecipeApi({ ...draft, imageUrls: selectedImageUrls }); }
