@@ -4,12 +4,12 @@
 
 ## 最新任务快照
 
-- 更新时间：2026-07-18（Stitch V3 Task 2 已提交并通过验收，准备进入 Task 3）
+- 更新时间：2026-07-18（Stitch V3 Task 4 已提交并通过验收，准备进入 Task 5）
 - 分支：`master`
 - Task 5 代码 HEAD：`73aa869 docs: record task 5 completion`
 - 1:1 复刻提交：`7604460 feat: replicate home and recipe list designs`
 - 导入/详情/复盘 1:1 复刻提交：`1233318 feat: replicate remaining recipe flows`
-- 当前阶段：Stitch V3 Task 2 实现提交 `98db6f6` 已完成；规格 PASS、质量 APPROVED，下一步执行 Task 3 导入完整流程
+- 当前阶段：Stitch V3 Task 4 已完成；最终规格 PASS、质量 APPROVED，下一步执行 Task 5 做菜指引与做菜模式
 - 实施规格：`docs/superpowers/specs/2026-07-18-stitch-v3-redesign-design.md`
 - 实施计划：`docs/superpowers/plans/2026-07-18-stitch-v3-redesign.md`
 - 旧版复刻基准：`.agents/rules/style.md`、`.agents/rules/global-style.md`、`.agents/rules/复刻1:1设计规范.md`、`docs/ui-concepts/01-home.png` 至 `08-cook-review.png`
@@ -40,8 +40,8 @@
 | --- | --- | --- |
 | 1. Stitch token、shadcn/ui 与应用壳 | 已完成 | `d882719`、`416c46b`、`d86c574`；三轮独立复审最终 Spec PASS / Quality APPROVED；主控 85/85 tests、build 与范围审计通过 |
 | 2. 首页、菜谱列表与导航 | 已完成 | `98db6f6`；Spec PASS / Quality APPROVED；focused 43/43、主控 full 103/103、build 9/9、静态审计通过；Home/List 375/390/430 六图、无横向溢出及列表滚动/固定栏复验通过 |
-| 3. 导入抽屉、解析、图片审核与确认编辑 | 待开始 | 依赖 Task 1-2 |
-| 4. 菜谱详情、收藏持久化与复盘抽屉 | 待开始 | 依赖 Task 1-3 |
+| 3. 导入抽屉、解析、图片审核与确认编辑 | 已完成 | `8b05064`、`005f30d`、`f599b55`、`b02386b`、`7e6c88b`；最终 Spec PASS / Quality APPROVED；25/25 定向、107/107 全量、build 9/9，四屏 390px 通过 |
+| 4. 菜谱详情、收藏持久化与复盘抽屉 | 已完成 | `48b8199`、`fa74337`、`4c86043`、`ab59bce`、`214a5ac`；最终 Spec PASS / Quality APPROVED；22/22 定向、111/111 全量、build 9/9，详情/复盘 390px 通过 |
 | 5. 做菜指引、会话、计时、步骤进度与语音 | 待开始 | 依赖 Task 1-4 |
 | 6. 完整 E2E、三尺寸视觉验收和 Claude Code 交接 | 待开始 | 依赖全部实现 Task |
 
