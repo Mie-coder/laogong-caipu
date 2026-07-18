@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FavoriteButton } from "@/components/recipe/favorite-button";
 import { RecipeDetail } from "@/components/recipe-detail";
+import { ApiError } from "@/lib/http/api-error";
 
 const state = vi.hoisted(() => ({
   push: vi.fn(),
@@ -72,6 +73,76 @@ describe("Recipe detail V3", () => {
     const dialog = await screen.findByRole("alertdialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "删除菜谱" }));
     await waitFor(() => expect(state.deleteRecipe).toHaveBeenCalledWith(7));
+  });
+
+  it("renders only wired edit and cooking actions, then calls their typed handlers", async () => {
+    const startCooking = vi.fn(); const editRecipe = vi.fn();
+    const { rerender } = render(<RecipeDetail id={7} />);
+    await screen.findByRole("heading", { name: "番茄炖牛腩" });
+    expect(screen.queryByRole("button", { name: "编辑菜谱" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "开始做菜" })).not.toBeInTheDocument();
+
+    rerender(<RecipeDetail id={7} onStartCooking={startCooking} onEditRecipe={editRecipe} />);
+    fireEvent.click(screen.getByRole("button", { name: "编辑菜谱" }));
+    fireEvent.click(screen.getByRole("button", { name: "开始做菜" }));
+    expect(editRecipe).toHaveBeenCalledWith(7);
+    expect(startCooking).toHaveBeenCalledWith(7);
+  });
+
+  it("separates a missing recipe from a retryable load failure", async () => {
+    state.getRecipe.mockRejectedValueOnce(new ApiError("not_found", "菜谱不存在", 404));
+    const { rerender } = render(<RecipeDetail id={7} />);
+    expect(await screen.findByRole("heading", { name: "菜谱没找到" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "重试" })).not.toBeInTheDocument();
+
+    state.getRecipe.mockRejectedValueOnce(new ApiError("http_error", "网络错误", 500)).mockResolvedValueOnce({ recipe: makeRecipe() });
+    rerender(<RecipeDetail id={8} />);
+    expect(await screen.findByRole("heading", { name: "加载失败" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
+  });
+
+  it("returns to the saved list after delete and safely falls back for missing or invalid saved state", async () => {
+    window.sessionStorage.setItem("recipe-list-return", JSON.stringify({ url: "/recipes?query=%E7%89%9B%E8%85%A9" }));
+    const { rerender } = render(<RecipeDetail id={7} />);
+    await screen.findByRole("heading", { name: "番茄炖牛腩" });
+    fireEvent.keyDown(screen.getByRole("button", { name: "更多操作" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "删除菜谱" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "删除菜谱" }));
+    await waitFor(() => expect(state.push).toHaveBeenCalledWith("/recipes?query=%E7%89%9B%E8%85%A9"));
+
+    state.push.mockReset(); window.sessionStorage.setItem("recipe-list-return", "坏数据");
+    rerender(<RecipeDetail id={8} />);
+    await screen.findByRole("heading", { name: "番茄炖牛腩" });
+    fireEvent.click(screen.getByRole("button", { name: "返回菜谱列表" }));
+    expect(state.push).toHaveBeenCalledWith("/recipes");
+  });
+
+  it("keeps detail visible and reports a failed delete without navigation", async () => {
+    state.deleteRecipe.mockRejectedValueOnce(new Error("删除失败"));
+    render(<RecipeDetail id={7} />);
+    await screen.findByRole("heading", { name: "番茄炖牛腩" });
+    fireEvent.keyDown(screen.getByRole("button", { name: "更多操作" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "删除菜谱" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "删除菜谱" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("删除失败");
+    expect(screen.getByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
+    expect(state.push).not.toHaveBeenCalled();
+  });
+
+  it("marks all detail and review control paths for Apple pointer-down feedback", async () => {
+    render(<RecipeDetail id={7} onStartCooking={vi.fn()} onEditRecipe={vi.fn()} />);
+    await screen.findByRole("heading", { name: "番茄炖牛腩" });
+    for (const name of ["返回菜谱列表", "收藏菜谱 番茄炖牛腩", "编辑菜谱", "更多操作", "开始做菜", "查看复盘"]) expect(screen.getByRole("button", { name })).toHaveAttribute("data-press-feedback", "apple");
+    fireEvent.click(screen.getByRole("button", { name: "查看复盘" }));
+    const close = await screen.findByRole("button", { name: "关闭" });
+    expect(close).toHaveAttribute("data-press-feedback", "apple");
+    expect(screen.getByRole("button", { name: "4 星，很好吃" })).toHaveAttribute("data-press-feedback", "apple");
+    fireEvent.click(close);
+    await waitFor(() => expect(screen.queryByRole("button", { name: "关闭" })).not.toBeInTheDocument());
+    fireEvent.keyDown(screen.getByRole("button", { name: "更多操作" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "删除菜谱" }));
+    expect(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "删除菜谱" })).toHaveAttribute("data-press-feedback", "apple");
   });
 
   it("shows a retryable load error and refreshes latest review after a successful saved review", async () => {

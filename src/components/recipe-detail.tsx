@@ -12,6 +12,7 @@ import { FavoriteButton } from "@/components/recipe/favorite-button";
 import { SkeletonCard } from "@/components/skeleton-card";
 import { addCookingLogApi, deleteRecipeApi, getRecipeApi } from "@/lib/http/api-client";
 import type { RecipeDetail as RecipeDetailData } from "@/lib/domain/recipe-api";
+import { ApiError } from "@/lib/http/api-error";
 
 const LIST_RETURN_KEY = "recipe-list-return";
 
@@ -32,7 +33,7 @@ function listReturnUrl() {
 export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number; onStartCooking?: (recipeId: number) => void; onEditRecipe?: (recipeId: number) => void }) {
   const router = useRouter();
   const [recipe, setRecipe] = useState<RecipeDetailData | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ message: string; notFound: boolean } | null>(null);
   const [notice, setNotice] = useState("");
   const [reviewOpen, setReviewOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -41,12 +42,12 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
 
   async function load() {
     try {
-      setError("");
+      setError(null);
       const result = await getRecipeApi(id);
       setRecipe(result.recipe);
       setImageFailed(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "加载失败，请重试");
+      setError({ message: cause instanceof Error ? cause.message : "加载失败，请重试", notFound: cause instanceof ApiError && (cause.code === "not_found" || cause.status === 404) });
     }
   }
 
@@ -66,14 +67,14 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
   }
 
   if (!recipe && !error) return <SkeletonCard />;
-  if (error) return <main className="recipe-detail-error" data-transaction-screen="true"><Button variant="ghost" size="icon" aria-label="返回菜谱列表" onClick={() => router.push(listReturnUrl())}><ChevronLeft aria-hidden="true" /></Button><section><h1>菜谱没找到</h1><p role="status">{error}</p><Button variant="outline" onClick={() => void load()}>重试</Button></section></main>;
+  if (error) return <main className="recipe-detail-error" data-transaction-screen="true"><Button variant="ghost" size="icon" aria-label="返回菜谱列表" data-press-feedback="apple" onClick={() => router.push(listReturnUrl())}><ChevronLeft aria-hidden="true" /></Button><section><h1>{error.notFound ? "菜谱没找到" : "加载失败"}</h1><p role="status">{error.message}</p>{!error.notFound ? <Button variant="outline" data-press-feedback="apple" onClick={() => void load()}>重试</Button> : null}</section></main>;
   if (!recipe) return null;
 
   const latestReview = recipe.cookingLogs[0] ?? null;
   return <main className="recipe-detail-v3" data-transaction-screen="true">
     <header className="recipe-detail-v3-header">
-      <Button variant="secondary" size="icon" aria-label="返回菜谱列表" onClick={() => router.push(listReturnUrl())}><ChevronLeft aria-hidden="true" /></Button>
-      <div className="recipe-detail-v3-actions"><FavoriteButton recipeId={recipe.id} recipeName={recipe.name} isFavorite={recipe.isFavorite} onChanged={(isFavorite) => setRecipe((current) => current ? { ...current, isFavorite } : current)} /><Button variant="secondary" size="icon" aria-label="编辑菜谱" disabled={!onEditRecipe} onClick={() => onEditRecipe?.(recipe.id)}><PencilLine aria-hidden="true" /></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="secondary" size="icon" aria-label="更多操作"><Ellipsis aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => setDeleteOpen(true)}><Trash2 aria-hidden="true" />删除菜谱</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+      <Button variant="secondary" size="icon" aria-label="返回菜谱列表" data-press-feedback="apple" onClick={() => router.push(listReturnUrl())}><ChevronLeft aria-hidden="true" /></Button>
+      <div className="recipe-detail-v3-actions"><FavoriteButton recipeId={recipe.id} recipeName={recipe.name} isFavorite={recipe.isFavorite} onChanged={(isFavorite) => setRecipe((current) => current ? { ...current, isFavorite } : current)} />{onEditRecipe ? <Button variant="secondary" size="icon" aria-label="编辑菜谱" data-press-feedback="apple" onClick={() => onEditRecipe(recipe.id)}><PencilLine aria-hidden="true" /></Button> : null}<DropdownMenu><DropdownMenuTrigger asChild><Button variant="secondary" size="icon" aria-label="更多操作" data-press-feedback="apple"><Ellipsis aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem data-press-feedback="apple" onSelect={() => setDeleteOpen(true)}><Trash2 aria-hidden="true" />删除菜谱</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
     </header>
 
     <section className="recipe-detail-v3-hero">
@@ -92,9 +93,9 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
       {recipe.tips ? <section className="recipe-detail-v3-tips"><h2>小贴士</h2><p>{recipe.tips}</p></section> : null}
     </section>
 
-    <footer className="recipe-detail-v3-footer"><Button variant="outline" onClick={() => setReviewOpen(true)}>查看复盘</Button><Button onClick={() => onStartCooking?.(recipe.id)}>开始做菜</Button></footer>
+    <footer className={`recipe-detail-v3-footer ${onStartCooking ? "" : "is-single-action"}`}><Button variant="outline" data-press-feedback="apple" onClick={() => setReviewOpen(true)}>查看复盘</Button>{onStartCooking ? <Button data-press-feedback="apple" onClick={() => onStartCooking(recipe.id)}>开始做菜</Button> : null}</footer>
     {notice ? <p className="recipe-detail-v3-notice" role="status">{notice}</p> : null}
-    <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>删除这道菜谱？</AlertDialogTitle><AlertDialogDescription>删除后无法恢复，相关图片和复盘记录也会一并删除。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void deleteRecipe()}>删除菜谱</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>删除这道菜谱？</AlertDialogTitle><AlertDialogDescription>删除后无法恢复，相关图片和复盘记录也会一并删除。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel data-press-feedback="apple">取消</AlertDialogCancel><AlertDialogAction data-press-feedback="apple" onClick={() => void deleteRecipe()}>删除菜谱</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     <CookingLogSheet open={reviewOpen} onClose={() => setReviewOpen(false)} onSubmit={async (input) => { await addCookingLogApi(id, input); setReviewOpen(false); setNotice("已保存复盘"); await load(); }} />
   </main>;
 }
