@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { createIngredientImageGetHandler } from "@/app/api/ingredient-images/[key]/route";
-import { createIngredientImagePostHandler } from "@/app/api/recipes/[id]/ingredient-images/route";
+import * as ingredientImageCacheRoute from "@/app/api/ingredient-images/[key]/route";
+import * as recipeIngredientImagesRoute from "@/app/api/recipes/[id]/ingredient-images/route";
+import {
+  createIngredientImageGetHandler,
+  createIngredientImagePostHandler
+} from "@/lib/images/ingredient-image-route-handlers";
 
 const recipe = {
   ingredients: [{ name: "牛肉", amount: "200克", type: "ingredient" }],
@@ -21,6 +25,11 @@ function jsonRequest(body: unknown) {
 }
 
 describe("ingredient image routes", () => {
+  it("exports only Next-compatible HTTP handlers from app route modules", () => {
+    expect(Object.keys(ingredientImageCacheRoute).sort()).toEqual(["GET"]);
+    expect(Object.keys(recipeIngredientImagesRoute).sort()).toEqual(["POST"]);
+  });
+
   it("rejects an item index that is not present in the saved recipe", async () => {
     const POST = createIngredientImagePostHandler({
       getRecipeById: () => recipe,
