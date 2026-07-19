@@ -8,6 +8,13 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const projectRoot = process.cwd();
 const backupScript = join(projectRoot, "scripts", "backup-data.mjs");
+const exactTimestamp = "\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z";
+
+function exactDatabaseBackup(kind: "daily" | "weekly" | "predeploy") {
+  return new RegExp(`^${kind}-${exactTimestamp}\\.sqlite$`);
+}
+
+const exactWeeklyImages = new RegExp(`^weekly-images-${exactTimestamp}$`);
 
 async function createFixture() {
   const root = await mkdtemp(join(tmpdir(), "laogong-deployment-"));
@@ -49,6 +56,10 @@ async function namesIn(directory: string) {
   return (await readdir(directory)).sort();
 }
 
+async function entriesIn(directory: string) {
+  return (await readdir(directory, { withFileTypes: true })).sort((left, right) => left.name.localeCompare(right.name));
+}
+
 describe("persistent deployment contract", () => {
   it("creates a readable online SQLite backup containing real rows", async () => {
     const fixture = await createFixture();
@@ -76,6 +87,11 @@ describe("persistent deployment contract", () => {
   it("retains only the seven newest daily database backups", async () => {
     const fixture = await createFixture();
     try {
+      const lookalikeFile = "daily-9999-lookalike.sqlite";
+      const exactLookingDirectory = "daily-2026-06-30T03-00-00-000Z.sqlite";
+      await writeFile(join(fixture.backupRoot, lookalikeFile), "operator file");
+      await mkdir(join(fixture.backupRoot, exactLookingDirectory));
+
       for (let day = 1; day <= 8; day += 1) {
         await runBackup({
           ...fixture,
@@ -84,10 +100,16 @@ describe("persistent deployment contract", () => {
         });
       }
 
-      const backups = (await namesIn(fixture.backupRoot)).filter((name) => name.startsWith("daily-"));
+      const entries = await entriesIn(fixture.backupRoot);
+      const names = entries.map((entry) => entry.name);
+      const backups = entries
+        .filter((entry) => entry.isFile() && exactDatabaseBackup("daily").test(entry.name))
+        .map((entry) => entry.name);
       expect(backups).toHaveLength(7);
       expect(backups).not.toContain("daily-2026-07-01T03-00-00-000Z.sqlite");
       expect(backups.at(-1)).toBe("daily-2026-07-08T03-00-00-000Z.sqlite");
+      expect(names).toContain(lookalikeFile);
+      expect(names).toContain(exactLookingDirectory);
     } finally {
       await rm(fixture.root, { recursive: true, force: true });
     }
@@ -112,6 +134,14 @@ describe("persistent deployment contract", () => {
       const generated = join(dirname(fixture.databasePath), "generated");
       await mkdir(generated, { recursive: true });
       await writeFile(join(generated, "ingredient.webp"), "image fixture");
+      const databaseLookalike = "weekly-9999-lookalike.sqlite";
+      const imageLookalike = "weekly-images-9999-lookalike";
+      const exactLookingDatabaseDirectory = "weekly-2025-12-01T04-00-00-000Z.sqlite";
+      const exactLookingImageFile = "weekly-images-2025-12-01T04-00-00-000Z";
+      await writeFile(join(fixture.backupRoot, databaseLookalike), "operator file");
+      await mkdir(join(fixture.backupRoot, imageLookalike));
+      await mkdir(join(fixture.backupRoot, exactLookingDatabaseDirectory));
+      await writeFile(join(fixture.backupRoot, exactLookingImageFile), "operator file");
 
       for (let week = 1; week <= 5; week += 1) {
         await runBackup({
@@ -121,14 +151,27 @@ describe("persistent deployment contract", () => {
         });
       }
 
-      const names = await namesIn(fixture.backupRoot);
-      const imageSnapshots = names.filter((name) => name.startsWith("weekly-images-"));
-      const databaseBackups = names.filter((name) => /^weekly-.*\.sqlite$/.test(name));
+      const entries = await entriesIn(fixture.backupRoot);
+      const names = entries.map((entry) => entry.name);
+      const imageSnapshots = entries
+        .filter((entry) => entry.isDirectory() && exactWeeklyImages.test(entry.name))
+        .map((entry) => entry.name);
+      const databaseBackups = entries
+        .filter((entry) => entry.isFile() && exactDatabaseBackup("weekly").test(entry.name))
+        .map((entry) => entry.name);
       expect(imageSnapshots).toHaveLength(4);
       expect(databaseBackups).toHaveLength(4);
       expect(imageSnapshots).not.toContain("weekly-images-2026-01-01T04-00-00-000Z");
       await expect(readFile(join(fixture.backupRoot, imageSnapshots.at(-1)!, "ingredient.webp"), "utf8")).resolves.toBe(
         "image fixture"
+      );
+      expect(names).toEqual(
+        expect.arrayContaining([
+          databaseLookalike,
+          imageLookalike,
+          exactLookingDatabaseDirectory,
+          exactLookingImageFile
+        ])
       );
     } finally {
       await rm(fixture.root, { recursive: true, force: true });
@@ -142,6 +185,82 @@ describe("persistent deployment contract", () => {
         runBackup({ ...fixture, kind: "weekly", now: "2026-07-19T05:00:00.000Z" })
       ).resolves.toMatchObject({ stderr: "" });
       expect(await namesIn(fixture.backupRoot)).toEqual(["weekly-2026-07-19T05-00-00-000Z.sqlite"]);
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("retains only the three newest predeploy database backups", async () => {
+    const fixture = await createFixture();
+    try {
+      for (let release = 1; release <= 4; release += 1) {
+        await runBackup({
+          ...fixture,
+          kind: "predeploy",
+          now: `2026-07-19T0${release}:00:00.000Z`
+        });
+      }
+
+      const backups = (await namesIn(fixture.backupRoot)).filter((name) => exactDatabaseBackup("predeploy").test(name));
+      expect(backups).toEqual([
+        "predeploy-2026-07-19T02-00-00-000Z.sqlite",
+        "predeploy-2026-07-19T03-00-00-000Z.sqlite",
+        "predeploy-2026-07-19T04-00-00-000Z.sqlite"
+      ]);
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects an invalid test clock without leaving a partial backup", async () => {
+    const fixture = await createFixture();
+    try {
+      await expect(runBackup({ ...fixture, kind: "daily", now: "not-an-iso-time" })).rejects.toMatchObject({
+        stderr: "Backup failed\n"
+      });
+      expect(await namesIn(fixture.backupRoot)).toEqual([]);
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("removes its partial database file when SQLite online backup fails", async () => {
+    const fixture = await createFixture();
+    try {
+      await writeFile(fixture.databasePath, "not a sqlite database");
+      await expect(
+        runBackup({ ...fixture, kind: "daily", now: "2026-07-19T05:30:00.000Z" })
+      ).rejects.toMatchObject({ stderr: "Backup failed\n" });
+      expect(await namesIn(fixture.backupRoot)).toEqual([]);
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("never overwrites or removes pre-existing backup destinations", async () => {
+    const fixture = await createFixture();
+    try {
+      const databaseCollision = "daily-2026-07-19T06-00-00-000Z.sqlite";
+      await writeFile(join(fixture.backupRoot, databaseCollision), "operator-owned content");
+      await expect(
+        runBackup({ ...fixture, kind: "daily", now: "2026-07-19T06:00:00.000Z" })
+      ).rejects.toMatchObject({ stderr: "Backup failed\n" });
+      await expect(readFile(join(fixture.backupRoot, databaseCollision), "utf8")).resolves.toBe(
+        "operator-owned content"
+      );
+
+      const imageCollision = "weekly-images-2026-07-19T07-00-00-000Z";
+      await mkdir(join(dirname(fixture.databasePath), "generated"));
+      await writeFile(join(dirname(fixture.databasePath), "generated", "ingredient.webp"), "new image");
+      await mkdir(join(fixture.backupRoot, imageCollision));
+      await writeFile(join(fixture.backupRoot, imageCollision, "keep.txt"), "operator-owned image snapshot");
+      await expect(
+        runBackup({ ...fixture, kind: "weekly", now: "2026-07-19T07:00:00.000Z" })
+      ).rejects.toMatchObject({ stderr: "Backup failed\n" });
+      await expect(readFile(join(fixture.backupRoot, imageCollision, "keep.txt"), "utf8")).resolves.toBe(
+        "operator-owned image snapshot"
+      );
+      expect(await namesIn(fixture.backupRoot)).not.toContain("weekly-2026-07-19T07-00-00-000Z.sqlite");
     } finally {
       await rm(fixture.root, { recursive: true, force: true });
     }
@@ -237,11 +356,13 @@ describe("persistent deployment contract", () => {
     expect(runbook).toContain("127.0.0.1:3000");
     expect(runbook).toContain("proxy_set_header Host $host;");
     expect(runbook).toContain("proxy_set_header X-Forwarded-Proto $scheme;");
+    expect(runbook).toContain("proxy_set_header X-Forwarded-Host $host;");
     expect(runbook).toContain("proxy_set_header X-Forwarded-For $remote_addr;");
     expect(runbook).toContain('proxy_set_header x-middleware-subrequest "";');
     expect(runbook).not.toContain("$proxy_add_x_forwarded_for");
     expect(runbook).toContain("header_up Host {http.request.host}");
     expect(runbook).toContain("header_up X-Forwarded-Proto https");
+    expect(runbook).toContain("header_up X-Forwarded-Host {http.request.host}");
     expect(runbook).toContain("header_up X-Forwarded-For {http.request.remote.host}");
     expect(runbook).toContain("header_up -x-middleware-subrequest");
     expect(runbook).toContain("X-Content-Type-Options nosniff");
@@ -255,7 +376,85 @@ describe("persistent deployment contract", () => {
     expect(runbook).toContain("PRAGMA integrity_check");
     expect(runbook).toContain("unsupported");
     expect(runbook).toContain("受支持 LTS");
+    expect(runbook).toMatch(/Node\.js 20.*EOL|Node 20.*EOL/s);
+    expect(runbook).toMatch(/Node\.js (?:22|24)|Node (?:22|24)/);
     expect(runbook).not.toContain("Access-Control-Allow-Origin");
     expect(runbook).not.toContain("Strict-Transport-Security");
+  });
+
+  it("documents hidden validated secrets and an atomic env-file publication without server-side Node", async () => {
+    const runbook = await readFile(join(projectRoot, "docs", "deployment", "cloud-server.md"), "utf8");
+    const secretSection = runbook.slice(runbook.indexOf("## 2."), runbook.indexOf("## 3."));
+
+    expect(secretSection).toContain("可信开发机");
+    expect(secretSection).toContain("npm run --silent auth:hash");
+    expect(secretSection).toContain('read -rsp "粘贴 FAMILY_PASSWORD_HASH');
+    expect(secretSection).toContain("scrypt\\$");
+    expect(secretSection).toContain("{22}");
+    expect(secretSection).toContain("{86}");
+    expect(secretSection).toContain("session_bytes");
+    expect(secretSection).toContain("-ge 32");
+    expect(secretSection).toContain("mktemp .env.production.tmp.XXXXXX");
+    expect(secretSection).toContain("trap cleanup EXIT");
+    expect(secretSection).toContain('mv -- "$tmp_env" .env.production');
+    expect(secretSection).not.toContain('FAMILY_PASSWORD_HASH="$(sudo -u laogong-caipu npm');
+
+    const validateHash = secretSection.indexOf("{86}");
+    const validateSession = secretSection.indexOf("-ge 32");
+    const createTemporaryFile = secretSection.indexOf("mktemp .env.production.tmp.XXXXXX");
+    const publishEnvironment = secretSection.indexOf('mv -- "$tmp_env" .env.production');
+    expect(validateHash).toBeGreaterThan(-1);
+    expect(validateSession).toBeGreaterThan(validateHash);
+    expect(createTemporaryFile).toBeGreaterThan(validateSession);
+    expect(publishEnvironment).toBeGreaterThan(createTemporaryFile);
+  });
+
+  it("documents fail-fast deployment and stopped-app assertions before destructive recovery", async () => {
+    const runbook = await readFile(join(projectRoot, "docs", "deployment", "cloud-server.md"), "utf8");
+    const upgrade = runbook.slice(runbook.indexOf("## 6."), runbook.indexOf("## 7."));
+    const restore = runbook.slice(runbook.indexOf("## 7."), runbook.indexOf("## 单实例"));
+    const databaseRestore = restore.slice(0, restore.indexOf("### 图片恢复"));
+    const imageRestore = restore.slice(restore.indexOf("### 图片恢复"));
+
+    expect((runbook.match(/set -Eeuo pipefail/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    expect(upgrade.indexOf("--kind predeploy")).toBeLessThan(upgrade.indexOf("git fetch"));
+    expect(upgrade.indexOf("--kind predeploy")).toBeLessThan(upgrade.indexOf("docker compose build"));
+    expect(upgrade).toContain("升级失败");
+    expect(upgrade).toContain("回滚失败");
+
+    for (const section of [databaseRestore, imageRestore]) {
+      const stop = section.indexOf("docker compose stop app");
+      const assertStopped = section.indexOf("\nassert_app_stopped\n", stop);
+      expect(stop).toBeGreaterThan(-1);
+      expect(assertStopped).toBeGreaterThan(stop);
+      expect(section).toContain("app 保持停止");
+    }
+    const databaseStopAssertion = databaseRestore.indexOf(
+      "\nassert_app_stopped\n",
+      databaseRestore.indexOf("docker compose stop app")
+    );
+    const imageStopAssertion = imageRestore.indexOf(
+      "\nassert_app_stopped\n",
+      imageRestore.indexOf("docker compose stop app")
+    );
+    expect(databaseStopAssertion).toBeLessThan(databaseRestore.indexOf("data/.restore"));
+    expect(databaseStopAssertion).toBeLessThan(databaseRestore.indexOf("mv -- data/.restore"));
+    expect(databaseStopAssertion).toBeLessThan(databaseRestore.indexOf("sqlite-wal"));
+    expect(imageStopAssertion).toBeLessThan(imageRestore.indexOf("rsync -a --delete"));
+  });
+
+  it("fails closed when Compose cannot enumerate app containers before recovery", async () => {
+    const runbook = await readFile(join(projectRoot, "docs", "deployment", "cloud-server.md"), "utf8");
+    const stoppedHelpers = [...runbook.matchAll(/assert_app_stopped\(\) \{([\s\S]*?)\n\}/g)].map((match) => match[1]);
+
+    expect(stoppedHelpers).toHaveLength(3);
+    expect(runbook).not.toContain("< <(docker compose ps -a -q app)");
+    for (const helper of stoppedHelpers) {
+      expect(helper).toContain("local ids id running");
+      expect(helper).toContain('ids="$(docker compose ps -a -q app)" || return');
+      expect(helper).toContain('while IFS= read -r id; do');
+      expect(helper).toContain("docker inspect --format '{{.State.Running}}' \"$id\"");
+      expect(helper).toContain('done <<< "$ids"');
+    }
   });
 });

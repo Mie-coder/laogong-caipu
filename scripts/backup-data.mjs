@@ -1,10 +1,16 @@
 import Database from "better-sqlite3";
-import { cp, mkdir, readdir, rm, stat } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { cp, link, lstat, mkdir, readdir, rename, rm, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 const KINDS = new Set(["daily", "weekly", "predeploy"]);
 const DATABASE_RETENTION = { daily: 7, weekly: 4, predeploy: 3 };
 const WEEKLY_IMAGE_RETENTION = 4;
+const TIMESTAMP_PATTERN = "\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z";
+const DATABASE_BACKUP_PATTERNS = Object.fromEntries(
+  [...KINDS].map((kind) => [kind, new RegExp(`^${kind}-${TIMESTAMP_PATTERN}\\.sqlite$`)])
+);
+const WEEKLY_IMAGE_PATTERN = new RegExp(`^weekly-images-${TIMESTAMP_PATTERN}$`);
 
 function readKind(argv) {
   if (argv.length !== 2 || argv[0] !== "--kind" || !KINDS.has(argv[1])) {
@@ -36,22 +42,35 @@ async function retain(root, predicate, limit) {
   return Math.min(matches.length, limit);
 }
 
+async function assertDestinationAbsent(destination) {
+  try {
+    await lstat(destination);
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return;
+    throw error;
+  }
+  throw new Error("backup destination already exists");
+}
+
 async function createDatabaseBackup(databasePath, destination) {
+  const partial = `${destination}.partial-${process.pid}-${randomUUID()}`;
   let database;
   let failure;
   try {
     database = new Database(databasePath, { readonly: true, fileMustExist: true });
-    await database.backup(destination);
+    await database.backup(partial);
+    await link(partial, destination);
   } catch (error) {
     failure = error;
   } finally {
-    if (database?.open) database.close();
+    try {
+      if (database?.open) database.close();
+    } finally {
+      await rm(partial, { force: true });
+    }
   }
 
-  if (failure) {
-    await rm(destination, { force: true });
-    throw failure;
-  }
+  if (failure) throw failure;
 }
 
 async function createWeeklyImageSnapshot(databasePath, destination) {
@@ -59,12 +78,19 @@ async function createWeeklyImageSnapshot(databasePath, destination) {
   try {
     const sourceStat = await stat(source);
     if (!sourceStat.isDirectory()) throw new Error("generated images path is not a directory");
-    await cp(source, destination, { recursive: true, errorOnExist: true, force: false });
-    return true;
   } catch (error) {
-    await rm(destination, { recursive: true, force: true });
     if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return false;
     throw error;
+  }
+
+  const partial = `${destination}.partial-${process.pid}-${randomUUID()}`;
+  try {
+    await cp(source, partial, { recursive: true, errorOnExist: true, force: false });
+    await assertDestinationAbsent(destination);
+    await rename(partial, destination);
+    return true;
+  } finally {
+    await rm(partial, { recursive: true, force: true });
   }
 }
 
@@ -74,30 +100,32 @@ async function main() {
   const backupRoot = resolve(process.env.BACKUP_ROOT || "./backups");
   const timestamp = timestampFor(backupTime());
   const databaseDestination = join(backupRoot, `${kind}-${timestamp}.sqlite`);
+  const imageDestination = kind === "weekly" ? join(backupRoot, `weekly-images-${timestamp}`) : undefined;
 
   await mkdir(backupRoot, { recursive: true });
+  await assertDestinationAbsent(databaseDestination);
+  if (imageDestination) await assertDestinationAbsent(imageDestination);
   await createDatabaseBackup(databasePath, databaseDestination);
   const databaseCount = await retain(
     backupRoot,
-    (entry) => entry.isFile() && new RegExp(`^${kind}-\\d{4}-.*\\.sqlite$`).test(entry.name),
+    (entry) => entry.isFile() && DATABASE_BACKUP_PATTERNS[kind].test(entry.name),
     DATABASE_RETENTION[kind]
   );
 
-  let imageDestination;
+  let createdImageDestination;
   let imageCount;
   if (kind === "weekly") {
-    const candidate = join(backupRoot, `weekly-images-${timestamp}`);
-    if (await createWeeklyImageSnapshot(databasePath, candidate)) imageDestination = candidate;
+    if (await createWeeklyImageSnapshot(databasePath, imageDestination)) createdImageDestination = imageDestination;
     imageCount = await retain(
       backupRoot,
-      (entry) => entry.isDirectory() && /^weekly-images-\d{4}-/.test(entry.name),
+      (entry) => entry.isDirectory() && WEEKLY_IMAGE_PATTERN.test(entry.name),
       WEEKLY_IMAGE_RETENTION
     );
   }
 
   console.log(`database backup: ${databaseDestination}`);
   console.log(`database backups retained: ${databaseCount}`);
-  if (imageDestination) console.log(`image snapshot: ${imageDestination}`);
+  if (createdImageDestination) console.log(`image snapshot: ${createdImageDestination}`);
   if (imageCount !== undefined) console.log(`image snapshots retained: ${imageCount}`);
 }
 

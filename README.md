@@ -52,7 +52,7 @@ DEEPSEEK_MODEL=deepseek-v4-pro
 
 仓库包含单实例 Docker Compose、持久化 `data/` 与 `backups/` bind mount、SQLite online backup 和 HTTPS 反向代理契约。完整的目录 ownership、mode-600 环境文件、Caddy/Nginx、cron、升级、回滚和恢复命令见 [云服务器部署手册](./docs/deployment/cloud-server.md)。这些文件不会自动修改任何远程服务器。
 
-当前锁定的 Next.js 14.2.35 已被官方 support policy 标记为 unsupported；实际公网部署前应另开迁移任务升级至受支持 LTS 并完成回归验证，本部署任务没有自动升级框架。
+当前原始部署契约仍锁定 `>=20.9 <21`，但 Node.js 20 已于 2026-03-24 EOL；Next.js 14.2.35 也已被官方 support policy 标记为 unsupported，现有 dependency audit findings 尚未处置。这三项明确阻断实际公网部署。后续必须另开迁移任务升级至受支持的 Node.js 22 或 24 与 Next.js LTS，验证 `better-sqlite3`、`sharp` 等 native dependencies 并完成回归和镜像测试；本任务没有擅自升级运行时或框架。
 
 ## 测试
 
