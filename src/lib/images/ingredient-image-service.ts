@@ -1,11 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const VERSION = "v1";
 const MICU_URL = "https://www.micuapi.ai/v1/images/generations";
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+const MAX_MICU_JSON_BYTES = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 1024 * 1024;
 const CACHE_KEY_PATTERN = /^[a-f0-9]{64}$/;
 
 export type IngredientImageKind = "ingredient" | "seasoning";
@@ -49,16 +50,14 @@ export async function generateMicuIngredientPng(name: string): Promise<Buffer> {
   });
 
   if (!response.ok) throw new Error("Micu 图片生成失败");
-  const payload: unknown = await response.json();
+  const payload = parseJson(await readResponseBuffer(response, MAX_MICU_JSON_BYTES));
   const image = readImagePayload(payload);
 
   if ("b64_json" in image) return validatePng(Buffer.from(image.b64_json, "base64"));
 
   const download = await fetch(image.url, { signal: AbortSignal.timeout(90_000) });
   if (!download.ok) throw new Error("Micu 图片下载失败");
-  const declaredLength = Number(download.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_IMAGE_BYTES) throw new Error("Micu 图片超过 12 MiB 限制");
-  return validatePng(Buffer.from(await download.arrayBuffer()));
+  return validatePng(await readResponseBuffer(download, MAX_IMAGE_BYTES));
 }
 
 export function createIngredientImageService(deps: {
@@ -71,8 +70,20 @@ export function createIngredientImageService(deps: {
 
   async function read(key: string): Promise<Buffer | null> {
     if (!CACHE_KEY_PATTERN.test(key)) return null;
+    const imagePath = join(cacheRoot, `${key}.png`);
     try {
-      return await readFile(join(cacheRoot, `${key}.png`));
+      const metadata = await stat(imagePath);
+      if (!metadata.isFile() || metadata.size > MAX_IMAGE_BYTES) {
+        await discardCacheFile(imagePath);
+        return null;
+      }
+      const image = await readFile(imagePath);
+      try {
+        return validatePng(image);
+      } catch {
+        await discardCacheFile(imagePath);
+        return null;
+      }
     } catch (error) {
       if (isMissingFile(error)) return null;
       throw error;
@@ -126,6 +137,42 @@ function readImagePayload(payload: unknown): { b64_json: string } | { url: strin
   throw new Error("Micu 图片响应无效");
 }
 
+async function readResponseBuffer(response: Response, maxBytes: number): Promise<Buffer> {
+  const contentLength = response.headers.get("content-length");
+  if (contentLength !== null && Number(contentLength) > maxBytes) {
+    await cancelResponseBody(response.body);
+    throw new Error("Micu 图片超过 12 MiB 限制");
+  }
+  if (!response.body) return Buffer.alloc(0);
+
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return Buffer.concat(chunks, total);
+
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error("Micu 图片超过 12 MiB 限制");
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function parseJson(payload: Buffer): unknown {
+  try {
+    return JSON.parse(payload.toString("utf8"));
+  } catch {
+    throw new Error("Micu 图片响应无效");
+  }
+}
+
 function validatePng(image: Buffer): Buffer {
   if (image.length > MAX_IMAGE_BYTES) throw new Error("Micu 图片超过 12 MiB 限制");
   if (image.length < PNG_SIGNATURE.length || !image.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
@@ -140,4 +187,20 @@ function resultFor(key: string): IngredientImageResult {
 
 function isMissingFile(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+
+async function discardCacheFile(path: string): Promise<void> {
+  try {
+    await unlink(path);
+  } catch (error) {
+    if (!isMissingFile(error)) throw error;
+  }
+}
+
+async function cancelResponseBody(body: ReadableStream<Uint8Array> | null): Promise<void> {
+  try {
+    await body?.cancel();
+  } catch {
+    // The size limit is still the relevant error when cancellation races with the stream.
+  }
 }

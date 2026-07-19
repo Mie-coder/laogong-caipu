@@ -9,7 +9,7 @@ import {
 const RequestSchema = z.object({
   kind: z.enum(["ingredient", "seasoning"]),
   index: z.number().int().nonnegative()
-});
+}).strict();
 
 type RecipeForIngredientImages = {
   ingredients: Array<{ name: string }>;
