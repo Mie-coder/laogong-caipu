@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FAMILY_COOKIE_NAME } from "@/lib/auth/constants";
+import { resolvePublicRequestOrigin } from "@/lib/auth/request-origin";
 import { verifyFamilySession } from "@/lib/auth/session";
 
 const PUBLIC_PATHS = new Set([
@@ -49,7 +50,7 @@ export async function applyFamilyGate(
   request: NextRequest,
   secret: string | undefined,
 ): Promise<NextResponse> {
-  const { pathname, search, origin } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
   if (isPublicPath(pathname)) return NextResponse.next();
 
   const token = request.cookies.get(FAMILY_COOKIE_NAME)?.value;
@@ -57,11 +58,11 @@ export async function applyFamilyGate(
     hasValidSecret(secret) && Boolean(token && (await verifyFamilySession(token, secret)));
 
   if (authenticated) {
-    if (
-      UNSAFE_METHODS.has(request.method.toUpperCase()) &&
-      request.headers.get("origin") !== origin
-    ) {
-      return jsonError("forbidden", "请求来源无效", 403);
+    if (UNSAFE_METHODS.has(request.method.toUpperCase())) {
+      const publicOrigin = resolvePublicRequestOrigin(request);
+      if (publicOrigin === null || request.headers.get("origin") !== publicOrigin) {
+        return jsonError("forbidden", "请求来源无效", 403);
+      }
     }
     return NextResponse.next();
   }
@@ -70,7 +71,12 @@ export async function applyFamilyGate(
     return jsonError("unauthorized", "需要家庭解锁", 401);
   }
 
-  const unlockUrl = new URL("/unlock", request.url);
+  const publicOrigin = resolvePublicRequestOrigin(request);
+  if (publicOrigin === null) {
+    return jsonError("forbidden", "请求来源无效", 403);
+  }
+
+  const unlockUrl = new URL("/unlock", publicOrigin);
   unlockUrl.searchParams.set("next", sanitizeReturnPath(`${pathname}${search}`));
   return NextResponse.redirect(unlockUrl);
 }

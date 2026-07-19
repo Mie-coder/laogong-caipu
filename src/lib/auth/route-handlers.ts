@@ -6,6 +6,7 @@ import {
   FAMILY_SESSION_TTL_SECONDS,
 } from "@/lib/auth/constants";
 import { createLoginRateLimiter } from "@/lib/auth/login-rate-limit";
+import { resolvePublicRequestOrigin } from "@/lib/auth/request-origin";
 
 const PasswordSchema = z.string().refine((password) => {
   const length = Array.from(password).length;
@@ -30,7 +31,8 @@ function errorResponse(code: string, message: string, status: number) {
 }
 
 function hasSameOrigin(request: Request) {
-  return request.headers.get("origin") === new URL(request.url).origin;
+  const publicOrigin = resolvePublicRequestOrigin(request);
+  return publicOrigin !== null && request.headers.get("origin") === publicOrigin;
 }
 
 function limiterKey(request: Request) {

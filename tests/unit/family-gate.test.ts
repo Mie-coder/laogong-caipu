@@ -10,12 +10,27 @@ const SECRET = "s".repeat(32);
 
 function gatedRequest(
   path: string,
-  options: { method?: string; token?: string; origin?: string } = {},
+  options: {
+    method?: string;
+    token?: string;
+    origin?: string;
+    requestOrigin?: string;
+    forwardedProto?: string;
+    forwardedHost?: string;
+    host?: string;
+  } = {},
 ) {
   const headers = new Headers();
   if (options.token) headers.set("cookie", `${FAMILY_COOKIE_NAME}=${options.token}`);
   if (options.origin) headers.set("origin", options.origin);
-  return new NextRequest(`${ORIGIN}${path}`, {
+  if (options.forwardedProto !== undefined) {
+    headers.set("x-forwarded-proto", options.forwardedProto);
+  }
+  if (options.forwardedHost !== undefined) {
+    headers.set("x-forwarded-host", options.forwardedHost);
+  }
+  if (options.host !== undefined) headers.set("host", options.host);
+  return new NextRequest(`${options.requestOrigin ?? ORIGIN}${path}`, {
     method: options.method,
     headers,
   });
@@ -51,6 +66,36 @@ describe("family gate", () => {
     expect(response.headers.get("location")).toBe(
       `${ORIGIN}/unlock?next=%2Frecipes%3Ftag%3D%25E5%25BF%25AB%25E6%2589%258B`,
     );
+  });
+
+  it("redirects an anonymous proxied page to the external HTTPS origin", async () => {
+    const response = await applyFamilyGate(
+      gatedRequest("/recipes/7?tab=steps", {
+        requestOrigin: "http://0.0.0.0:3000",
+        forwardedProto: "https, http",
+        forwardedHost: "recipes.example:8443, 0.0.0.0:3000",
+        host: "0.0.0.0:3000",
+      }),
+      SECRET,
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://recipes.example:8443/unlock?next=%2Frecipes%2F7%3Ftab%3Dsteps",
+    );
+  });
+
+  it("fails closed instead of redirecting a page from an invalid proxy origin", async () => {
+    const response = await applyFamilyGate(
+      gatedRequest("/recipes/7", {
+        requestOrigin: "http://0.0.0.0:3000",
+        forwardedProto: "ftp",
+        forwardedHost: "recipes.example",
+      }),
+      SECRET,
+    );
+
+    expect(response.status).toBe(403);
   });
 
   it.each([
@@ -148,6 +193,70 @@ describe("family gate", () => {
       error: { code: "forbidden" },
     });
     expect(sameOrigin.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("accepts an authenticated unsafe request through the trusted external proxy origin", async () => {
+    const token = await createFamilySession(SECRET);
+    const response = await applyFamilyGate(
+      gatedRequest("/api/recipes/7/favorite", {
+        method: "PATCH",
+        token,
+        origin: "https://recipes.example:8443",
+        requestOrigin: "http://0.0.0.0:3000",
+        forwardedProto: "https, http",
+        forwardedHost: "recipes.example:8443, 0.0.0.0:3000",
+        host: "0.0.0.0:3000",
+      }),
+      SECRET,
+    );
+
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("rejects invalid proxy protocol and host on authenticated unsafe requests", async () => {
+    const token = await createFamilySession(SECRET);
+    const base = {
+      method: "PATCH",
+      token,
+      origin: "http://0.0.0.0:3000",
+      requestOrigin: "http://0.0.0.0:3000",
+      forwardedProto: "https",
+      forwardedHost: "recipes.example",
+    };
+
+    const invalidProto = await applyFamilyGate(
+      gatedRequest("/api/recipes/7/favorite", {
+        ...base,
+        forwardedProto: "file",
+      }),
+      SECRET,
+    );
+    const invalidHost = await applyFamilyGate(
+      gatedRequest("/api/recipes/7/favorite", {
+        ...base,
+        forwardedHost: "recipes.example/path",
+      }),
+      SECRET,
+    );
+
+    expect(invalidProto.status).toBe(403);
+    expect(invalidHost.status).toBe(403);
+  });
+
+  it("fails closed when both the derived proxy origin and Origin header are absent", async () => {
+    const token = await createFamilySession(SECRET);
+    const response = await applyFamilyGate(
+      gatedRequest("/api/recipes/7/favorite", {
+        method: "PATCH",
+        token,
+        requestOrigin: "http://0.0.0.0:3000",
+        forwardedProto: "invalid",
+        forwardedHost: "recipes.example",
+      }),
+      SECRET,
+    );
+
+    expect(response.status).toBe(403);
   });
 
   it.each(["GET", "HEAD", "OPTIONS"])(

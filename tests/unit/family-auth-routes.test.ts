@@ -15,12 +15,27 @@ afterEach(() => {
 
 function loginRequest(
   password: string,
-  options: { origin?: string | null; body?: string; forwardedFor?: string } = {},
+  options: {
+    origin?: string | null;
+    body?: string;
+    forwardedFor?: string;
+    forwardedProto?: string;
+    forwardedHost?: string;
+    host?: string;
+    requestOrigin?: string;
+  } = {},
 ) {
   const headers = new Headers({ "content-type": "application/json" });
   if (options.origin !== null) headers.set("origin", options.origin ?? ORIGIN);
   if (options.forwardedFor) headers.set("x-forwarded-for", options.forwardedFor);
-  return new Request(`${ORIGIN}/api/auth/login`, {
+  if (options.forwardedProto !== undefined) {
+    headers.set("x-forwarded-proto", options.forwardedProto);
+  }
+  if (options.forwardedHost !== undefined) {
+    headers.set("x-forwarded-host", options.forwardedHost);
+  }
+  if (options.host !== undefined) headers.set("host", options.host);
+  return new Request(`${options.requestOrigin ?? ORIGIN}/api/auth/login`, {
     method: "POST",
     headers,
     body: options.body ?? JSON.stringify({ password }),
@@ -62,6 +77,74 @@ describe("family auth route handlers", () => {
     expect(cookie).toContain("Path=/");
     expect(cookie).toContain("Max-Age=2592000");
     expect(cookie).not.toContain("Secure");
+  });
+
+  it("accepts login through first trusted proxy origin values including a public port", async () => {
+    const POST = workingLogin();
+
+    const response = await POST(
+      loginRequest(VALID_PASSWORD, {
+        requestOrigin: "http://0.0.0.0:3000",
+        origin: "https://recipes.example:8443",
+        forwardedProto: "https, http",
+        forwardedHost: "recipes.example:8443, 0.0.0.0:3000",
+        host: "0.0.0.0:3000",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  it("accepts logout through forwarded proto with the public Host fallback", async () => {
+    const POST = createFamilyLogoutHandler();
+    const response = await POST(
+      new Request("http://0.0.0.0:3000/api/auth/logout", {
+        method: "POST",
+        headers: {
+          origin: "https://recipes.example:9443",
+          "x-forwarded-proto": "https, http",
+          host: "recipes.example:9443",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  it("rejects mismatched or invalid trusted proxy origins", async () => {
+    const POST = workingLogin();
+    const proxyOptions = {
+      requestOrigin: "http://0.0.0.0:3000",
+      forwardedProto: "https",
+      forwardedHost: "recipes.example",
+      host: "0.0.0.0:3000",
+    };
+
+    const mismatch = await POST(
+      loginRequest(VALID_PASSWORD, {
+        ...proxyOptions,
+        origin: "https://evil.example",
+      }),
+    );
+    const invalidProto = await POST(
+      loginRequest(VALID_PASSWORD, {
+        ...proxyOptions,
+        origin: "http://0.0.0.0:3000",
+        forwardedProto: "javascript",
+      }),
+    );
+    const invalidHost = await POST(
+      loginRequest(VALID_PASSWORD, {
+        ...proxyOptions,
+        origin: "http://0.0.0.0:3000",
+        forwardedHost: "recipes.example/path",
+      }),
+    );
+
+    expect(mismatch.status).toBe(403);
+    expect(invalidProto.status).toBe(403);
+    expect(invalidHost.status).toBe(403);
   });
 
   it("sets Secure on the family cookie in production", async () => {
