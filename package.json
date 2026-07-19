@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "auth:hash": "node scripts/hash-family-password.mjs"
   },
   "dependencies": {
     "@fontsource-variable/noto-serif-sc": "5.2.10",
