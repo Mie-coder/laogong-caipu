@@ -13,7 +13,7 @@ export function useCookingSession(recipeId: number, stepOrders: number[]) {
 
   return {
     state,
-    toggleStep: (order: number) => dispatch({ type: "STEP_TOGGLED", order }),
+    toggleStep: (order: number) => dispatch({ type: "STEP_TOGGLED", order, stepOrders }),
     setCurrentStep: (order: number) => dispatch({ type: "CURRENT_STEP_SET", order }),
     setTimer: (timer: CookingTimerState) => dispatch({ type: "TIMER_SET", timer }),
     setSpeechEnabled: (enabled: boolean) => dispatch({ type: "SPEECH_SET", enabled }),

@@ -5,14 +5,28 @@ import { useCookingSession } from "@/hooks/use-cooking-session";
 
 describe("cooking session", () => {
   afterEach(() => { vi.restoreAllMocks(); window.sessionStorage.clear(); });
-  it("toggles a completed step and supports undo without changing the current step", () => {
+  it("completes a tapped step, advances to the next incomplete step, and restores it on undo", () => {
     const initial = createCookingSession(7, [1, 2, 3]);
-    const completed = cookingSessionReducer(initial, { type: "STEP_TOGGLED", order: 2 });
-    const undone = cookingSessionReducer(completed, { type: "STEP_TOGGLED", order: 2 });
+    const completed = cookingSessionReducer(initial, { type: "STEP_TOGGLED", order: 1, stepOrders: [1, 2, 3] });
+    expect(completed.completedStepOrders).toEqual([1]);
+    expect(completed.currentStepOrder).toBe(2);
+    const undone = cookingSessionReducer(completed, { type: "STEP_TOGGLED", order: 1, stepOrders: [1, 2, 3] });
 
-    expect(completed.completedStepOrders).toEqual([2]);
-    expect(completed.currentStepOrder).toBe(1);
     expect(undone.completedStepOrders).toEqual([]);
+    expect(undone.currentStepOrder).toBe(1);
+  });
+
+  it("chooses the next later incomplete step, then the first remaining one, and keeps the last completed step", () => {
+    const initial = createCookingSession(7, [1, 2, 3]);
+    const completedSecond = cookingSessionReducer(initial, { type: "STEP_TOGGLED", order: 2, stepOrders: [1, 2, 3] });
+    expect(completedSecond.currentStepOrder).toBe(3);
+
+    const completedThird = cookingSessionReducer(completedSecond, { type: "STEP_TOGGLED", order: 3, stepOrders: [1, 2, 3] });
+    expect(completedThird.currentStepOrder).toBe(1);
+
+    const completedAll = cookingSessionReducer(completedThird, { type: "STEP_TOGGLED", order: 1, stepOrders: [1, 2, 3] });
+    expect(completedAll.completedStepOrders).toEqual([1, 2, 3]);
+    expect(completedAll.currentStepOrder).toBe(1);
   });
 
   it("restores only a valid session for the requested recipe and resets corrupt or mismatched storage", () => {

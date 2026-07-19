@@ -67,11 +67,14 @@ describe("cooking mode", () => {
   it("loads typed recipe detail, supports undoable step completion, and opens shared review only after finish", async () => {
     render(<CookingMode recipeId={7} />);
     expect(await screen.findByRole("heading", { name: "菠萝咕噜肉" })).toBeInTheDocument();
-    const step = screen.getByRole("checkbox", { name: "完成第 1 步：切好里脊肉" });
-    fireEvent.click(step); expect(step).toHaveAttribute("data-state", "checked");
-    fireEvent.click(step); expect(step).toHaveAttribute("data-state", "unchecked");
-    fireEvent.click(step);
-    fireEvent.click(screen.getByRole("checkbox", { name: "完成第 2 步：下锅翻炒" }));
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "完成第 1 步：切好里脊肉" }));
+    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    expect(screen.getByText("切好里脊肉").closest("li")).toHaveClass("is-completed");
+    fireEvent.click(screen.getByRole("button", { name: "撤销完成第 1 步：切好里脊肉" }));
+    expect(screen.getByText("0 / 2")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "完成第 1 步：切好里脊肉" }));
+    fireEvent.click(screen.getByRole("button", { name: "完成第 2 步：下锅翻炒" }));
     fireEvent.click(screen.getByRole("button", { name: "完成做菜" }));
     expect(await screen.findByRole("heading", { name: "做菜复盘" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "4 星，很好吃" }));
@@ -85,8 +88,8 @@ describe("cooking mode", () => {
     render(<CookingMode recipeId={7} />);
 
     expect(await screen.findByRole("button", { name: "完成做菜" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "下锅翻炒" })).toHaveAttribute("aria-current", "step");
-    expect(screen.getByRole("checkbox", { name: "完成第 1 步：切好里脊肉" })).toHaveAttribute("data-state", "checked");
-    expect(screen.getByRole("checkbox", { name: "完成第 2 步：下锅翻炒" })).toHaveAttribute("data-state", "unchecked");
+    expect(screen.getByRole("button", { name: "完成第 2 步：下锅翻炒" })).toHaveAttribute("aria-current", "step");
+    expect(screen.getByRole("button", { name: "撤销完成第 1 步：切好里脊肉" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "完成第 2 步：下锅翻炒" })).toHaveAttribute("aria-pressed", "false");
   });
 });

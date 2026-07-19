@@ -19,7 +19,7 @@ export const CookingSessionSchema = z.object({
 export type CookingTimerState = z.infer<typeof CookingTimerSchema>;
 export type CookingSessionState = z.infer<typeof CookingSessionSchema>;
 export type CookingSessionEvent =
-  | { type: "STEP_TOGGLED"; order: number }
+  | { type: "STEP_TOGGLED"; order: number; stepOrders: number[] }
   | { type: "CURRENT_STEP_SET"; order: number }
   | { type: "TIMER_SET"; timer: CookingTimerState }
   | { type: "SPEECH_SET"; enabled: boolean }
@@ -34,10 +34,13 @@ export function createCookingSession(recipeId: number, stepOrders: number[]): Co
 
 export function cookingSessionReducer(state: CookingSessionState, event: CookingSessionEvent): CookingSessionState {
   if (event.type === "STEP_TOGGLED") {
-    const completedStepOrders = state.completedStepOrders.includes(event.order)
-      ? state.completedStepOrders.filter((order) => order !== event.order)
-      : [...state.completedStepOrders, event.order].sort((left, right) => left - right);
-    return { ...state, completedStepOrders };
+    if (state.completedStepOrders.includes(event.order)) {
+      return { ...state, completedStepOrders: state.completedStepOrders.filter((order) => order !== event.order), currentStepOrder: event.order };
+    }
+    const completedStepOrders = [...state.completedStepOrders, event.order].sort((left, right) => left - right);
+    const laterIncomplete = event.stepOrders.find((candidate) => candidate > event.order && !completedStepOrders.includes(candidate));
+    const anyIncomplete = event.stepOrders.find((candidate) => !completedStepOrders.includes(candidate));
+    return { ...state, completedStepOrders, currentStepOrder: laterIncomplete ?? anyIncomplete ?? event.order };
   }
   if (event.type === "CURRENT_STEP_SET") return { ...state, currentStepOrder: event.order };
   if (event.type === "TIMER_SET") return { ...state, timer: event.timer };
