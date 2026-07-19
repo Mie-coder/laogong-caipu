@@ -13,6 +13,7 @@
 - 只实现一个家庭共享密码，不新增用户表、家庭表、成员身份、个人收藏或角色权限。
 - 家庭会话有效期固定为 30 天；Cookie 必须是 `HttpOnly`、生产环境 `Secure`、`SameSite=Lax`、`Path=/`。
 - 家庭密码只以带随机盐的 scrypt 摘要保存在 `FAMILY_PASSWORD_HASH`；会话签名使用独立的 `FAMILY_SESSION_SECRET`，至少 32 字节。
+- 家庭密码长度在 CLI、摘要验证和登录 route 中统一按 8–128 个 Unicode code points 校验，不得使用 UTF-16 `string.length` 作为 route 边界。
 - 密码、用户输入、Cookie、会话令牌、DeepSeek Key 和 Micu Key不得写入日志、Git、客户端 bundle、数据库或 API 响应。
 - `/unlock`、`/api/auth/login`、`/api/auth/logout`、`/api/health` 与 Next.js 必需静态资源可匿名访问；其他页面及 API 全部 fail closed。
 - 登录同一来源 15 分钟内失败 5 次后限流；成功登录清除该来源失败记录。
@@ -316,7 +317,11 @@ Expected: FAIL because handler factories and middleware gate do not exist.
 Parse login input with:
 
 ```ts
-const LoginSchema = z.object({ password: z.string().min(8).max(128) }).strict();
+const PasswordSchema = z.string().refine((password) => {
+  const count = Array.from(password).length;
+  return count >= 8 && count <= 128;
+});
+const LoginSchema = z.object({ password: PasswordSchema }).strict();
 ```
 
 Derive the limiter key from the proxy-overwritten first `x-forwarded-for` value, otherwise `x-real-ip`, otherwise `unknown`; trim it to 128 characters. Compare `Origin` to `new URL(request.url).origin`. On success set the Cookie using `NextResponse.json(...).cookies.set` with the exact attributes in Global Constraints. In production set `secure: true`; tests and local HTTP may set it based on `NODE_ENV === "production"`.
@@ -325,7 +330,7 @@ Derive the limiter key from the proxy-overwritten first `x-forwarded-for` value,
 
 `applyFamilyGate` must:
 
-1. Bypass only the explicit public paths and `/_next/` assets.
+1. Bypass only the explicit public paths, `/_next/static/` and the exact `/_next/image` endpoint; do not bypass the whole `/_next/` namespace.
 2. Fail closed when `FAMILY_SESSION_SECRET` is absent or its UTF-8 encoding is shorter than 32 bytes.
 3. Verify `request.cookies.get(FAMILY_COOKIE_NAME)?.value`.
 4. Return `NextResponse.next()` for a valid session.
