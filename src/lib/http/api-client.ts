@@ -3,6 +3,8 @@ import { RecipeDraftSchema, type RecipeDraft } from "@/lib/domain/recipe";
 import { RecipeDetailResponseSchema, RecipeFavoriteResponseSchema, RecipeListResponseSchema, type RecipeDetail, type RecipeSummary } from "@/lib/domain/recipe-api";
 import { ApiError, ApiErrorResponseSchema } from "@/lib/http/api-error";
 
+const OkResponseSchema = z.object({ ok: z.literal(true) });
+
 async function requestJson<T>(url: string, schema: z.ZodType<T>, init: RequestInit = {}, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, { ...init, signal, headers: { "Content-Type": "application/json", ...init.headers } });
   const text = await response.text();
@@ -19,6 +21,20 @@ async function requestJson<T>(url: string, schema: z.ZodType<T>, init: RequestIn
 }
 
 const ImportParseResponseSchema = z.object({ recipe: RecipeDraftSchema, imageUrls: z.array(z.string()), needsSupplement: z.boolean(), crawlStatus: z.string(), crawlError: z.string() });
+
+export function unlockFamilyApi(password: string): Promise<{ ok: true }> {
+  return requestJson("/api/auth/login", OkResponseSchema, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function logoutFamilyApi(): Promise<{ ok: true }> {
+  return requestJson("/api/auth/logout", OkResponseSchema, {
+    method: "POST",
+    body: "{}",
+  });
+}
 
 export async function parseImportApi(input: { rawInput: string; manualSupplement?: string }, signal?: AbortSignal): Promise<{ recipe: RecipeDraft; imageUrls: string[]; needsSupplement: boolean; crawlStatus: string; crawlError: string }> {
   const result = await requestJson("/api/import/parse", ImportParseResponseSchema, { method: "POST", body: JSON.stringify(input) }, signal);

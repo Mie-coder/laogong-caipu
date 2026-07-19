@@ -1,9 +1,28 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { filterImages, listRecipesApi, parseImportApi } from "@/lib/http/api-client";
+import { filterImages, listRecipesApi, logoutFamilyApi, parseImportApi, unlockFamilyApi } from "@/lib/http/api-client";
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("API client response validation and degradation", () => {
+  it("posts the family password only in the login JSON body", async () => {
+    const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+
+    await expect(unlockFamilyApi("我们两个人的长密码")).resolves.toEqual({ ok: true });
+    expect(request).toHaveBeenCalledWith("/api/auth/login", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ password: "我们两个人的长密码" }),
+    }));
+  });
+
+  it("posts an empty JSON body to log out the family", async () => {
+    const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+
+    await expect(logoutFamilyApi()).resolves.toEqual({ ok: true });
+    expect(request).toHaveBeenCalledWith("/api/auth/logout", expect.objectContaining({ method: "POST", body: "{}" }));
+  });
+
   it("rejects an import response whose recipe is not a valid RecipeDraft", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
       recipe: { name: "", steps: [] }, imageUrls: [], needsSupplement: false, crawlStatus: "ok", crawlError: ""

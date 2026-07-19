@@ -10,6 +10,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/http/api-client", () => ({
   listRecipesApi: vi.fn().mockResolvedValue({ recipes: [] }),
+  logoutFamilyApi: vi.fn(),
   parseImportApi: vi.fn(),
   filterImages: vi.fn(),
   saveRecipeWithImages: vi.fn()
@@ -27,6 +28,7 @@ describe("Stitch V3 home", () => {
     render(<HomeScreen recent={{ status: "ready", data: [recipe] }} onImport={onImport} onRetry={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "老公菜谱" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "查看历史" })).toHaveAttribute("href", "/recipes?recent=cooked");
+    expect(screen.getByRole("button", { name: "家庭菜单" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "导入新菜谱" }));
     expect(onImport).toHaveBeenCalledOnce();
     expect(screen.getByText("番茄炖牛腩")).toBeInTheDocument();
