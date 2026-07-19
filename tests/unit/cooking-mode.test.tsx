@@ -1,3 +1,4 @@
+import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CookingGuideDrawer } from "@/components/cooking/cooking-guide-drawer";
@@ -19,6 +20,24 @@ describe("cooking mode", () => {
     await waitFor(() => expect(state.requestIngredientImage).toHaveBeenCalledWith(7, "ingredient", 0, expect.any(AbortSignal)));
     expect(await screen.findByTestId("ingredient-image-ingredient-0")).toHaveAttribute("src", "/api/ingredient-images/cached");
     expect(screen.getByText("里")).toBeInTheDocument();
+  });
+
+  it("replaces an aborted Strict Mode request and renders the ingredient image", async () => {
+    let firstSignal: AbortSignal | undefined;
+    state.requestIngredientImage
+      .mockImplementationOnce((_recipeId: number, _kind: string, _index: number, signal: AbortSignal) => {
+        firstSignal = signal;
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+        });
+      })
+      .mockResolvedValue({ key: "b".repeat(64), imageUrl: "/api/ingredient-images/strict-replacement" });
+
+    render(<React.StrictMode><CookingMode recipeId={7} /></React.StrictMode>);
+    expect(await screen.findByText("里脊肉")).toBeInTheDocument();
+    await waitFor(() => expect(firstSignal?.aborted).toBe(true));
+    await waitFor(() => expect(state.requestIngredientImage.mock.calls.length).toBeGreaterThanOrEqual(2));
+    expect(await screen.findByTestId("ingredient-image-ingredient-0")).toHaveAttribute("src", "/api/ingredient-images/strict-replacement");
   });
 
   it("keeps the ingredient fallback available when image generation fails", async () => {

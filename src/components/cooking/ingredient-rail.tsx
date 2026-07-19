@@ -14,17 +14,17 @@ type IngredientItem = {
 
 function IngredientVisual({ ingredient, recipeId, kind, index, checked, railRef }: IngredientItem & { recipeId: number; checked: boolean; railRef: RefObject<HTMLDivElement> }) {
   const avatarRef = useRef<HTMLSpanElement>(null);
-  const requestedRef = useRef(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    let requested = false;
     let observer: IntersectionObserver | null = null;
     let controller: AbortController | null = null;
 
     const load = () => {
-      if (requestedRef.current) return;
-      requestedRef.current = true;
+      if (requested) return;
+      requested = true;
       controller = new AbortController();
       void requestIngredientImageApi(recipeId, kind, index, controller.signal)
         .then(({ imageUrl: nextImageUrl }) => { if (!cancelled) setImageUrl(nextImageUrl); })
