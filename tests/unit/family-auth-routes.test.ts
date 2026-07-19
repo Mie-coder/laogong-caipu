@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { FAMILY_COOKIE_NAME } from "@/lib/auth/constants";
 import { createLoginRateLimiter } from "@/lib/auth/login-rate-limit";
 import {
@@ -8,6 +8,10 @@ import {
 
 const ORIGIN = "https://recipes.example";
 const VALID_PASSWORD = "正确的家庭共享密码";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 function loginRequest(
   password: string,
@@ -33,6 +37,14 @@ function workingLogin(overrides: Partial<Parameters<typeof createFamilyLoginHand
   });
 }
 
+function limiterSpies(blocked = false) {
+  return {
+    isBlocked: vi.fn().mockReturnValue(blocked),
+    recordFailure: vi.fn(),
+    reset: vi.fn(),
+  };
+}
+
 describe("family auth route handlers", () => {
   it("sets a 30 day HttpOnly family cookie after a correct same-origin login", async () => {
     const POST = workingLogin();
@@ -41,13 +53,45 @@ describe("family auth route handlers", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
-    expect(response.headers.get("set-cookie")).toContain(
+    const cookie = response.headers.get("set-cookie");
+    expect(cookie).toContain(
       `${FAMILY_COOKIE_NAME}=payload.signature`,
     );
-    expect(response.headers.get("set-cookie")).toContain("HttpOnly");
-    expect(response.headers.get("set-cookie")).toContain("SameSite=Lax");
-    expect(response.headers.get("set-cookie")).toContain("Path=/");
-    expect(response.headers.get("set-cookie")).toContain("Max-Age=2592000");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Lax");
+    expect(cookie).toContain("Path=/");
+    expect(cookie).toContain("Max-Age=2592000");
+    expect(cookie).not.toContain("Secure");
+  });
+
+  it("sets Secure on the family cookie in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const POST = workingLogin();
+
+    const response = await POST(loginRequest(VALID_PASSWORD));
+
+    expect(response.headers.get("set-cookie")).toContain("Secure");
+  });
+
+  it("rejects a four-code-point emoji password before verification", async () => {
+    const verifyPassword = vi.fn().mockResolvedValue(true);
+    const POST = workingLogin({ verifyPassword });
+
+    const response = await POST(loginRequest("😀😀😀😀"));
+
+    expect(response.status).toBe(400);
+    expect(verifyPassword).not.toHaveBeenCalled();
+  });
+
+  it("allows 65 emoji code points to reach password verification", async () => {
+    const password = "😀".repeat(65);
+    const verifyPassword = vi.fn().mockResolvedValue(true);
+    const POST = workingLogin({ verifyPassword });
+
+    const response = await POST(loginRequest(password));
+
+    expect(response.status).toBe(200);
+    expect(verifyPassword).toHaveBeenCalledWith(password, "encoded");
   });
 
   it("returns the same generic 401 for every wrong password", async () => {
@@ -62,8 +106,7 @@ describe("family auth route handlers", () => {
   });
 
   it("returns 429 before verifying a source blocked after five failures", async () => {
-    const limiter = createLoginRateLimiter();
-    for (let attempt = 0; attempt < 5; attempt += 1) limiter.recordFailure("203.0.113.7");
+    const limiter = limiterSpies(true);
     const verifyPassword = vi.fn().mockResolvedValue(true);
     const POST = workingLogin({ limiter, verifyPassword });
 
@@ -72,7 +115,58 @@ describe("family auth route handlers", () => {
     );
 
     expect(response.status).toBe(429);
+    expect(limiter.isBlocked).toHaveBeenCalledWith("203.0.113.7");
     expect(verifyPassword).not.toHaveBeenCalled();
+  });
+
+  it("records a wrong password against only the trimmed first forwarded IP", async () => {
+    const password = "错误的家庭共享密码";
+    const limiter = limiterSpies();
+    const POST = workingLogin({
+      limiter,
+      verifyPassword: vi.fn().mockResolvedValue(false),
+    });
+
+    await POST(
+      loginRequest(password, {
+        forwardedFor: " 203.0.113.8 , 10.0.0.2",
+      }),
+    );
+
+    expect(limiter.recordFailure).toHaveBeenCalledWith("203.0.113.8");
+    expect(limiter.recordFailure).not.toHaveBeenCalledWith(
+      expect.stringContaining(password),
+    );
+  });
+
+  it("resets successful attempts using x-real-ip when forwarded-for is absent", async () => {
+    const limiter = limiterSpies();
+    const POST = workingLogin({ limiter });
+    const request = loginRequest(VALID_PASSWORD);
+    request.headers.set("x-real-ip", "198.51.100.17");
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(limiter.reset).toHaveBeenCalledWith("198.51.100.17");
+    expect(limiter.recordFailure).not.toHaveBeenCalled();
+  });
+
+  it("truncates the limiter key to 128 characters", async () => {
+    const longForwardedIdentifier = "x".repeat(140);
+    const limiter = limiterSpies();
+    const POST = workingLogin({
+      limiter,
+      verifyPassword: vi.fn().mockResolvedValue(false),
+    });
+
+    await POST(
+      loginRequest("错误的家庭共享密码", {
+        forwardedFor: `${longForwardedIdentifier}, 10.0.0.2`,
+      }),
+    );
+
+    expect(limiter.recordFailure).toHaveBeenCalledWith("x".repeat(128));
   });
 
   it("returns 400 for malformed input and 403 for a cross-origin login", async () => {

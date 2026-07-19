@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { FAMILY_COOKIE_NAME } from "@/lib/auth/constants";
 import { applyFamilyGate, sanitizeReturnPath } from "@/lib/auth/family-gate";
 import { createFamilySession } from "@/lib/auth/session";
+import * as middlewareModule from "@/middleware";
 
 const ORIGIN = "https://recipes.example";
 const SECRET = "s".repeat(32);
@@ -63,6 +64,25 @@ describe("family gate", () => {
     const response = await applyFamilyGate(gatedRequest(path), undefined);
 
     expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("does not expose other Next internal paths such as _next/data", async () => {
+    const response = await applyFamilyGate(
+      gatedRequest("/_next/data/build-id/recipes.json"),
+      SECRET,
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/unlock?next=");
+  });
+
+  it("does not treat arbitrary _next paths as public", async () => {
+    const response = await applyFamilyGate(
+      gatedRequest("/_next/private/runtime"),
+      SECRET,
+    );
+
+    expect(response.status).toBe(307);
   });
 
   it("fails closed for missing and short session secrets", async () => {
@@ -142,6 +162,25 @@ describe("family gate", () => {
       expect(response.headers.get("x-middleware-next")).toBe("1");
     },
   );
+});
+
+describe("Next middleware contract", () => {
+  it("exports only middleware and config with a matcher covering extensionless business APIs", () => {
+    expect(Object.keys(middlewareModule).sort()).toEqual(["config", "middleware"]);
+    expect(middlewareModule.config.matcher).toHaveLength(1);
+
+    const matcher = new RegExp(middlewareModule.config.matcher[0]);
+    expect(matcher.test("/api/ingredient-images/generated-key")).toBe(true);
+    expect(matcher.test("/api/recipes/7/ingredient-images")).toBe(true);
+  });
+
+  it("routes _next/data through the real middleware gate", async () => {
+    const response = await middlewareModule.middleware(
+      gatedRequest("/_next/data/build-id/recipes.json"),
+    );
+
+    expect(response.status).toBe(307);
+  });
 });
 
 describe("sanitizeReturnPath", () => {

@@ -17,7 +17,11 @@ function jsonError(code: string, message: string, status: number) {
 }
 
 function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/_next/");
+  return (
+    PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith("/_next/static/") ||
+    pathname === "/_next/image"
+  );
 }
 
 function hasValidSecret(secret: string | undefined): secret is string {

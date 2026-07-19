@@ -7,9 +7,12 @@ import {
 } from "@/lib/auth/constants";
 import { createLoginRateLimiter } from "@/lib/auth/login-rate-limit";
 
-const LoginSchema = z
-  .object({ password: z.string().min(8).max(128) })
-  .strict();
+const PasswordSchema = z.string().refine((password) => {
+  const length = Array.from(password).length;
+  return length >= 8 && length <= 128;
+});
+
+const LoginSchema = z.object({ password: PasswordSchema }).strict();
 
 const INVALID_CREDENTIALS = {
   error: { code: "invalid_credentials", message: "家庭密码不正确" },
