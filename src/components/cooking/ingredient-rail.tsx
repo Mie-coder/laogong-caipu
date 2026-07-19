@@ -31,7 +31,7 @@ function IngredientVisual({ ingredient, recipeId, kind, index, checked, railRef 
     setPhase("idle");
 
     const load = () => {
-      if (requested) return;
+      if (cancelled || requested) return;
       requested = true;
       setPhase("requesting");
       controller = new AbortController();

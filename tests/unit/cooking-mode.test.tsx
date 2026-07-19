@@ -80,20 +80,55 @@ describe("cooking mode", () => {
   });
 
   it("toggles all ingredients ready and then clears the whole selection", async () => {
+    state.getRecipe.mockResolvedValue({ recipe: { ...recipe, ingredients: [...recipe.ingredients, { name: "青椒", amount: "1 个", type: "ingredient" }] } });
     render(<CookingMode recipeId={7} />);
     expect(await screen.findByText("里脊肉")).toBeInTheDocument();
+    expect(await screen.findByText("青椒")).toBeInTheDocument();
 
     const ingredient = screen.getByText("里脊肉").closest("button");
+    const secondIngredient = screen.getByText("青椒").closest("button");
     expect(ingredient).not.toBeNull();
+    expect(secondIngredient).not.toBeNull();
     expect(screen.getByRole("button", { name: "全部勾选" })).toHaveAttribute("aria-pressed", "false");
     expect(ingredient).toHaveAttribute("aria-pressed", "false");
+    expect(secondIngredient).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(ingredient!);
+    expect(ingredient).toHaveAttribute("aria-pressed", "true");
+    expect(secondIngredient).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(screen.getByRole("button", { name: "全部勾选" }));
     expect(ingredient).toHaveAttribute("aria-pressed", "true");
+    expect(secondIngredient).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "取消全选" })).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "取消全选" }));
     expect(ingredient).toHaveAttribute("aria-pressed", "false");
+    expect(secondIngredient).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("button", { name: "全部勾选" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("ignores an observer callback queued before the ingredient card unmounts", async () => {
+    const observe = vi.fn();
+    let callback: IntersectionObserverCallback | undefined;
+    const IntersectionObserverMock = vi.fn(function (nextCallback: IntersectionObserverCallback) {
+      callback = nextCallback;
+      return { observe, disconnect: vi.fn(), takeRecords: vi.fn(() => []), unobserve: vi.fn() };
+    });
+    vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);
+
+    try {
+      const { unmount } = render(<CookingMode recipeId={7} />);
+      expect(await screen.findByText("里脊肉")).toBeInTheDocument();
+      await waitFor(() => expect(observe).toHaveBeenCalledTimes(1));
+
+      unmount();
+      callback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+
+      expect(state.requestIngredientImage).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("observes the complete ingredient card within the horizontal rail", async () => {
