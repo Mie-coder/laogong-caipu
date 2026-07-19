@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -16,6 +16,10 @@ const PNG = Buffer.from(
 
 const originalApiKey = process.env.MICU_API_KEY;
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+const MAX_CACHE_BYTES = 512 * 1024;
+const WEBP = Buffer.concat([
+  Buffer.from("RIFF"), Buffer.from([12, 0, 0, 0]), Buffer.from("WEBP"), Buffer.from("VP8 "), Buffer.alloc(8)
+]);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -30,19 +34,24 @@ describe("ingredient image service", () => {
     expect(ingredientImageKey("蒜  瓣")).toBe(ingredientImageKey("蒜 瓣"));
   });
 
-  it("shares one generation for simultaneous requests and then reads the cache", async () => {
+  it("shares generation and optimization, then reads the WebP cache", async () => {
     const cacheRoot = await mkdtemp(join(tmpdir(), "ingredient-images-"));
     try {
       const generate = vi.fn().mockResolvedValue(PNG);
-      const service = createIngredientImageService({ cacheRoot, generate });
+      const optimize = vi.fn().mockResolvedValue(WEBP);
+      const service = createIngredientImageService({ cacheRoot, generate, optimize });
 
       const [first, second] = await Promise.all([service.getOrCreate("牛肉"), service.getOrCreate("牛肉")]);
 
       expect(first).toEqual(second);
       expect(generate).toHaveBeenCalledTimes(1);
-      await expect(service.read(first.key)).resolves.toEqual(PNG);
+      expect(optimize).toHaveBeenCalledOnce();
+      expect(optimize).toHaveBeenCalledWith(PNG);
+      await expect(access(join(cacheRoot, `${first.key}.webp`))).resolves.toBeUndefined();
+      await expect(service.read(first.key)).resolves.toEqual(WEBP);
       await service.getOrCreate("牛肉");
       expect(generate).toHaveBeenCalledTimes(1);
+      expect(optimize).toHaveBeenCalledTimes(1);
     } finally {
       await rm(cacheRoot, { recursive: true, force: true });
     }
@@ -52,9 +61,11 @@ describe("ingredient image service", () => {
     const cacheRoot = await mkdtemp(join(tmpdir(), "ingredient-images-"));
     try {
       const generate = vi.fn().mockResolvedValue(Buffer.from("html"));
-      const service = createIngredientImageService({ cacheRoot, generate });
+      const optimize = vi.fn().mockResolvedValue(WEBP);
+      const service = createIngredientImageService({ cacheRoot, generate, optimize });
 
       await expect(service.getOrCreate("牛肉")).rejects.toThrow("PNG");
+      expect(optimize).not.toHaveBeenCalled();
       await expect(service.read(ingredientImageKey("牛肉"))).resolves.toBeNull();
     } finally {
       await rm(cacheRoot, { recursive: true, force: true });
@@ -62,22 +73,39 @@ describe("ingredient image service", () => {
   });
 
   it.each([
-    ["corrupt", Buffer.from("not-a-png")],
-    ["oversized", Buffer.alloc(MAX_IMAGE_BYTES + 1)]
+    ["corrupt", Buffer.from("not-a-webp")],
+    ["oversized", Buffer.alloc(MAX_CACHE_BYTES + 1)]
   ])("deletes a %s cache file and regenerates it", async (_kind, invalidCache) => {
     const cacheRoot = await mkdtemp(join(tmpdir(), "ingredient-images-"));
     try {
       const key = ingredientImageKey("牛肉");
-      const cachePath = join(cacheRoot, `${key}.png`);
+      const cachePath = join(cacheRoot, `${key}.webp`);
       await writeFile(cachePath, invalidCache);
       const generate = vi.fn().mockResolvedValue(PNG);
-      const service = createIngredientImageService({ cacheRoot, generate });
+      const optimize = vi.fn().mockResolvedValue(WEBP);
+      const service = createIngredientImageService({ cacheRoot, generate, optimize });
 
       await expect(service.read(key)).resolves.toBeNull();
       await expect(access(cachePath)).rejects.toMatchObject({ code: "ENOENT" });
       await expect(service.getOrCreate("牛肉")).resolves.toMatchObject({ key });
       expect(generate).toHaveBeenCalledTimes(1);
-      await expect(service.read(key)).resolves.toEqual(PNG);
+      expect(optimize).toHaveBeenCalledTimes(1);
+      await expect(service.read(key)).resolves.toEqual(WEBP);
+    } finally {
+      await rm(cacheRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves no cache hit or temporary file when optimization rejects", async () => {
+    const cacheRoot = await mkdtemp(join(tmpdir(), "ingredient-images-"));
+    try {
+      const generate = vi.fn().mockResolvedValue(PNG);
+      const optimize = vi.fn().mockRejectedValue(new Error("优化失败"));
+      const service = createIngredientImageService({ cacheRoot, generate, optimize });
+
+      await expect(service.getOrCreate("牛肉")).rejects.toThrow("优化失败");
+      await expect(service.read(ingredientImageKey("牛肉"))).resolves.toBeNull();
+      await expect(readdir(cacheRoot)).resolves.toEqual([]);
     } finally {
       await rm(cacheRoot, { recursive: true, force: true });
     }

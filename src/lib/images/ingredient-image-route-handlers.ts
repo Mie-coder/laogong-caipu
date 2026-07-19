@@ -49,13 +49,13 @@ export function createIngredientImageGetHandler(imageService: IngredientImageSer
     const { key } = context.params;
     if (!CACHE_KEY_PATTERN.test(key)) return apiError("invalid_key", "图片标识无效", 400);
 
-    const png = await imageService.read(key);
-    if (!png) return apiError("not_found", "图片不存在", 404);
+    const image = await imageService.read(key);
+    if (!image) return apiError("not_found", "图片不存在", 404);
 
-    const body = Uint8Array.from(png);
+    const body = Uint8Array.from(image);
     return new Response(body, {
       headers: {
-        "content-type": "image/png",
+        "content-type": "image/webp",
         "cache-control": "public, max-age=31536000, immutable",
         etag: `"${key}"`
       }

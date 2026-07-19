@@ -11,10 +11,9 @@ const recipe = {
   seasonings: [{ name: "蒜", amount: "3瓣", type: "seasoning" }]
 };
 
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-  "base64"
-);
+const WEBP = Buffer.concat([
+  Buffer.from("RIFF"), Buffer.from([12, 0, 0, 0]), Buffer.from("WEBP"), Buffer.from("VP8 "), Buffer.alloc(8)
+]);
 
 function jsonRequest(body: unknown) {
   return new Request("http://localhost/api/recipes/7/ingredient-images", {
@@ -86,16 +85,16 @@ describe("ingredient image routes", () => {
     expect(response.status).toBe(404);
   });
 
-  it("returns cached PNGs with immutable headers and an ETag", async () => {
+  it("returns cached WebP images with immutable headers and an ETag", async () => {
     const key = "c".repeat(64);
-    const GET = createIngredientImageGetHandler({ getOrCreate: vi.fn(), read: vi.fn().mockResolvedValue(PNG) });
+    const GET = createIngredientImageGetHandler({ getOrCreate: vi.fn(), read: vi.fn().mockResolvedValue(WEBP) });
 
     const response = await GET(new Request(`http://localhost/api/ingredient-images/${key}`), { params: { key } });
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(response.headers.get("content-type")).toBe("image/webp");
     expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
     expect(response.headers.get("etag")).toBe(`"${key}"`);
-    await expect(response.arrayBuffer()).resolves.toEqual(PNG.buffer.slice(PNG.byteOffset, PNG.byteOffset + PNG.byteLength));
+    await expect(response.arrayBuffer()).resolves.toEqual(WEBP.buffer.slice(WEBP.byteOffset, WEBP.byteOffset + WEBP.byteLength));
   });
 });

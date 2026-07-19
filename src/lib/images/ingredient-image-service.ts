@@ -1,11 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { optimizeIngredientImage, validateIngredientWebp } from "@/lib/images/ingredient-image-optimizer";
 
-const VERSION = "v1";
+const VERSION = "v2";
 const MICU_URL = "https://www.micuapi.ai/v1/images/generations";
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+const MAX_CACHE_BYTES = 512 * 1024;
 const MAX_MICU_JSON_BYTES = Math.ceil((MAX_IMAGE_BYTES * 4) / 3) + 1024 * 1024;
 const CACHE_KEY_PATTERN = /^[a-f0-9]{64}$/;
 
@@ -63,23 +65,25 @@ export async function generateMicuIngredientPng(name: string): Promise<Buffer> {
 export function createIngredientImageService(deps: {
   cacheRoot?: string;
   generate?: (name: string) => Promise<Buffer>;
+  optimize?: (png: Buffer) => Promise<Buffer>;
 } = {}): IngredientImageService {
   const cacheRoot = deps.cacheRoot ?? join(process.cwd(), "data", "generated", "ingredients", VERSION);
   const generate = deps.generate ?? generateMicuIngredientPng;
+  const optimize = deps.optimize ?? optimizeIngredientImage;
   const inFlight = new Map<string, Promise<IngredientImageResult>>();
 
   async function read(key: string): Promise<Buffer | null> {
     if (!CACHE_KEY_PATTERN.test(key)) return null;
-    const imagePath = join(cacheRoot, `${key}.png`);
+    const imagePath = join(cacheRoot, `${key}.webp`);
     try {
       const metadata = await stat(imagePath);
-      if (!metadata.isFile() || metadata.size > MAX_IMAGE_BYTES) {
+      if (!metadata.isFile() || metadata.size > MAX_CACHE_BYTES) {
         await discardCacheFile(imagePath);
         return null;
       }
       const image = await readFile(imagePath);
       try {
-        return validatePng(image);
+        return validateIngredientWebp(image);
       } catch {
         await discardCacheFile(imagePath);
         return null;
@@ -100,11 +104,12 @@ export function createIngredientImageService(deps: {
 
     const pending = (async () => {
       const png = validatePng(await generate(normalizedName));
+      const image = validateIngredientWebp(await optimize(png));
       await mkdir(cacheRoot, { recursive: true });
-      const destination = join(cacheRoot, `${key}.png`);
+      const destination = join(cacheRoot, `${key}.webp`);
       const temporary = join(cacheRoot, `${key}.${randomUUID()}.tmp`);
       try {
-        await writeFile(temporary, png, { flag: "wx" });
+        await writeFile(temporary, image, { flag: "wx" });
         await rename(temporary, destination);
       } finally {
         await unlink(temporary).catch((error: unknown) => {
