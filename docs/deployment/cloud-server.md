@@ -407,7 +407,7 @@ BASH
 
 ### 图片恢复
 
-图片恢复也严格校验目录名并拒绝 symlink。脚本先把选中的来源复制到隐藏 staging，再在线执行一次 weekly 安全备份；只有 stop 和 stopped assertion 都成功才执行 `rsync --delete`。如果失败，app 保持停止，错误消息会给出 staging 位置供人工恢复，不会自动继续或自动启动。
+图片恢复也严格校验目录名并拒绝 symlink。脚本先把选中的来源复制到隐藏 staging，再在线执行一次 weekly 安全备份；只有 stop 和 stopped assertion 都成功，且真实持久化根目录与 generated 目录通过类型和 canonical path 校验后，才执行 `rsync --delete`。校验针对 `/srv/laogong-caipu/data`，不会把仓库中的 `app/data` symlink 当成持久化根目录。恢复期间会把真实持久化根目录临时改为 root 所有，以阻止 UID 10001 在校验与同步之间替换 generated；成功后才恢复应用所有权。如果失败，app 保持停止，错误消息会给出 staging 位置供人工恢复，不会自动继续或自动启动。
 
 ```bash
 sudo bash <<'BASH'
@@ -450,9 +450,37 @@ docker compose run --rm --no-deps app npm run backup -- --kind weekly
 docker compose stop app
 recovery_started=1
 assert_app_stopped
-install -d -o 10001 -g 10001 -m 0750 data/generated
-rsync -a --delete "$restore_source/" data/generated/
-chown -R 10001:10001 data/generated
+DATA_ROOT=/srv/laogong-caipu/data
+GENERATED_PATH="$DATA_ROOT/generated"
+[[ ! -L "$DATA_ROOT" && -d "$DATA_ROOT" ]] || {
+  printf '%s\n' 'persistent data root must be a real directory, not a symlink' >&2
+  exit 1
+}
+data_root_real="$(realpath -e -- "$DATA_ROOT")"
+[[ "$data_root_real" == "$DATA_ROOT" ]] || {
+  printf '%s\n' 'persistent data root resolved outside its canonical path' >&2
+  exit 1
+}
+chown root:root -- "$data_root_real"
+chmod 0750 -- "$data_root_real"
+if [[ -e "$GENERATED_PATH" || -L "$GENERATED_PATH" ]]; then
+  [[ ! -L "$GENERATED_PATH" && -d "$GENERATED_PATH" ]] || {
+    printf '%s\n' 'generated destination must be a real directory, not a symlink' >&2
+    exit 1
+  }
+else
+  install -d -o root -g root -m 0750 -- "$GENERATED_PATH"
+fi
+generated_real="$(realpath -e -- "$GENERATED_PATH")"
+[[ "$generated_real" == "$DATA_ROOT/generated" ]] || {
+  printf '%s\n' 'generated destination resolved outside the persistent data root' >&2
+  exit 1
+}
+chown root:root -- "$generated_real"
+chmod 0750 -- "$generated_real"
+rsync -a --delete "$restore_source/" "$generated_real/"
+chown -R 10001:10001 -- "$generated_real"
+chown 10001:10001 -- "$data_root_real"
 docker compose up -d app
 curl --fail --silent --show-error http://127.0.0.1:3000/api/health
 recovery_started=0

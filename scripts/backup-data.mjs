@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
-import { cp, link, lstat, mkdir, readdir, rename, rm, stat } from "node:fs/promises";
+import { cp, link, lstat, mkdir, readdir, rename, rm, rmdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 const KINDS = new Set(["daily", "weekly", "predeploy"]);
@@ -50,6 +50,18 @@ async function assertDestinationAbsent(destination) {
     throw error;
   }
   throw new Error("backup destination already exists");
+}
+
+async function withBackupWriterLock(backupRoot, action) {
+  const writerLock = join(backupRoot, ".backup-data.lock");
+  let lockHeld = false;
+  try {
+    await mkdir(writerLock, { mode: 0o700 });
+    lockHeld = true;
+    return await action();
+  } finally {
+    if (lockHeld) await rmdir(writerLock);
+  }
 }
 
 async function createDatabaseBackup(databasePath, destination) {
@@ -103,30 +115,32 @@ async function main() {
   const imageDestination = kind === "weekly" ? join(backupRoot, `weekly-images-${timestamp}`) : undefined;
 
   await mkdir(backupRoot, { recursive: true });
-  await assertDestinationAbsent(databaseDestination);
-  if (imageDestination) await assertDestinationAbsent(imageDestination);
-  await createDatabaseBackup(databasePath, databaseDestination);
-  const databaseCount = await retain(
-    backupRoot,
-    (entry) => entry.isFile() && DATABASE_BACKUP_PATTERNS[kind].test(entry.name),
-    DATABASE_RETENTION[kind]
-  );
-
-  let createdImageDestination;
-  let imageCount;
-  if (kind === "weekly") {
-    if (await createWeeklyImageSnapshot(databasePath, imageDestination)) createdImageDestination = imageDestination;
-    imageCount = await retain(
+  await withBackupWriterLock(backupRoot, async () => {
+    await assertDestinationAbsent(databaseDestination);
+    if (imageDestination) await assertDestinationAbsent(imageDestination);
+    await createDatabaseBackup(databasePath, databaseDestination);
+    const databaseCount = await retain(
       backupRoot,
-      (entry) => entry.isDirectory() && WEEKLY_IMAGE_PATTERN.test(entry.name),
-      WEEKLY_IMAGE_RETENTION
+      (entry) => entry.isFile() && DATABASE_BACKUP_PATTERNS[kind].test(entry.name),
+      DATABASE_RETENTION[kind]
     );
-  }
 
-  console.log(`database backup: ${databaseDestination}`);
-  console.log(`database backups retained: ${databaseCount}`);
-  if (createdImageDestination) console.log(`image snapshot: ${createdImageDestination}`);
-  if (imageCount !== undefined) console.log(`image snapshots retained: ${imageCount}`);
+    let createdImageDestination;
+    let imageCount;
+    if (kind === "weekly") {
+      if (await createWeeklyImageSnapshot(databasePath, imageDestination)) createdImageDestination = imageDestination;
+      imageCount = await retain(
+        backupRoot,
+        (entry) => entry.isDirectory() && WEEKLY_IMAGE_PATTERN.test(entry.name),
+        WEEKLY_IMAGE_RETENTION
+      );
+    }
+
+    console.log(`database backup: ${databaseDestination}`);
+    console.log(`database backups retained: ${databaseCount}`);
+    if (createdImageDestination) console.log(`image snapshot: ${createdImageDestination}`);
+    if (imageCount !== undefined) console.log(`image snapshots retained: ${imageCount}`);
+  });
 }
 
 try {

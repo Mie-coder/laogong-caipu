@@ -266,6 +266,29 @@ describe("persistent deployment contract", () => {
     }
   });
 
+  it("respects an exclusive backup-writer lock and releases only its own lock", async () => {
+    const fixture = await createFixture();
+    const writerLock = join(fixture.backupRoot, ".backup-data.lock");
+    try {
+      await mkdir(writerLock);
+      await writeFile(join(writerLock, "owner"), "another backup process");
+
+      await expect(
+        runBackup({ ...fixture, kind: "daily", now: "2026-07-19T08:00:00.000Z" })
+      ).rejects.toMatchObject({ stderr: "Backup failed\n" });
+      expect(await namesIn(fixture.backupRoot)).toEqual([".backup-data.lock"]);
+      await expect(readFile(join(writerLock, "owner"), "utf8")).resolves.toBe("another backup process");
+
+      await rm(writerLock, { recursive: true });
+      await expect(
+        runBackup({ ...fixture, kind: "daily", now: "2026-07-19T09:00:00.000Z" })
+      ).resolves.toMatchObject({ stderr: "" });
+      expect(await namesIn(fixture.backupRoot)).toEqual(["daily-2026-07-19T09-00-00-000Z.sqlite"]);
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+
   it("ignores BACKUP_NOW outside the test environment", async () => {
     const fixture = await createFixture();
     try {
@@ -456,5 +479,65 @@ describe("persistent deployment contract", () => {
       expect(helper).toContain("docker inspect --format '{{.State.Running}}' \"$id\"");
       expect(helper).toContain('done <<< "$ids"');
     }
+  });
+
+  it("validates the canonical persistent image destination before install and rsync", async () => {
+    const runbook = await readFile(join(projectRoot, "docs", "deployment", "cloud-server.md"), "utf8");
+    const imageRestore = runbook.slice(runbook.indexOf("### 图片恢复"), runbook.indexOf("## 单实例"));
+    const stopAssertion = imageRestore.indexOf(
+      "\nassert_app_stopped\n",
+      imageRestore.indexOf("docker compose stop app")
+    );
+    const dataRoot = imageRestore.indexOf("DATA_ROOT=/srv/laogong-caipu/data", stopAssertion);
+    const rootTypeGuard = imageRestore.indexOf('[[ ! -L "$DATA_ROOT" && -d "$DATA_ROOT" ]]', dataRoot);
+    const rootRealpath = imageRestore.indexOf('data_root_real="$(realpath -e -- "$DATA_ROOT")"', rootTypeGuard);
+    const rootExactGuard = imageRestore.indexOf('[[ "$data_root_real" == "$DATA_ROOT" ]]', rootRealpath);
+    const lockPersistentRoot = imageRestore.indexOf('chown root:root -- "$data_root_real"', rootExactGuard);
+    const generatedTypeGuard = imageRestore.indexOf(
+      '[[ ! -L "$GENERATED_PATH" && -d "$GENERATED_PATH" ]]',
+      lockPersistentRoot
+    );
+    const installGenerated = imageRestore.indexOf(
+      'install -d -o root -g root -m 0750 -- "$GENERATED_PATH"',
+      generatedTypeGuard
+    );
+    const generatedRealpath = imageRestore.indexOf(
+      'generated_real="$(realpath -e -- "$GENERATED_PATH")"',
+      installGenerated
+    );
+    const generatedExactGuard = imageRestore.indexOf(
+      '[[ "$generated_real" == "$DATA_ROOT/generated" ]]',
+      generatedRealpath
+    );
+    const destructiveSync = imageRestore.indexOf(
+      'rsync -a --delete "$restore_source/" "$generated_real/"',
+      generatedExactGuard
+    );
+
+    for (const boundary of [
+      dataRoot,
+      rootTypeGuard,
+      rootRealpath,
+      rootExactGuard,
+      lockPersistentRoot,
+      generatedTypeGuard,
+      installGenerated,
+      generatedRealpath,
+      generatedExactGuard,
+      destructiveSync
+    ]) {
+      expect(boundary).toBeGreaterThan(-1);
+    }
+    expect(stopAssertion).toBeLessThan(dataRoot);
+    expect(dataRoot).toBeLessThan(rootTypeGuard);
+    expect(rootTypeGuard).toBeLessThan(rootRealpath);
+    expect(rootRealpath).toBeLessThan(rootExactGuard);
+    expect(rootExactGuard).toBeLessThan(lockPersistentRoot);
+    expect(lockPersistentRoot).toBeLessThan(generatedTypeGuard);
+    expect(generatedTypeGuard).toBeLessThan(installGenerated);
+    expect(installGenerated).toBeLessThan(generatedRealpath);
+    expect(generatedRealpath).toBeLessThan(generatedExactGuard);
+    expect(generatedExactGuard).toBeLessThan(destructiveSync);
+    expect(imageRestore).not.toContain('rsync -a --delete "$restore_source/" data/generated/');
   });
 });
