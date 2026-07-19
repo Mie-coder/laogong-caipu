@@ -71,6 +71,7 @@ function makeDraft(suffix = "") {
 async function stubImport(page, options = {}) {
   let parseCalls = 0;
   let filterCalls = 0;
+  const ingredientImageRequests = [];
   let releaseParse;
   const parseGate = options.gateParse ? new Promise((resolve) => { releaseParse = resolve; }) : null;
   await page.route("**/api/import/parse", async (route) => {
@@ -96,9 +97,17 @@ async function stubImport(page, options = {}) {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ imageUrls: IMAGE_URLS }) });
   });
   await page.route("**/api/recipes/*/ingredient-images", async (route) => {
+    const request = route.request();
+    expect(request.method()).toBe("POST");
+    const body = JSON.parse(request.postData() || "");
+    expect(Object.keys(body).sort()).toEqual(["index", "kind"]);
+    expect(["ingredient", "seasoning"]).toContain(body.kind);
+    expect(Number.isInteger(body.index)).toBe(true);
+    expect(body.index).toBeGreaterThanOrEqual(0);
+    ingredientImageRequests.push(body);
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ key: "a".repeat(64), imageUrl: IMAGE_URLS[1] }) });
   });
-  return { parseCalls: () => parseCalls, filterCalls: () => filterCalls, releaseParse: () => releaseParse?.() };
+  return { parseCalls: () => parseCalls, filterCalls: () => filterCalls, ingredientImageRequests: () => ingredientImageRequests, releaseParse: () => releaseParse?.() };
 }
 
 async function screenshot(page, testInfo, filename) {
@@ -327,10 +336,12 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
   await expect(page).toHaveURL(/\/recipes\/\d+$/);
   await page.reload();
   await expect(page.getByRole("heading", { name: new RegExp(LONG_NAME) })).toBeVisible();
+  expect(await page.locator(".recipe-detail-v3-summary h1").evaluate((element) => getComputedStyle(element).fontSize)).toBe("24px");
   await expect(page.getByText(LONG_AMOUNT, { exact: true })).toBeVisible();
   await assertWrappedWithoutClipping(page.getByText(LONG_AMOUNT, { exact: true }), "long ingredient amount");
   await page.getByRole("tab", { name: "步骤" }).click();
   await expect(page.getByText(LONG_STEP, { exact: true })).toBeVisible();
+  expect(await page.locator(".recipe-detail-v3-tabs h2").evaluate((element) => getComputedStyle(element).fontSize)).toBe("20px");
   await assertWrappedWithoutClipping(page.getByRole("heading", { name: new RegExp(LONG_NAME) }), "long recipe name");
   await assertWrappedWithoutClipping(page.getByText(LONG_STEP, { exact: true }), "long recipe step");
   await assertNoHorizontalOverflow(page);
@@ -361,7 +372,11 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
   await expect(page).toHaveURL(/\/recipes\/\d+\/cook$/);
   await expect(page.getByRole("heading", { name: new RegExp(LONG_NAME) })).toBeVisible();
   await expect(page.getByRole("button", { name: new RegExp(`取消收藏菜谱 .*-${projectWidth(testInfo)}`) })).toBeVisible();
-  await expect(page.getByTestId("ingredient-image-ingredient-0")).toBeVisible();
+  const firstIngredientImage = page.getByTestId("ingredient-image-ingredient-0");
+  await expect(firstIngredientImage).toHaveAttribute("src", IMAGE_URLS[1]);
+  await expect.poll(() => firstIngredientImage.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+  expect(calls.ingredientImageRequests()).toContainEqual({ kind: "ingredient", index: 0 });
+  expect(await page.locator(".cooking-section-heading h2").first().evaluate((element) => getComputedStyle(element).fontSize)).toBe("20px");
   await assertNoHorizontalOverflow(page);
   await assertCookingContentGeometry(page);
   await assertCookingStepsClearFooter(page);
