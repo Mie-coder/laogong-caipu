@@ -518,9 +518,9 @@ describe("persistent deployment contract", () => {
       "\nassert_app_stopped\n",
       imageRestore.indexOf("docker compose stop app")
     );
-    expect(databaseStopAssertion).toBeLessThan(databaseRestore.indexOf("data/.restore"));
-    expect(databaseStopAssertion).toBeLessThan(databaseRestore.indexOf("mv -- data/.restore"));
-    expect(databaseStopAssertion).toBeLessThan(databaseRestore.indexOf("sqlite-wal"));
+    expect(databaseStopAssertion).toBeLessThan(databaseRestore.indexOf('restore_destination="$(mktemp'));
+    expect(databaseStopAssertion).toBeLessThan(databaseRestore.indexOf('mv -- "$restore_destination"'));
+    expect(databaseStopAssertion).toBeLessThan(databaseRestore.indexOf('"$database_path-wal"'));
     expect(imageStopAssertion).toBeLessThan(imageRestore.indexOf("rsync -a --delete"));
   });
 
@@ -537,6 +537,116 @@ describe("persistent deployment contract", () => {
       expect(helper).toContain("docker inspect --format '{{.State.Running}}' \"$id\"");
       expect(helper).toContain('done <<< "$ids"');
     }
+  });
+
+  it("excludes backup writers and restores a locked canonical database through unique verified staging", async () => {
+    const runbook = await readFile(join(projectRoot, "docs", "deployment", "cloud-server.md"), "utf8");
+    const restore = runbook.slice(runbook.indexOf("### 数据库恢复"), runbook.indexOf("### 图片恢复"));
+
+    const pauseCron = restore.indexOf(
+      "mv /etc/cron.d/laogong-caipu-backup /etc/cron.d/laogong-caipu-backup.disabled"
+    );
+    const verifyOneOff = restore.indexOf("com.docker.compose.oneoff=True", pauseCron);
+    const verifyHostBackup = restore.indexOf("pgrep -af", verifyOneOff);
+    const onlineBackup = restore.indexOf("npm run backup -- --kind predeploy", verifyHostBackup);
+    const stop = restore.indexOf("docker compose stop app", onlineBackup);
+    const stopAssertion = restore.indexOf("\nassert_app_stopped\n", stop);
+    const backupRoot = restore.indexOf("BACKUP_ROOT=/srv/laogong-caipu/backups", stopAssertion);
+    const backupSource = restore.indexOf('BACKUP_SOURCE="$BACKUP_ROOT/$BACKUP_FILE"', backupRoot);
+    const backupRootTypeGuard = restore.indexOf('[[ ! -L "$BACKUP_ROOT" && -d "$BACKUP_ROOT" ]]', backupSource);
+    const backupRootRealpath = restore.indexOf('backup_root_real="$(realpath -e -- "$BACKUP_ROOT")"', backupRootTypeGuard);
+    const backupRootExactGuard = restore.indexOf('[[ "$backup_root_real" == "$BACKUP_ROOT" ]]', backupRootRealpath);
+    const lockBackupRoot = restore.indexOf('chown root:root -- "$backup_root_real"', backupRootExactGuard);
+    const sourceTypeGuard = restore.indexOf('[[ ! -L "$BACKUP_SOURCE" && -f "$BACKUP_SOURCE" ]]', lockBackupRoot);
+    const sourceRealpath = restore.indexOf('source_real="$(realpath -e -- "$BACKUP_SOURCE")"', sourceTypeGuard);
+    const sourceExactGuard = restore.indexOf('[[ "$source_real" == "$BACKUP_ROOT/$BACKUP_FILE" ]]', sourceRealpath);
+    const lockSource = restore.indexOf('chown root:root -- "$source_real"', sourceExactGuard);
+    const sourceStaging = restore.indexOf(
+      'restore_source="$(mktemp /srv/laogong-caipu/.restore-database.XXXXXX)"',
+      lockSource
+    );
+    const copySource = restore.indexOf(
+      'install -o root -g root -m 0600 -- "$source_real" "$restore_source"',
+      sourceStaging
+    );
+    const stagedIntegrity = restore.indexOf('sqlite_integrity_check "$restore_source"', copySource);
+    const dataRoot = restore.indexOf("DATA_ROOT=/srv/laogong-caipu/data", stagedIntegrity);
+    const dataRootTypeGuard = restore.indexOf('[[ ! -L "$DATA_ROOT" && -d "$DATA_ROOT" ]]', dataRoot);
+    const dataRootRealpath = restore.indexOf('data_root_real="$(realpath -e -- "$DATA_ROOT")"', dataRootTypeGuard);
+    const dataRootExactGuard = restore.indexOf('[[ "$data_root_real" == "$DATA_ROOT" ]]', dataRootRealpath);
+    const lockDataRoot = restore.indexOf('chown root:root -- "$data_root_real"', dataRootExactGuard);
+    const destinationStaging = restore.indexOf(
+      'restore_destination="$(mktemp "$data_root_real/.restore-database.XXXXXX")"',
+      lockDataRoot
+    );
+    const stageDestination = restore.indexOf(
+      'install -o root -g root -m 0600 -- "$restore_source" "$restore_destination"',
+      destinationStaging
+    );
+    const removeWal = restore.indexOf(
+      'rm -f -- "$database_path-wal" "$database_path-shm"',
+      stageDestination
+    );
+    const atomicReplace = restore.indexOf('mv -- "$restore_destination" "$database_path"', removeWal);
+    const restoredIntegrity = restore.indexOf('sqlite_integrity_check "$database_path"', atomicReplace);
+    const restoreDatabaseOwner = restore.indexOf('chown 10001:10001 -- "$database_path"', restoredIntegrity);
+    const restoreDataOwner = restore.indexOf('chown 10001:10001 -- "$data_root_real"', restoreDatabaseOwner);
+    const start = restore.indexOf("docker compose up -d app", restoreDataOwner);
+    const health = restore.indexOf("curl --fail --silent --show-error", start);
+    const cleanupStaging = restore.indexOf('rm -f -- "$restore_source"', health);
+    const restoreCron = restore.indexOf(
+      "mv /etc/cron.d/laogong-caipu-backup.disabled /etc/cron.d/laogong-caipu-backup",
+      cleanupStaging
+    );
+
+    const orderedBoundaries = [
+      pauseCron,
+      verifyOneOff,
+      verifyHostBackup,
+      onlineBackup,
+      stop,
+      stopAssertion,
+      backupRoot,
+      backupSource,
+      backupRootTypeGuard,
+      backupRootRealpath,
+      backupRootExactGuard,
+      lockBackupRoot,
+      sourceTypeGuard,
+      sourceRealpath,
+      sourceExactGuard,
+      lockSource,
+      sourceStaging,
+      copySource,
+      stagedIntegrity,
+      dataRoot,
+      dataRootTypeGuard,
+      dataRootRealpath,
+      dataRootExactGuard,
+      lockDataRoot,
+      destinationStaging,
+      stageDestination,
+      removeWal,
+      atomicReplace,
+      restoredIntegrity,
+      restoreDatabaseOwner,
+      restoreDataOwner,
+      start,
+      health,
+      cleanupStaging,
+      restoreCron
+    ];
+    for (const boundary of orderedBoundaries) {
+      expect(boundary).toBeGreaterThan(-1);
+    }
+    expect(orderedBoundaries).toEqual([...orderedBoundaries].sort((left, right) => left - right));
+    expect(restore).toContain("--user 0:0");
+    expect(restore).toContain(':ro"');
+    expect(restore).toContain("cron 保持暂停");
+    expect(restore).toContain("app 保持停止");
+    expect(restore).not.toContain("data/.restore-laogong-caipu.sqlite");
+    expect(restore).not.toContain('test -f "backups/$BACKUP_FILE"');
+    expect(restore).not.toContain('"/app/backups/$BACKUP_FILE"');
   });
 
   it("stages a locked canonical image source only after backup and a checked app stop", async () => {

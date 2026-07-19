@@ -83,7 +83,7 @@ export function createIngredientImageService(deps: {
       }
       const image = await readFile(imagePath);
       try {
-        return validateIngredientWebp(image);
+        return await validateIngredientWebp(image);
       } catch {
         await discardCacheFile(imagePath);
         return null;
@@ -104,7 +104,7 @@ export function createIngredientImageService(deps: {
 
     const pending = (async () => {
       const png = validatePng(await generate(normalizedName));
-      const image = validateIngredientWebp(await optimize(png));
+      const image = await validateIngredientWebp(await optimize(png));
       await mkdir(cacheRoot, { recursive: true });
       const destination = join(cacheRoot, `${key}.webp`);
       const temporary = join(cacheRoot, `${key}.${randomUUID()}.tmp`);

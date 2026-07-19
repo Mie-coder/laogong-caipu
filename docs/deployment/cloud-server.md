@@ -386,7 +386,7 @@ BASH
 
 ### 数据库恢复
 
-从 `backups/` 选择一个**文件名**替换占位符，不要输入路径。严格 allowlist 和只读 `PRAGMA integrity_check` 通过后，脚本先创建当前库的 online predeploy backup；然后 stop 并通过 Docker inspect 确认所有 app 容器都已完全停止，才会 install、`mv` 或清理 WAL/SHM。stop 或断言失败时不会修改数据库。
+从 `backups/` 选择一个**文件名**替换占位符，不要输入路径。脚本先暂停本应用的备份 cron，并确认本 Compose 项目没有运行中的 one-off、宿主机也没有备份进程，然后在应用仍在线时创建 predeploy 安全备份。之后 stop 并通过 Docker inspect 确认所有 app 容器都已完全停止，才开始信任和锁定恢复来源。来源必须是 canonical `/srv/laogong-caipu/backups` 下的 exact-name 普通文件；复制和校验使用 `/srv/laogong-caipu` 下 root 所有的唯一 staging，目标 data 根目录也会 canonicalize 并临时 root-lock。staging 和替换后的库都用 app 镜像以 root 身份、只读挂载执行完整 `PRAGMA integrity_check`。只有恢复、启动和健康检查全部成功后才清理 staging、恢复目录所有权与 cron；任一停机后错误都会让 app/cron 保持停止，并保留 root 保护和 staging 供人工处理。
 
 ```bash
 sudo bash <<'BASH'
@@ -394,6 +394,13 @@ set -Eeuo pipefail
 cd /srv/laogong-caipu/app
 BACKUP_FILE=predeploy-REPLACE_WITH_TIMESTAMP.sqlite
 recovery_started=0
+cron_paused=0
+restore_source=""
+restore_destination=""
+backup_root_real=""
+source_real=""
+data_root_real=""
+database_path=""
 assert_app_stopped() {
   local ids id running
   ids="$(docker compose ps -a -q app)" || return
@@ -403,31 +410,122 @@ assert_app_stopped() {
     [[ "$running" == "false" ]] || return 1
   done <<< "$ids"
 }
+sqlite_integrity_check() {
+  local database_file=$1
+  docker compose run --rm --no-deps --user 0:0 \
+    -v "$database_file:/restore/database.sqlite:ro" \
+    app node -e 'const Database=require("better-sqlite3"); const db=new Database(process.argv[1],{readonly:true,fileMustExist:true}); try { const rows=db.pragma("integrity_check"); if(rows.length!==1||rows[0].integrity_check!=="ok") process.exitCode=1; else console.log("integrity_check=ok"); } finally { db.close(); }' \
+    /restore/database.sqlite
+}
 on_error() {
   local status=$?
   if [[ "$recovery_started" -eq 1 ]]; then
     docker compose stop app >/dev/null 2>&1 || true
-    printf '%s\n' '数据库恢复失败：app 保持停止；检查 data、backups 和日志后人工恢复。' >&2
+    [[ -z "$backup_root_real" || ! -d "$backup_root_real" ]] || chown root:root -- "$backup_root_real" || true
+    [[ -z "$source_real" || ! -f "$source_real" ]] || chown root:root -- "$source_real" || true
+    [[ -z "$data_root_real" || ! -d "$data_root_real" ]] || chown root:root -- "$data_root_real" || true
+    [[ -z "$database_path" || ! -f "$database_path" ]] || chown root:root -- "$database_path" || true
+    printf '数据库恢复失败：app 保持停止，cron 保持暂停；staging=%s，backups/data 保持 root 保护，请人工检查。\n' "${restore_source:-<未创建>}" >&2
+  elif [[ "$cron_paused" -eq 1 ]]; then
+    printf '%s\n' '数据库恢复在停机前失败：app 保持运行，cron 保持暂停；修正后从头运行。' >&2
   else
-    printf '%s\n' '数据库恢复在修改前失败：未执行停机数据修改；请修正后从头运行。' >&2
+    printf '%s\n' '数据库恢复在暂停 cron 前失败：app 保持运行，cron 状态未改变。' >&2
   fi
   exit "$status"
 }
 trap on_error ERR
 
 [[ "$BACKUP_FILE" =~ ^(daily|weekly|predeploy)-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z\.sqlite$ ]]
-test -f "backups/$BACKUP_FILE"
-docker compose run --rm --no-deps app node -e 'const Database=require("better-sqlite3"); const db=new Database(process.argv[1],{readonly:true,fileMustExist:true}); try { const rows=db.pragma("integrity_check"); if(rows.length!==1||rows[0].integrity_check!=="ok") process.exitCode=1; else console.log("integrity_check=ok"); } finally { db.close(); }' "/app/backups/$BACKUP_FILE"
+mv /etc/cron.d/laogong-caipu-backup /etc/cron.d/laogong-caipu-backup.disabled
+cron_paused=1
+active_oneoffs="$(docker ps -q \
+  --filter label=com.docker.compose.project.working_dir=/srv/laogong-caipu/app \
+  --filter label=com.docker.compose.oneoff=True)"
+if [[ -n "$active_oneoffs" ]]; then
+  printf '%s\n' '本应用仍有 Compose one-off 容器运行；app 保持运行，cron 保持暂停。' >&2
+  exit 1
+fi
+if pgrep -af 'backup-data\.mjs|npm run backup'; then
+  printf '%s\n' '仍有宿主机备份进程运行；app 保持运行，cron 保持暂停。' >&2
+  exit 1
+fi
 docker compose run --rm --no-deps app npm run backup -- --kind predeploy
-docker compose stop app
 recovery_started=1
+docker compose stop app
 assert_app_stopped
-install -o 10001 -g 10001 -m 0600 "backups/$BACKUP_FILE" data/.restore-laogong-caipu.sqlite
-mv -- data/.restore-laogong-caipu.sqlite data/laogong-caipu.sqlite
-rm -f -- data/laogong-caipu.sqlite-wal data/laogong-caipu.sqlite-shm
-docker compose run --rm --no-deps app node -e 'const Database=require("better-sqlite3"); const db=new Database(process.argv[1],{readonly:true,fileMustExist:true}); try { const rows=db.pragma("integrity_check"); if(rows.length!==1||rows[0].integrity_check!=="ok") process.exitCode=1; else console.log("integrity_check=ok"); } finally { db.close(); }' /app/data/laogong-caipu.sqlite
+BACKUP_ROOT=/srv/laogong-caipu/backups
+BACKUP_SOURCE="$BACKUP_ROOT/$BACKUP_FILE"
+[[ ! -L "$BACKUP_ROOT" && -d "$BACKUP_ROOT" ]] || {
+  printf '%s\n' 'persistent backup root must be a real directory, not a symlink' >&2
+  exit 1
+}
+backup_root_real="$(realpath -e -- "$BACKUP_ROOT")"
+[[ "$backup_root_real" == "$BACKUP_ROOT" ]] || {
+  printf '%s\n' 'persistent backup root resolved outside its canonical path' >&2
+  exit 1
+}
+chown root:root -- "$backup_root_real"
+chmod 0750 -- "$backup_root_real"
+[[ ! -L "$BACKUP_SOURCE" && -f "$BACKUP_SOURCE" ]] || {
+  printf '%s\n' 'database backup source must be a regular file, not a symlink' >&2
+  exit 1
+}
+source_real="$(realpath -e -- "$BACKUP_SOURCE")"
+[[ "$source_real" == "$BACKUP_ROOT/$BACKUP_FILE" ]] || {
+  printf '%s\n' 'database backup source resolved outside the persistent backup root' >&2
+  exit 1
+}
+chown root:root -- "$source_real"
+chmod 0400 -- "$source_real"
+umask 077
+restore_source="$(mktemp /srv/laogong-caipu/.restore-database.XXXXXX)"
+install -o root -g root -m 0600 -- "$source_real" "$restore_source"
+sqlite_integrity_check "$restore_source"
+
+DATA_ROOT=/srv/laogong-caipu/data
+[[ ! -L "$DATA_ROOT" && -d "$DATA_ROOT" ]] || {
+  printf '%s\n' 'persistent data root must be a real directory, not a symlink' >&2
+  exit 1
+}
+data_root_real="$(realpath -e -- "$DATA_ROOT")"
+[[ "$data_root_real" == "$DATA_ROOT" ]] || {
+  printf '%s\n' 'persistent data root resolved outside its canonical path' >&2
+  exit 1
+}
+chown root:root -- "$data_root_real"
+chmod 0750 -- "$data_root_real"
+database_path="$data_root_real/laogong-caipu.sqlite"
+if [[ -e "$database_path" || -L "$database_path" ]]; then
+  [[ ! -L "$database_path" && -f "$database_path" ]] || {
+    printf '%s\n' 'database destination must be a regular file, not a symlink' >&2
+    exit 1
+  }
+  database_real="$(realpath -e -- "$database_path")"
+  [[ "$database_real" == "$DATA_ROOT/laogong-caipu.sqlite" ]] || {
+    printf '%s\n' 'database destination resolved outside the persistent data root' >&2
+    exit 1
+  }
+  chown root:root -- "$database_path"
+  chmod 0600 -- "$database_path"
+fi
+restore_destination="$(mktemp "$data_root_real/.restore-database.XXXXXX")"
+install -o root -g root -m 0600 -- "$restore_source" "$restore_destination"
+rm -f -- "$database_path-wal" "$database_path-shm"
+mv -- "$restore_destination" "$database_path"
+restore_destination=""
+sqlite_integrity_check "$database_path"
+chown 10001:10001 -- "$database_path"
+chown 10001:10001 -- "$data_root_real"
 docker compose up -d app
 curl --fail --silent --show-error http://127.0.0.1:3000/api/health
+rm -f -- "$restore_source"
+restore_source=""
+chown 10001:10001 -- "$source_real"
+chown 10001:10001 -- "$backup_root_real"
+mv /etc/cron.d/laogong-caipu-backup.disabled /etc/cron.d/laogong-caipu-backup
+cron_paused=0
+source_real=""
+backup_root_real=""
 recovery_started=0
 unset BACKUP_FILE
 trap - ERR

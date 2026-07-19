@@ -19,14 +19,15 @@ describe("ingredient image optimizer", () => {
     expect(metadata.width).toBe(INGREDIENT_IMAGE_SIZE);
     expect(metadata.height).toBe(INGREDIENT_IMAGE_SIZE);
     expect(output.byteLength).toBeLessThan(512 * 1024);
-    expect(validateIngredientWebp(output)).toBe(output);
+    await expect(validateIngredientWebp(output)).resolves.toBe(output);
   });
 
   it.each([
     ["HTML", Buffer.from("<html>not an image</html>")],
     ["random bytes", Buffer.from([0xde, 0xad, 0xbe, 0xef])],
-    ["a RIFF file without a WEBP type", Buffer.concat([Buffer.from("RIFF"), Buffer.from([12, 0, 0, 0]), Buffer.from("WAVE"), Buffer.alloc(12)])]
-  ])("rejects %s", (_description, image) => {
-    expect(() => validateIngredientWebp(image)).toThrow("食材图片压缩结果无效");
+    ["a RIFF file without a WEBP type", Buffer.concat([Buffer.from("RIFF"), Buffer.from([12, 0, 0, 0]), Buffer.from("WAVE"), Buffer.alloc(12)])],
+    ["a magic-valid truncated WebP", Buffer.concat([Buffer.from("RIFF"), Buffer.from([12, 0, 0, 0]), Buffer.from("WEBP")])]
+  ])("rejects %s", async (_description, image) => {
+    await expect(validateIngredientWebp(image)).rejects.toThrow("食材图片压缩结果无效");
   });
 });

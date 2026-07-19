@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { access, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,9 +18,14 @@ const PNG = Buffer.from(
 const originalApiKey = process.env.MICU_API_KEY;
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_CACHE_BYTES = 512 * 1024;
-const WEBP = Buffer.concat([
-  Buffer.from("RIFF"), Buffer.from([12, 0, 0, 0]), Buffer.from("WEBP"), Buffer.from("VP8 "), Buffer.alloc(8)
-]);
+const TRUNCATED_WEBP = Buffer.concat([Buffer.from("RIFF"), Buffer.from([12, 0, 0, 0]), Buffer.from("WEBP")]);
+let WEBP: Buffer;
+
+beforeAll(async () => {
+  WEBP = await sharp({
+    create: { width: 256, height: 256, channels: 3, background: { r: 216, g: 120, b: 68 } }
+  }).webp().toBuffer();
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -74,6 +80,7 @@ describe("ingredient image service", () => {
 
   it.each([
     ["corrupt", Buffer.from("not-a-webp")],
+    ["magic-valid truncated", TRUNCATED_WEBP],
     ["oversized", Buffer.alloc(MAX_CACHE_BYTES + 1)]
   ])("deletes a %s cache file and regenerates it", async (_kind, invalidCache) => {
     const cacheRoot = await mkdtemp(join(tmpdir(), "ingredient-images-"));
