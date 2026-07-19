@@ -16,6 +16,7 @@
 - 密码、用户输入、Cookie、会话令牌、DeepSeek Key 和 Micu Key不得写入日志、Git、客户端 bundle、数据库或 API 响应。
 - `/unlock`、`/api/auth/login`、`/api/auth/logout`、`/api/health` 与 Next.js 必需静态资源可匿名访问；其他页面及 API 全部 fail closed。
 - 登录同一来源 15 分钟内失败 5 次后限流；成功登录清除该来源失败记录。
+- 所有携带家庭 Cookie 的 `POST`、`PUT`、`PATCH`、`DELETE` 业务请求必须通过统一同源 `Origin` 校验；登录和退出接口执行同一规则。
 - 菜谱、收藏、做菜次数、复盘和已生成食材图在服务器共享；步骤、计时器、语音、备料勾选和导入草稿继续留在当前手机。
 - SQLite 必须启用 `foreign_keys=ON`、`journal_mode=WAL`、`busy_timeout=5000`，并保持单实例写入。
 - 通用交互复用 shadcn/ui；家庭解锁和退出操作保留 `data-press-feedback="apple"`，Reduced Motion 下不增加强动效。
@@ -297,6 +298,8 @@ it("redirects an anonymous page but returns JSON 401 for an anonymous API", asyn
 
 Mock `verifyFamilySession` or sign a real token and assert: valid session passes through, expired/tampered session fails, `/unlock`, auth routes, health and `/_next/static/...` pass anonymously, and `sanitizeReturnPath` accepts only same-site paths starting with one `/` and rejects `//evil.test`, absolute URLs and `/unlock` loops.
 
+Add one authenticated unsafe-method case: a valid Cookie on a cross-origin `PATCH /api/recipes/7/favorite` returns 403, while the same request with `Origin: https://recipes.example` passes through. `GET`, `HEAD` and `OPTIONS` do not require an Origin header.
+
 - [ ] **Step 3: Run both test files and verify RED**
 
 Run:
@@ -325,8 +328,9 @@ Derive the limiter key from the proxy-overwritten first `x-forwarded-for` value,
 2. Fail closed when `FAMILY_SESSION_SECRET` is absent or its UTF-8 encoding is shorter than 32 bytes.
 3. Verify `request.cookies.get(FAMILY_COOKIE_NAME)?.value`.
 4. Return `NextResponse.next()` for a valid session.
-5. Return JSON 401 for protected `/api/` paths.
-6. Redirect protected pages to `/unlock?next=<encoded pathname+search>`.
+5. For a valid session on `POST`, `PUT`, `PATCH` or `DELETE`, require `Origin` to equal `request.nextUrl.origin`; otherwise return JSON 403 before the business route runs.
+6. Return JSON 401 for protected `/api/` paths.
+7. Redirect protected pages to `/unlock?next=<encoded pathname+search>`.
 
 `src/middleware.ts` must only call this function and export a matcher that excludes common file extensions without excluding business image API routes:
 
