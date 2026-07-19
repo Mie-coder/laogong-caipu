@@ -6,7 +6,7 @@ export type FamilyAuthConfig = {
 const CONFIGURATION_ERROR_MESSAGE = "家庭门禁配置无效";
 const PASSWORD_HASH_PATTERN = /^scrypt\$([A-Za-z0-9_-]+)\$([A-Za-z0-9_-]+)$/;
 
-function hasValidPasswordHash(value: string | undefined) {
+function hasValidPasswordHash(value: string | undefined): value is string {
   if (!value) return false;
 
   const match = PASSWORD_HASH_PATTERN.exec(value);
