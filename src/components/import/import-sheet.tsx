@@ -14,9 +14,11 @@ type ImportSheetProps = {
   onInputChange: (rawInput: string) => void;
   onPaste: () => void;
   onSubmit: () => void;
+  hasParsedResult?: boolean;
+  onResume?: () => void;
 };
 
-export function ImportSheet({ open, rawInput, error, onOpenChange, onInputChange, onPaste, onSubmit }: ImportSheetProps) {
+export function ImportSheet({ open, rawInput, error, onOpenChange, onInputChange, onPaste, onSubmit, hasParsedResult = false, onResume }: ImportSheetProps) {
   return <Drawer open={open} onOpenChange={onOpenChange}>
     <DrawerContent className="v3-import-drawer mx-auto max-w-[430px] px-5">
       <DrawerHeader className="import-sheet-header relative px-0 text-center"><DrawerTitle>导入菜谱</DrawerTitle><Button variant="ghost" size="icon" aria-label="关闭" className="absolute right-0 top-0" onClick={() => onOpenChange(false)}><X /></Button></DrawerHeader>
@@ -26,7 +28,7 @@ export function ImportSheet({ open, rawInput, error, onOpenChange, onInputChange
         <p className="import-sheet-paste-hint"><Clipboard aria-hidden="true" />支持长按粘贴，关闭后文字会保留</p>
         {rawInput ? <p className="import-sheet-success-hint"><CheckCircle2 aria-hidden="true" />已识别到分享文字</p> : null}
         <Button variant="ghost" className="sr-only" aria-label="从剪贴板粘贴" onClick={onPaste}>从剪贴板粘贴</Button>
-        <div className="mt-auto grid gap-3">{error ? <p role="alert" className="import-sheet-error text-sm text-destructive">{error}</p> : null}<Button className="import-sheet-submit" disabled={!rawInput.trim()} onClick={onSubmit}>开始解析</Button></div>
+        <div className="mt-auto grid gap-3">{error ? <p role="alert" className="import-sheet-error text-sm text-destructive">{error}</p> : null}{hasParsedResult ? <div className="grid gap-2"><p className="text-sm text-muted-foreground">解析完成</p><Button variant="secondary" onClick={onResume}>继续审核图片</Button></div> : null}<Button className="import-sheet-submit" disabled={!rawInput.trim()} onClick={onSubmit}>开始解析</Button></div>
       </div>
     </DrawerContent>
   </Drawer>;

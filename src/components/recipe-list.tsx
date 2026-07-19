@@ -47,6 +47,7 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const restored = useRef(false);
+  const restoreFrame = useRef<number | null>(null);
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClick = useRef(false);
   const controller = useRef<AbortController | null>(null);
@@ -84,13 +85,19 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
     if (loading || restored.current || recipes.length === 0) return;
     try {
       const saved = window.sessionStorage.getItem(STORAGE_KEY);
-      const value = saved ? JSON.parse(saved) as { url?: string; scrollY?: number } : null;
+      const value = saved ? JSON.parse(saved) as { url?: string; scrollY?: number; searchOpen?: boolean } : null;
       if (value?.url === currentUrl && typeof value.scrollY === "number") {
-        window.scrollTo(0, value.scrollY);
-        restored.current = true;
+        const scrollY = value.scrollY;
+        if (value.searchOpen && !searchOpen) { setSearchOpen(true); return; }
+        restoreFrame.current = window.requestAnimationFrame(() => {
+          window.scrollTo(0, scrollY);
+          restored.current = true;
+          restoreFrame.current = null;
+        });
+        return () => { if (restoreFrame.current !== null) window.cancelAnimationFrame(restoreFrame.current); restoreFrame.current = null; };
       }
     } catch { window.sessionStorage.removeItem(STORAGE_KEY); }
-  }, [currentUrl, loading, recipes.length]);
+  }, [currentUrl, loading, recipes.length, searchOpen]);
 
   const visible = quickFilter === "cooked" ? recipes.filter((recipe) => recipe.cookedCount > 0) : recipes;
   const categories = useMemo(() => ["全部", ...Array.from(new Set(snapshot.map((recipe) => recipe.mainCategory).filter(Boolean)))], [snapshot]);
@@ -100,7 +107,7 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
   function openRecipe(recipe: RecipeSummary) {
     if (suppressClick.current) { suppressClick.current = false; return; }
     if (manage) { toggleSelected(recipe.id); return; }
-    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ url: currentUrl, scrollY: window.scrollY }));
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ url: currentUrl, scrollY: window.scrollY, searchOpen }));
     router.push(`/recipes/${recipe.id}`);
   }
   function updateFavorite(id: number, isFavorite: boolean) { setRecipes((current) => current.map((recipe) => recipe.id === id ? { ...recipe, isFavorite } : recipe)); }

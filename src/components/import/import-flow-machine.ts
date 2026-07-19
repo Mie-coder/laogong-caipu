@@ -22,6 +22,7 @@ export type ImportFlowEvent =
   | { type: "PARSE_FAILED"; message: string }
   | { type: "PARSE_CANCELLED" }
   | { type: "REVIEW_BACK" }
+  | { type: "REVIEW_RESUMED" }
   | { type: "IMAGE_TOGGLED"; url: string }
   | { type: "COVER_SELECTED"; url: string | null }
   | { type: "CONFIRM_OPENED"; withoutImages?: boolean }
@@ -61,6 +62,7 @@ export function importFlowReducer(state: ImportFlowState, event: ImportFlowEvent
     case "PARSE_FAILED": return { ...state, stage: "home", parsingStep: 0, error: event.message };
     case "PARSE_CANCELLED": return { ...state, stage: "home", parsingStep: 0, error: null };
     case "REVIEW_BACK": return { ...state, stage: "home", error: null };
+    case "REVIEW_RESUMED": return state.draft ? { ...state, stage: "imageReview", error: null } : state;
     case "IMAGE_TOGGLED": {
       const selectedUrls = state.selectedUrls.includes(event.url)
         ? state.selectedUrls.filter((url) => url !== event.url)

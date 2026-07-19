@@ -24,8 +24,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("framer-motion", async () => {
   const React = await import("react");
 
-  const createMotion = (tag: "div" | "section") =>
-    forwardRef<HTMLElement, Record<string, unknown>>(({ children, initial, animate, exit, transition, layoutId, ...props }, ref) =>
+  const createMotion = (tag: "div" | "section") => {
+    const MotionComponent = forwardRef<HTMLElement, Record<string, unknown>>(({ children, initial, animate, exit, transition, layoutId, ...props }, ref) =>
       React.createElement(
         tag,
         {
@@ -39,6 +39,9 @@ vi.mock("framer-motion", async () => {
         children
       )
     );
+    MotionComponent.displayName = `Motion${tag[0].toUpperCase()}${tag.slice(1)}`;
+    return MotionComponent;
+  };
 
   return {
     AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,

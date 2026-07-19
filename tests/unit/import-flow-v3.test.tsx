@@ -21,7 +21,9 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: mocks.push }) }));
 vi.mock("@/lib/http/api-client", () => ({ parseImportApi: mocks.parseImportApi, filterImages: mocks.filterImages, saveRecipeWithImages: mocks.saveRecipeWithImages, listRecipesApi: mocks.listRecipesApi }));
 vi.mock("framer-motion", async () => {
   const React = await import("react");
-  return { useReducedMotion: () => false, AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>, motion: { div: forwardRef<HTMLElement, Record<string, unknown>>(({ children, ...props }, ref) => React.createElement("div", { ...props, ref }, children)) } };
+  const MotionDiv = forwardRef<HTMLElement, Record<string, unknown>>(({ children, ...props }, ref) => React.createElement("div", { ...props, ref }, children));
+  MotionDiv.displayName = "MotionDiv";
+  return { useReducedMotion: () => false, AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>, motion: { div: MotionDiv } };
 });
 
 const draft: RecipeDraft = {
@@ -251,6 +253,21 @@ describe("ImportFlow V3 screens", () => {
     mocks.parseImportApi.mockResolvedValue({ recipe: draft, imageUrls: [], needsSupplement: false, crawlStatus: "ok", crawlError: "" }); mocks.filterImages.mockResolvedValue([]);
     fireEvent.change(screen.getByLabelText("分享文本"), { target: { value: "分享文本" } }); fireEvent.click(screen.getByRole("button", { name: "开始解析" })); fireEvent.click(await screen.findByRole("button", { name: "无图保存" }));
     await waitFor(() => expect(window.sessionStorage.getItem("import-flow-draft")).toContain("recipeConfirm"));
+  });
+
+  it("resumes image review from the drawer without parsing again", async () => {
+    mocks.parseImportApi.mockResolvedValue({ recipe: draft, imageUrls: ["https://images.example/a.jpg"], needsSupplement: false, crawlStatus: "ok", crawlError: "" });
+    mocks.filterImages.mockResolvedValue(["https://images.example/a.jpg"]);
+    render(<ImportFlow />);
+    fireEvent.click(await screen.findByRole("button", { name: "导入新菜谱" }));
+    fireEvent.change(screen.getByLabelText("分享文本"), { target: { value: "分享文本" } });
+    fireEvent.click(screen.getByRole("button", { name: "开始解析" }));
+    fireEvent.click(await screen.findByRole("button", { name: "返回解析结果" }));
+    expect(await screen.findByText("解析完成")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "继续审核图片" }));
+    expect(await screen.findByRole("heading", { name: "审核图片" })).toBeInTheDocument();
+    expect(mocks.parseImportApi).toHaveBeenCalledTimes(1);
+    expect(mocks.filterImages).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to every source image when image filtering rejects", async () => {

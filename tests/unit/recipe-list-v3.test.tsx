@@ -225,12 +225,24 @@ describe("Stitch V3 recipe list contract", () => {
     state.recipes.mockResolvedValue({ recipes: [recipe(1, { mainCategory: "川菜" })] });
     render(<RecipeList />);
     await screen.findByRole("button", { name: "查看菜谱 菜谱 1" });
-    expect(window.scrollTo).toHaveBeenCalledWith(0, 512);
+    await waitFor(() => expect(window.scrollTo).toHaveBeenCalledWith(0, 512));
     expect(window.scrollTo).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("tab", { name: "分类" }));
     fireEvent.click(screen.getByRole("button", { name: /川菜 1/ }));
     await waitFor(() => expect(state.recipes).toHaveBeenLastCalledWith(expect.objectContaining({ category: "川菜" }), expect.any(AbortSignal)));
     expect(screen.getByRole("tab", { name: "菜谱" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("restores an expanded search control before scrolling a matching list route", async () => {
+    window.sessionStorage.setItem("recipe-list-return", JSON.stringify({ url: "/recipes", scrollY: 512, searchOpen: true }));
+    let searchWasOpenAtRestore = false;
+    window.scrollTo = vi.fn(() => { searchWasOpenAtRestore = document.querySelector(".v3-list-search")?.classList.contains("is-open") ?? false; });
+    state.recipes.mockResolvedValue({ recipes: [recipe(1)] });
+    render(<RecipeList />);
+    await screen.findByRole("button", { name: "查看菜谱 菜谱 1" });
+    await waitFor(() => expect(window.scrollTo).toHaveBeenCalledWith(0, 512));
+    expect(searchWasOpenAtRestore).toBe(true);
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
   });
 
   it("does not restore scroll from a different list route", async () => {

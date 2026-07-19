@@ -8,7 +8,7 @@ module.exports = defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   webServer: {
-    command: "rm -f /tmp/laogong-caipu-v2-e2e.sqlite && AI_PROVIDER=mock DATABASE_PATH=/tmp/laogong-caipu-v2-e2e.sqlite npm run dev -- --hostname 127.0.0.1",
+    command: "rm -f ${DATABASE_PATH:-/tmp/laogong-caipu-stitch-v3-e2e.sqlite} && AI_PROVIDER=mock DATABASE_PATH=${DATABASE_PATH:-/tmp/laogong-caipu-stitch-v3-e2e.sqlite} npm run dev -- --hostname 127.0.0.1",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: false,
     timeout: 120_000
