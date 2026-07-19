@@ -2916,11 +2916,15 @@ main:has([data-transaction-screen="true"]) > .v3-bottom-nav { display: none; }
 .cooking-ingredient-rail { display: flex; gap: 1rem; overflow-x: auto; overscroll-behavior-x: contain; padding: 1rem 1.25rem 0.5rem; touch-action: pan-x pan-y; }
 .cooking-ingredient { display: grid; flex: 0 0 6.5rem; min-width: 0; min-height: 8rem; height: auto; grid-template-rows: 4.5rem auto auto; gap: 0.25rem; border-radius: 0; padding: 0; text-align: center; white-space: normal; }
 .cooking-ingredient-avatar { position: relative; display: grid; place-items: center; justify-self: center; width: 4.5rem; height: 4.5rem; overflow: hidden; isolation: isolate; border-radius: 9999px; background: hsl(var(--surface-container)); color: hsl(var(--primary)); font-size: 1.125rem; }
-.cooking-ingredient-avatar img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; opacity: 0; animation: ingredient-image-in 180ms ease-out forwards; }
-.cooking-ingredient-fallback { position: relative; z-index: 0; }
-.cooking-ingredient-ready { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; background: hsl(var(--primary) / 0.78); color: hsl(var(--primary-foreground)); }
+.cooking-ingredient-skeleton { position: absolute; z-index: 0; inset: 0; border-radius: 9999px; }
+.cooking-ingredient-avatar.is-loading::after { position: absolute; z-index: 2; inset: 4px; border: 2px solid hsl(var(--primary) / 0.18); border-top-color: hsl(var(--primary)); border-radius: 9999px; content: ""; animation: ingredient-image-loading 900ms linear infinite; }
+.cooking-ingredient-avatar img { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+.cooking-ingredient-avatar.is-ready img { animation: ingredient-image-in 180ms ease-out forwards; }
+.cooking-ingredient-fallback { position: relative; z-index: 1; }
+.cooking-ingredient-ready { position: absolute; z-index: 4; inset: 0; display: grid; place-items: center; background: hsl(var(--primary) / 0.78); color: hsl(var(--primary-foreground)); }
+@keyframes ingredient-image-loading { to { transform: rotate(1turn); } }
 @keyframes ingredient-image-in { to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .cooking-ingredient-avatar img { animation: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cooking-ingredient-skeleton, .cooking-ingredient-avatar.is-loading::after { animation: none; } .cooking-ingredient-avatar.is-ready img { animation: none; opacity: 1; } }
 .cooking-ingredient[aria-pressed="true"] .cooking-ingredient-avatar { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .cooking-ingredient strong { min-width: 0; overflow: hidden; color: hsl(var(--on-surface)); font-size: 0.875rem; text-overflow: ellipsis; white-space: nowrap; }
 .cooking-ingredient small { min-width: 0; color: hsl(var(--on-surface-variant)); line-height: 1.35; overflow-wrap: anywhere; }

@@ -52,6 +52,50 @@ describe("cooking mode", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("keeps the ingredient skeleton visible until the browser image load event", async () => {
+    let resolveImage: ((value: { key: string; imageUrl: string }) => void) | undefined;
+    state.requestIngredientImage.mockImplementation(() => new Promise((resolve) => { resolveImage = resolve; }));
+
+    render(<CookingMode recipeId={7} />);
+    expect(await screen.findByText("里脊肉")).toBeInTheDocument();
+    await waitFor(() => expect(state.requestIngredientImage).toHaveBeenCalled());
+
+    const avatar = screen.getByText("里").closest(".cooking-ingredient-avatar");
+    expect(avatar).toHaveAttribute("aria-busy", "true");
+    expect(avatar).toHaveClass("is-loading");
+    expect(screen.getByText("正在生成里脊肉图片")).toHaveClass("sr-only");
+
+    resolveImage?.({ key: "a".repeat(64), imageUrl: "/api/ingredient-images/generated" });
+    const image = await screen.findByTestId("ingredient-image-ingredient-0");
+    expect(image).toHaveAttribute("src", "/api/ingredient-images/generated");
+    expect(avatar).toHaveAttribute("aria-busy", "true");
+    fireEvent.load(image);
+    expect(avatar).toHaveAttribute("aria-busy", "false");
+    expect(avatar).not.toHaveClass("is-loading");
+    fireEvent.error(image);
+    expect(screen.queryByTestId("ingredient-image-ingredient-0")).not.toBeInTheDocument();
+    expect(avatar).toHaveAttribute("aria-busy", "false");
+    expect(avatar).toHaveClass("is-failed");
+    expect(screen.getByText("里")).toBeInTheDocument();
+  });
+
+  it("toggles all ingredients ready and then clears the whole selection", async () => {
+    render(<CookingMode recipeId={7} />);
+    expect(await screen.findByText("里脊肉")).toBeInTheDocument();
+
+    const ingredient = screen.getByText("里脊肉").closest("button");
+    expect(ingredient).not.toBeNull();
+    expect(screen.getByRole("button", { name: "全部勾选" })).toHaveAttribute("aria-pressed", "false");
+    expect(ingredient).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(screen.getByRole("button", { name: "全部勾选" }));
+    expect(ingredient).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "取消全选" }));
+    expect(ingredient).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "全部勾选" })).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("observes the complete ingredient card within the horizontal rail", async () => {
     const observe = vi.fn();
     let options: IntersectionObserverInit | undefined;
