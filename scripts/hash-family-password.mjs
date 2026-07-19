@@ -1,4 +1,5 @@
 import { randomBytes, scrypt } from "node:crypto";
+import { pathToFileURL } from "node:url";
 
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
@@ -13,15 +14,17 @@ function derive(password, salt) {
   });
 }
 
-async function readMaskedPassword() {
-  const input = process.stdin;
+export async function readMaskedPassword({
+  input = process.stdin,
+  stderr = process.stderr,
+} = {}) {
   if (!input.isTTY || typeof input.setRawMode !== "function") {
     throw new Error("该命令需要在交互式终端中运行");
   }
 
   const previousRawMode = input.isRaw;
   let password = "";
-  process.stderr.write("请输入家庭密码：");
+  stderr.write("请输入家庭密码：");
   input.setEncoding("utf8");
   input.setRawMode(true);
 
@@ -50,14 +53,14 @@ async function readMaskedPassword() {
             if (characters.length > 0) {
               characters.pop();
               password = characters.join("");
-              process.stderr.write("\b \b");
+              stderr.write("\b \b");
             }
             continue;
           }
           if (character.codePointAt(0) < 32) continue;
 
           password += character;
-          process.stderr.write("*");
+          stderr.write("*");
         }
       };
 
@@ -70,13 +73,17 @@ async function readMaskedPassword() {
       input.setRawMode(Boolean(previousRawMode));
     } finally {
       input.pause();
-      process.stderr.write("\n");
+      stderr.write("\n");
     }
   }
 }
 
-async function main() {
-  const password = await readMaskedPassword();
+export async function runHashFamilyPassword({
+  input = process.stdin,
+  stdout = process.stdout,
+  stderr = process.stderr,
+} = {}) {
+  const password = await readMaskedPassword({ input, stderr });
   const passwordLength = Array.from(password).length;
   if (passwordLength < MIN_PASSWORD_LENGTH || passwordLength > MAX_PASSWORD_LENGTH) {
     throw new Error("家庭密码必须为 8–128 个字符");
@@ -84,11 +91,14 @@ async function main() {
 
   const salt = randomBytes(SCRYPT_SALT_LENGTH);
   const digest = await derive(password, salt);
-  process.stdout.write(`scrypt$${salt.toString("base64url")}$${digest.toString("base64url")}\n`);
+  stdout.write(`scrypt$${salt.toString("base64url")}$${digest.toString("base64url")}\n`);
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : "生成家庭密码摘要失败";
-  process.stderr.write(`${message}\n`);
-  process.exitCode = 1;
-});
+const entryPath = process.argv[1];
+if (entryPath && import.meta.url === pathToFileURL(entryPath).href) {
+  runHashFamilyPassword().catch((error) => {
+    const message = error instanceof Error ? error.message : "生成家庭密码摘要失败";
+    process.stderr.write(`${message}\n`);
+    process.exitCode = 1;
+  });
+}
