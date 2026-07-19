@@ -145,10 +145,15 @@ describe("family auth primitives", () => {
     }
     limiter.recordFailure("203.0.113.7");
     expect(limiter.isBlocked("203.0.113.7")).toBe(true);
-    limiter.reset("203.0.113.7");
+    const blockedAt = now;
+    now = blockedAt + 15 * 60_000 - 1;
+    expect(limiter.isBlocked("203.0.113.7")).toBe(true);
+    now += 1;
     expect(limiter.isBlocked("203.0.113.7")).toBe(false);
+
     for (let attempt = 0; attempt < 5; attempt += 1) limiter.recordFailure("203.0.113.7");
-    now += 15 * 60_000;
+    expect(limiter.isBlocked("203.0.113.7")).toBe(true);
+    limiter.reset("203.0.113.7");
     expect(limiter.isBlocked("203.0.113.7")).toBe(false);
   });
 
@@ -171,10 +176,11 @@ describe("family auth primitives", () => {
     now += 1;
     for (let attempt = 0; attempt < 5; attempt += 1) limiter.recordFailure(oldestBlockedKey);
     expect(limiter.isBlocked(oldestBlockedKey)).toBe(true);
-    for (let index = 0; index < 1_000; index += 1) {
-      now += 1;
+    for (let index = 0; index < 999; index += 1) {
       limiter.recordFailure(`capacity-key-${index}`);
     }
+    expect(limiter.isBlocked(oldestBlockedKey)).toBe(true);
+    limiter.recordFailure("capacity-key-999");
     expect(limiter.isBlocked(oldestBlockedKey)).toBe(false);
   });
 
@@ -232,6 +238,35 @@ describe("family auth primitives", () => {
       readMaskedPassword({ input, stderr: stderr.stream }),
     ).rejects.toThrow("已取消");
     expect(input.rawModes).toEqual([true, false]);
+    expect(input.paused).toBe(true);
+  });
+
+  it("rejects four emoji in the CLI by Unicode code-point length", async () => {
+    const fourEmoji = "😀😀😀😀";
+    expect(fourEmoji.length).toBe(8);
+    expect(Array.from(fourEmoji)).toHaveLength(4);
+    const input = new FakeTty([`${fourEmoji}\r`]);
+    const stdout = createCapture();
+    const stderr = createCapture();
+
+    await expect(
+      runHashFamilyPassword({ input, stdout: stdout.stream, stderr: stderr.stream }),
+    ).rejects.toThrow("家庭密码必须为 8–128 个字符");
+    expect(stderr.read()).toContain("****");
+    expect(stderr.read()).not.toContain(fourEmoji);
+    expect(stdout.read()).toBe("");
+  });
+
+  it("restores an initially enabled raw mode after cancellation", async () => {
+    const input = new FakeTty(["\u0004"]);
+    input.isRaw = true;
+    const stderr = createCapture();
+
+    await expect(
+      readMaskedPassword({ input, stderr: stderr.stream }),
+    ).rejects.toThrow("已取消");
+    expect(input.rawModes).toEqual([true, true]);
+    expect(input.isRaw).toBe(true);
     expect(input.paused).toBe(true);
   });
 
