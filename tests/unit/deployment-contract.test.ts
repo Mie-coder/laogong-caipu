@@ -266,25 +266,61 @@ describe("persistent deployment contract", () => {
     }
   });
 
-  it("respects an exclusive backup-writer lock and releases only its own lock", async () => {
+  it("blocks on a crash-stale backup lock until an operator removes the verified lock", async () => {
     const fixture = await createFixture();
     const writerLock = join(fixture.backupRoot, ".backup-data.lock");
     try {
-      await mkdir(writerLock);
-      await writeFile(join(writerLock, "owner"), "another backup process");
+      const staleMetadata = `${JSON.stringify({
+        owner: "stale-backup-owner",
+        pid: 4242,
+        startedAt: "2026-07-18T00:00:00.000Z"
+      })}\n`;
+      await writeFile(writerLock, staleMetadata, { flag: "wx", mode: 0o600 });
 
       await expect(
         runBackup({ ...fixture, kind: "daily", now: "2026-07-19T08:00:00.000Z" })
       ).rejects.toMatchObject({ stderr: "Backup failed\n" });
       expect(await namesIn(fixture.backupRoot)).toEqual([".backup-data.lock"]);
-      await expect(readFile(join(writerLock, "owner"), "utf8")).resolves.toBe("another backup process");
+      await expect(readFile(writerLock, "utf8")).resolves.toBe(staleMetadata);
 
-      await rm(writerLock, { recursive: true });
+      await rm(writerLock);
       await expect(
         runBackup({ ...fixture, kind: "daily", now: "2026-07-19T09:00:00.000Z" })
       ).resolves.toMatchObject({ stderr: "" });
       expect(await namesIn(fixture.backupRoot)).toEqual(["daily-2026-07-19T09-00-00-000Z.sqlite"]);
     } finally {
+      await rm(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not unlink a replacement lock when ownership changes before release", async () => {
+    const fixture = await createFixture();
+    const writerLock = join(fixture.backupRoot, ".backup-data.lock");
+    const priorExitCode = process.exitCode;
+    try {
+      const backupModule = await import("../../scripts/backup-data.mjs");
+      process.exitCode = priorExitCode;
+      expect(backupModule.withBackupWriterLock).toBeTypeOf("function");
+
+      const replacementMetadata = `${JSON.stringify({
+        owner: "replacement-owner",
+        pid: 5252,
+        startedAt: "2026-07-19T10:00:00.000Z"
+      })}\n`;
+      await expect(
+        backupModule.withBackupWriterLock(fixture.backupRoot, async () => {
+          const heldMetadata = JSON.parse(await readFile(writerLock, "utf8"));
+          expect(heldMetadata).toMatchObject({ pid: process.pid });
+          expect(heldMetadata.owner).toMatch(/^[0-9a-f-]{36}$/);
+          expect(new Date(heldMetadata.startedAt).toISOString()).toBe(heldMetadata.startedAt);
+
+          await rm(writerLock);
+          await writeFile(writerLock, replacementMetadata, { flag: "wx", mode: 0o600 });
+        })
+      ).rejects.toThrow("backup lock ownership changed");
+      await expect(readFile(writerLock, "utf8")).resolves.toBe(replacementMetadata);
+    } finally {
+      process.exitCode = priorExitCode;
       await rm(fixture.root, { recursive: true, force: true });
     }
   });
@@ -432,6 +468,28 @@ describe("persistent deployment contract", () => {
     expect(publishEnvironment).toBeGreaterThan(createTemporaryFile);
   });
 
+  it("documents fail-closed stale backup-lock recovery without age-based deletion", async () => {
+    const runbook = await readFile(join(projectRoot, "docs", "deployment", "cloud-server.md"), "utf8");
+    const backupSection = runbook.slice(runbook.indexOf("## 5."), runbook.indexOf("## 6."));
+    const pauseCron = backupSection.indexOf("laogong-caipu-backup.disabled");
+    const verifyOneOff = backupSection.indexOf("com.docker.compose.oneoff=True", pauseCron);
+    const verifyProcess = backupSection.indexOf("pgrep -af", verifyOneOff);
+    const inspectMetadata = backupSection.indexOf(".backup-data.lock", verifyProcess);
+    const removeStaleLock = backupSection.indexOf('rm -- backups/.backup-data.lock', inspectMetadata);
+    const restoreCron = backupSection.indexOf("laogong-caipu-backup.disabled", removeStaleLock);
+
+    expect(backupSection).toContain("不得仅根据锁文件时间");
+    expect(backupSection).toContain("不含密钥");
+    for (const step of [pauseCron, verifyOneOff, verifyProcess, inspectMetadata, removeStaleLock, restoreCron]) {
+      expect(step).toBeGreaterThan(-1);
+    }
+    expect(pauseCron).toBeLessThan(verifyOneOff);
+    expect(verifyOneOff).toBeLessThan(verifyProcess);
+    expect(verifyProcess).toBeLessThan(inspectMetadata);
+    expect(inspectMetadata).toBeLessThan(removeStaleLock);
+    expect(removeStaleLock).toBeLessThan(restoreCron);
+  });
+
   it("documents fail-fast deployment and stopped-app assertions before destructive recovery", async () => {
     const runbook = await readFile(join(projectRoot, "docs", "deployment", "cloud-server.md"), "utf8");
     const upgrade = runbook.slice(runbook.indexOf("## 6."), runbook.indexOf("## 7."));
@@ -481,14 +539,50 @@ describe("persistent deployment contract", () => {
     }
   });
 
-  it("validates the canonical persistent image destination before install and rsync", async () => {
+  it("stages a locked canonical image source only after backup and a checked app stop", async () => {
     const runbook = await readFile(join(projectRoot, "docs", "deployment", "cloud-server.md"), "utf8");
     const imageRestore = runbook.slice(runbook.indexOf("### 图片恢复"), runbook.indexOf("## 单实例"));
+    const weeklyBackup = imageRestore.indexOf("npm run backup -- --kind weekly");
+    const stop = imageRestore.indexOf("docker compose stop app", weeklyBackup);
     const stopAssertion = imageRestore.indexOf(
       "\nassert_app_stopped\n",
-      imageRestore.indexOf("docker compose stop app")
+      stop
     );
-    const dataRoot = imageRestore.indexOf("DATA_ROOT=/srv/laogong-caipu/data", stopAssertion);
+    const backupRoot = imageRestore.indexOf("BACKUP_ROOT=/srv/laogong-caipu/backups", stopAssertion);
+    const backupSource = imageRestore.indexOf('BACKUP_SOURCE="$BACKUP_ROOT/$IMAGE_BACKUP"', backupRoot);
+    const backupRootTypeGuard = imageRestore.indexOf(
+      '[[ ! -L "$BACKUP_ROOT" && -d "$BACKUP_ROOT" ]]',
+      backupSource
+    );
+    const backupRootRealpath = imageRestore.indexOf(
+      'backup_root_real="$(realpath -e -- "$BACKUP_ROOT")"',
+      backupRootTypeGuard
+    );
+    const backupRootExactGuard = imageRestore.indexOf(
+      '[[ "$backup_root_real" == "$BACKUP_ROOT" ]]',
+      backupRootRealpath
+    );
+    const lockBackupRoot = imageRestore.indexOf('chown root:root -- "$backup_root_real"', backupRootExactGuard);
+    const sourceTypeGuard = imageRestore.indexOf(
+      '[[ ! -L "$BACKUP_SOURCE" && -d "$BACKUP_SOURCE" ]]',
+      lockBackupRoot
+    );
+    const sourceRealpath = imageRestore.indexOf(
+      'source_real="$(realpath -e -- "$BACKUP_SOURCE")"',
+      sourceTypeGuard
+    );
+    const sourceExactGuard = imageRestore.indexOf(
+      '[[ "$source_real" == "$BACKUP_ROOT/$IMAGE_BACKUP" ]]',
+      sourceRealpath
+    );
+    const lockSource = imageRestore.indexOf('chown root:root -- "$source_real"', sourceExactGuard);
+    const nestedSymlinkGuard = imageRestore.indexOf('find "$source_real" -type l', lockSource);
+    const staging = imageRestore.indexOf(
+      'restore_source="$(mktemp -d /srv/laogong-caipu/.restore-staging.XXXXXX)"',
+      nestedSymlinkGuard
+    );
+    const copySource = imageRestore.indexOf('cp -a -- "$source_real/." "$restore_source/"', staging);
+    const dataRoot = imageRestore.indexOf("DATA_ROOT=/srv/laogong-caipu/data", copySource);
     const rootTypeGuard = imageRestore.indexOf('[[ ! -L "$DATA_ROOT" && -d "$DATA_ROOT" ]]', dataRoot);
     const rootRealpath = imageRestore.indexOf('data_root_real="$(realpath -e -- "$DATA_ROOT")"', rootTypeGuard);
     const rootExactGuard = imageRestore.indexOf('[[ "$data_root_real" == "$DATA_ROOT" ]]', rootRealpath);
@@ -515,6 +609,22 @@ describe("persistent deployment contract", () => {
     );
 
     for (const boundary of [
+      weeklyBackup,
+      stop,
+      stopAssertion,
+      backupRoot,
+      backupSource,
+      backupRootTypeGuard,
+      backupRootRealpath,
+      backupRootExactGuard,
+      lockBackupRoot,
+      sourceTypeGuard,
+      sourceRealpath,
+      sourceExactGuard,
+      lockSource,
+      nestedSymlinkGuard,
+      staging,
+      copySource,
       dataRoot,
       rootTypeGuard,
       rootRealpath,
@@ -528,7 +638,22 @@ describe("persistent deployment contract", () => {
     ]) {
       expect(boundary).toBeGreaterThan(-1);
     }
-    expect(stopAssertion).toBeLessThan(dataRoot);
+    expect(weeklyBackup).toBeLessThan(stop);
+    expect(stop).toBeLessThan(stopAssertion);
+    expect(stopAssertion).toBeLessThan(backupRoot);
+    expect(backupRoot).toBeLessThan(backupSource);
+    expect(backupSource).toBeLessThan(backupRootTypeGuard);
+    expect(backupRootTypeGuard).toBeLessThan(backupRootRealpath);
+    expect(backupRootRealpath).toBeLessThan(backupRootExactGuard);
+    expect(backupRootExactGuard).toBeLessThan(lockBackupRoot);
+    expect(lockBackupRoot).toBeLessThan(sourceTypeGuard);
+    expect(sourceTypeGuard).toBeLessThan(sourceRealpath);
+    expect(sourceRealpath).toBeLessThan(sourceExactGuard);
+    expect(sourceExactGuard).toBeLessThan(lockSource);
+    expect(lockSource).toBeLessThan(nestedSymlinkGuard);
+    expect(nestedSymlinkGuard).toBeLessThan(staging);
+    expect(staging).toBeLessThan(copySource);
+    expect(copySource).toBeLessThan(dataRoot);
     expect(dataRoot).toBeLessThan(rootTypeGuard);
     expect(rootTypeGuard).toBeLessThan(rootRealpath);
     expect(rootRealpath).toBeLessThan(rootExactGuard);
@@ -538,6 +663,8 @@ describe("persistent deployment contract", () => {
     expect(installGenerated).toBeLessThan(generatedRealpath);
     expect(generatedRealpath).toBeLessThan(generatedExactGuard);
     expect(generatedExactGuard).toBeLessThan(destructiveSync);
+    expect(imageRestore).not.toContain("mktemp -d backups/");
+    expect(imageRestore).not.toContain('cp -a -- "backups/$IMAGE_BACKUP/."');
     expect(imageRestore).not.toContain('rsync -a --delete "$restore_source/" data/generated/');
   });
 });

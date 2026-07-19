@@ -1,7 +1,8 @@
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
-import { cp, link, lstat, mkdir, readdir, rename, rm, rmdir, stat } from "node:fs/promises";
+import { cp, link, lstat, mkdir, open, readdir, rename, rm, stat, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const KINDS = new Set(["daily", "weekly", "predeploy"]);
 const DATABASE_RETENTION = { daily: 7, weekly: 4, predeploy: 3 };
@@ -52,15 +53,37 @@ async function assertDestinationAbsent(destination) {
   throw new Error("backup destination already exists");
 }
 
-async function withBackupWriterLock(backupRoot, action) {
+export async function withBackupWriterLock(backupRoot, action) {
   const writerLock = join(backupRoot, ".backup-data.lock");
-  let lockHeld = false;
+  let lockHandle;
   try {
-    await mkdir(writerLock, { mode: 0o700 });
-    lockHeld = true;
+    lockHandle = await open(writerLock, "wx", 0o600);
+    await lockHandle.writeFile(
+      `${JSON.stringify({ owner: randomUUID(), pid: process.pid, startedAt: new Date().toISOString() })}\n`,
+      "utf8"
+    );
     return await action();
   } finally {
-    if (lockHeld) await rmdir(writerLock);
+    if (lockHandle) {
+      let releaseFailure;
+      try {
+        const heldLock = await lockHandle.stat();
+        const currentLock = await lstat(writerLock);
+        if (heldLock.dev !== currentLock.dev || heldLock.ino !== currentLock.ino) {
+          throw new Error("backup lock ownership changed");
+        }
+        await unlink(writerLock);
+      } catch (error) {
+        releaseFailure = error;
+      }
+
+      try {
+        await lockHandle.close();
+      } catch (error) {
+        if (!releaseFailure) releaseFailure = error;
+      }
+      if (releaseFailure) throw releaseFailure;
+    }
   }
 }
 
@@ -143,13 +166,15 @@ async function main() {
   });
 }
 
-try {
-  await main();
-} catch (error) {
-  if (error instanceof Error && error.message === "usage") {
-    console.error("Usage: npm run backup -- --kind daily|weekly|predeploy");
-  } else {
-    console.error("Backup failed");
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    await main();
+  } catch (error) {
+    if (error instanceof Error && error.message === "usage") {
+      console.error("Usage: npm run backup -- --kind daily|weekly|predeploy");
+    } else {
+      console.error("Backup failed");
+    }
+    process.exitCode = 1;
   }
-  process.exitCode = 1;
 }

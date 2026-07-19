@@ -273,6 +273,35 @@ CRON
 sudo chmod 0644 /etc/cron.d/laogong-caipu-backup
 ```
 
+### 备份锁故障恢复
+
+备份进程用 `backups/.backup-data.lock` 串行化目标检查、发布和保留清理。锁文件只记录随机 owner、容器内 PID 和开始时间，不含密钥。进程崩溃可能留下 stale lock；这是 fail-closed 状态，**不得仅根据锁文件时间自动删除**，也不要在仍有备份运行时删除。先暂停 cron，再确认没有 Compose one-off 容器或宿主机备份进程，检查元数据后只删除已确认的 stale lock：
+
+```bash
+sudo bash <<'BASH'
+set -Eeuo pipefail
+mv /etc/cron.d/laogong-caipu-backup /etc/cron.d/laogong-caipu-backup.disabled
+cd /srv/laogong-caipu/app
+active_oneoffs="$(docker ps -q \
+  --filter label=com.docker.compose.oneoff=True)"
+if [[ -n "$active_oneoffs" ]]; then
+  printf '%s\n' '仍有 Compose one-off 容器运行；禁止删除备份锁。' >&2
+  exit 1
+fi
+if pgrep -af 'backup-data\.mjs|npm run backup'; then
+  printf '%s\n' '仍有宿主机备份进程运行；禁止删除备份锁。' >&2
+  exit 1
+fi
+[[ -f backups/.backup-data.lock && ! -L backups/.backup-data.lock ]]
+sed -n '1p' backups/.backup-data.lock
+read -r -p '确认上一行仅含 owner、pid、startedAt，且对应进程已不存在；输入 verified 继续：' confirmation
+[[ "$confirmation" == verified ]]
+rm -- backups/.backup-data.lock
+mv /etc/cron.d/laogong-caipu-backup.disabled /etc/cron.d/laogong-caipu-backup
+docker compose run --rm --no-deps app npm run backup -- --kind daily
+BASH
+```
+
 ## 6. 发布升级与回滚
 
 每段命令都在明确的 Bash fail-fast subshell 中运行。任一 predeploy、Git、build、stop、启动或健康检查失败都会立即停止后续步骤；不要从失败行之后手工“接着跑”。把 `main` 换成实际发布分支。
@@ -407,7 +436,7 @@ BASH
 
 ### 图片恢复
 
-图片恢复也严格校验目录名并拒绝 symlink。脚本先把选中的来源复制到隐藏 staging，再在线执行一次 weekly 安全备份；只有 stop 和 stopped assertion 都成功，且真实持久化根目录与 generated 目录通过类型和 canonical path 校验后，才执行 `rsync --delete`。校验针对 `/srv/laogong-caipu/data`，不会把仓库中的 `app/data` symlink 当成持久化根目录。恢复期间会把真实持久化根目录临时改为 root 所有，以阻止 UID 10001 在校验与同步之间替换 generated；成功后才恢复应用所有权。如果失败，app 保持停止，错误消息会给出 staging 位置供人工恢复，不会自动继续或自动启动。
+图片恢复先在线执行 weekly 安全备份，再 stop 并检查所有 app 容器确实停止。停机断言通过后，脚本才校验真实 `/srv/laogong-caipu/backups` 根目录和选中的图片来源、临时收紧其所有权、拒绝顶层或嵌套 symlink，并复制到 root 所有的 `/srv/laogong-caipu/.restore-staging.*`；不会信任 app 可写的 `backups/` 内 staging。目标校验针对 `/srv/laogong-caipu/data`，不会把仓库中的 `app/data` symlink 当成持久化根目录。来源和目标在校验与复制/同步期间保持 root 所有，以阻止 UID 10001 替换路径；成功后才恢复应用所有权。如果停机后的任一步失败，app 保持停止，staging 及被保护目录的状态会保留供人工恢复，不会自动继续或自动启动。
 
 ```bash
 sudo bash <<'BASH'
@@ -416,6 +445,8 @@ cd /srv/laogong-caipu/app
 IMAGE_BACKUP=weekly-images-REPLACE_WITH_TIMESTAMP
 recovery_started=0
 restore_source=""
+backup_root_real=""
+source_real=""
 assert_app_stopped() {
   local ids id running
   ids="$(docker compose ps -a -q app)" || return
@@ -429,7 +460,7 @@ on_error() {
   local status=$?
   if [[ "$recovery_started" -eq 1 ]]; then
     docker compose stop app >/dev/null 2>&1 || true
-    printf '图片恢复失败：app 保持停止；staging 保留在 %s，请人工检查后恢复。\n' "$restore_source" >&2
+    printf '图片恢复失败：app 保持停止；staging=%s，backups/source/data 可能保持 root 所有，请人工检查后恢复。\n' "${restore_source:-<未创建>}" >&2
   else
     printf '图片恢复在修改前失败；如已创建 staging，它保留在 %s，请人工检查。\n' "$restore_source" >&2
   fi
@@ -438,18 +469,41 @@ on_error() {
 trap on_error ERR
 
 [[ "$IMAGE_BACKUP" =~ ^weekly-images-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z$ ]]
-test -d "backups/$IMAGE_BACKUP"
-if find "backups/$IMAGE_BACKUP" -type l -print -quit | grep -q .; then
-  printf '%s\n' 'image backup contains a symlink and was rejected' >&2
-  exit 1
-fi
-umask 077
-restore_source="$(mktemp -d backups/.image-restore-source.XXXXXX)"
-cp -a -- "backups/$IMAGE_BACKUP/." "$restore_source/"
 docker compose run --rm --no-deps app npm run backup -- --kind weekly
 docker compose stop app
 recovery_started=1
 assert_app_stopped
+BACKUP_ROOT=/srv/laogong-caipu/backups
+BACKUP_SOURCE="$BACKUP_ROOT/$IMAGE_BACKUP"
+[[ ! -L "$BACKUP_ROOT" && -d "$BACKUP_ROOT" ]] || {
+  printf '%s\n' 'persistent backup root must be a real directory, not a symlink' >&2
+  exit 1
+}
+backup_root_real="$(realpath -e -- "$BACKUP_ROOT")"
+[[ "$backup_root_real" == "$BACKUP_ROOT" ]] || {
+  printf '%s\n' 'persistent backup root resolved outside its canonical path' >&2
+  exit 1
+}
+chown root:root -- "$backup_root_real"
+chmod 0750 -- "$backup_root_real"
+[[ ! -L "$BACKUP_SOURCE" && -d "$BACKUP_SOURCE" ]] || {
+  printf '%s\n' 'image backup source must be a real directory, not a symlink' >&2
+  exit 1
+}
+source_real="$(realpath -e -- "$BACKUP_SOURCE")"
+[[ "$source_real" == "$BACKUP_ROOT/$IMAGE_BACKUP" ]] || {
+  printf '%s\n' 'image backup source resolved outside the persistent backup root' >&2
+  exit 1
+}
+chown root:root -- "$source_real"
+chmod 0750 -- "$source_real"
+if find "$source_real" -type l -print -quit | grep -q .; then
+  printf '%s\n' 'image backup contains a symlink and was rejected' >&2
+  exit 1
+fi
+umask 077
+restore_source="$(mktemp -d /srv/laogong-caipu/.restore-staging.XXXXXX)"
+cp -a -- "$source_real/." "$restore_source/"
 DATA_ROOT=/srv/laogong-caipu/data
 GENERATED_PATH="$DATA_ROOT/generated"
 [[ ! -L "$DATA_ROOT" && -d "$DATA_ROOT" ]] || {
@@ -483,9 +537,13 @@ chown -R 10001:10001 -- "$generated_real"
 chown 10001:10001 -- "$data_root_real"
 docker compose up -d app
 curl --fail --silent --show-error http://127.0.0.1:3000/api/health
-recovery_started=0
 rm -rf -- "$restore_source"
 restore_source=""
+chown 10001:10001 -- "$source_real"
+chown 10001:10001 -- "$backup_root_real"
+source_real=""
+backup_root_real=""
+recovery_started=0
 unset IMAGE_BACKUP
 trap - ERR
 BASH
