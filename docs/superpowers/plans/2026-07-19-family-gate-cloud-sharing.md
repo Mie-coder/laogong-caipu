@@ -22,7 +22,9 @@
 - SQLite 必须启用 `foreign_keys=ON`、`journal_mode=WAL`、`busy_timeout=5000`，并保持单实例写入。
 - 通用交互复用 shadcn/ui；家庭解锁和退出操作保留 `data-press-feedback="apple"`，Reduced Motion 下不增加强动效。
 - 云部署目录必须持久化 SQLite 与 `data/generated`；每日数据库备份保留 7 份，每周图片备份保留 4 份。
-- 反向代理必须传递外部 `Host`/HTTPS 协议，并以连接来源覆盖（而非追加信任）`X-Forwarded-For`，使同源写入校验与登录限流在公网代理后仍成立。
+- 反向代理必须覆盖外部 `Host`、`X-Forwarded-Host`、`X-Forwarded-Proto`，并以连接来源覆盖（而非追加信任）`X-Forwarded-For`；应用只在该 loopback 可信代理边界内以首个 forwarded host/proto 解析公网 origin，缺失、不完整或非法值必须 fail closed。
+- 备份保留只匹配工具生成的完整 UTC timestamp 名称，发布目标不得覆盖已有文件；升级、回滚和恢复命令必须 fail fast，且任何数据替换或 `rsync --delete` 前必须以可失败的 Compose 查询和逐容器 inspect 证明 app 已停止。
+- 当前 Node.js 20、Next.js 14.2.35 与未处置 runtime audit findings 明确阻断公网部署；本计划只交付单实例配置契约，支持版本迁移、真实 Docker/代理/恢复演练另行验收。
 - 只执行每个任务的定向测试；所有任务完成后才运行一次 lint、一次 build 和一次完整测试集。
 - 保留用户未跟踪的 `DESIGN.md`、`docs/ui-concepts/09-12`、`.playwright-cli/` 与全部 `output/` 证据，不得删除、覆盖或纳入提交。
 
@@ -325,7 +327,7 @@ const PasswordSchema = z.string().refine((password) => {
 const LoginSchema = z.object({ password: PasswordSchema }).strict();
 ```
 
-Derive the limiter key from the proxy-overwritten first `x-forwarded-for` value, otherwise `x-real-ip`, otherwise `unknown`; trim it to 128 characters. Compare `Origin` to `new URL(request.url).origin`. On success set the Cookie using `NextResponse.json(...).cookies.set` with the exact attributes in Global Constraints. In production set `secure: true`; tests and local HTTP may set it based on `NODE_ENV === "production"`.
+Derive the limiter key from the proxy-overwritten first `x-forwarded-for` value, otherwise `x-real-ip`, otherwise `unknown`; trim it to 128 characters. Resolve the public request origin from the first trusted `x-forwarded-proto` plus first trusted `x-forwarded-host` (fall back to `Host` only when forwarded host is absent); without forwarded headers, validate the HTTP(S) origin from `request.url`. Reject incomplete, malformed or unsafe proxy values, then compare `Origin` to that resolved public origin. On success set the Cookie using `NextResponse.json(...).cookies.set` with the exact attributes in Global Constraints. In production set `secure: true`; tests and local HTTP may set it based on `NODE_ENV === "production"`.
 
 - [ ] **Step 5: Implement the family gate and Next middleware**
 
@@ -335,7 +337,7 @@ Derive the limiter key from the proxy-overwritten first `x-forwarded-for` value,
 2. Fail closed when `FAMILY_SESSION_SECRET` is absent or its UTF-8 encoding is shorter than 32 bytes.
 3. Verify `request.cookies.get(FAMILY_COOKIE_NAME)?.value`.
 4. Return `NextResponse.next()` for a valid session.
-5. For a valid session on `POST`, `PUT`, `PATCH` or `DELETE`, require `Origin` to equal `request.nextUrl.origin`; otherwise return JSON 403 before the business route runs.
+5. For a valid session on `POST`, `PUT`, `PATCH` or `DELETE`, require `Origin` to equal the same validated public request origin used by login/logout; otherwise return JSON 403 before the business route runs. Anonymous page redirects must also be constructed from this public origin while keeping `next` as a sanitized same-site relative path.
 6. Return JSON 401 for protected `/api/` paths.
 7. Redirect protected pages to `/unlock?next=<encoded pathname+search>`.
 
@@ -658,10 +660,10 @@ Run `npm install --package-lock-only` after editing `package.json`, then confirm
 
 1. Read `DATABASE_PATH` (default `./data/laogong-caipu.sqlite`) and `BACKUP_ROOT` (default `./backups`).
 2. Accept only `--kind daily|weekly|predeploy`.
-3. Open the source read-only, run `db.backup(destination)` and close in `finally`.
+3. Open the source read-only, back up through a unique partial path, publish without replacing an existing destination, remove partial artifacts in `finally`, and close the database in `finally`.
 4. Name database backups `<kind>-YYYY-MM-DDTHH-mm-ss-sssZ.sqlite`.
-5. Retain newest 7 `daily-*`, newest 4 `weekly-*`, and newest 3 `predeploy-*` database files.
-6. For `weekly`, copy `<dirname(DATABASE_PATH)>/generated` to `weekly-images-<timestamp>/` via `fs.cp(..., { recursive: true })` and retain newest 4 directories.
+5. Retain newest 7 `daily-*`, newest 4 `weekly-*`, and newest 3 `predeploy-*` database files only when the complete filename matches the exact tool timestamp shape; lookalike/operator files must never enter retention or be deleted.
+6. For `weekly`, copy `<dirname(DATABASE_PATH)>/generated` through a unique partial directory to `weekly-images-<timestamp>/`, refuse destination collisions, clean partial failures, and retain newest 4 exact-name directories.
 7. Use `BACKUP_NOW` only when `NODE_ENV=test`; production always uses the real current time.
 8. Print only created paths and counts; never print environment values.
 
@@ -703,12 +705,13 @@ Adapt the config filename to the repository's real `next.config.mjs`. Compose us
 `docs/deployment/cloud-server.md` must contain exact copy/paste sections for:
 
 1. Creating `/srv/laogong-caipu/{app,data,backups}` with a dedicated system user.
-2. Generating `FAMILY_PASSWORD_HASH` and a 32-byte base64 session secret without echoing them into shell history where possible. Because the scrypt hash contains `$`, its `.env.production` value must be single-quoted so Compose does not interpolate it.
-3. Creating a mode-600 `.env.production` with `DATABASE_PATH=/app/data/laogong-caipu.sqlite` and existing AI variables, without printing secret values.
+2. Generating `FAMILY_PASSWORD_HASH` on a trusted development machine and receiving it through hidden TTY input on a pure-Docker server; validate the canonical scrypt encoding and a 32-byte-or-longer session secret without printing either. Because the scrypt hash contains `$`, its `.env.production` value must be single-quoted so Compose does not interpolate it.
+3. Atomically creating a root-owned mode-600 `.env.production` only after all validation succeeds, with `DATABASE_PATH=/app/data/laogong-caipu.sqlite` and existing AI variables, without printing secret values.
 4. `docker compose build`, `docker compose up -d`, health check and log commands.
 5. A Caddy and an Nginx reverse-proxy example for HTTPS; both replace `recipes.example.com` with the user's real domain, proxy only to `127.0.0.1:3000`, preserve the external host/protocol, and overwrite `X-Forwarded-For` from the trusted connection rather than accepting a client-supplied chain.
-6. Daily/weekly cron commands, predeploy backup, upgrade, rollback and restore validation.
+6. Daily/weekly cron commands, predeploy backup, and fail-fast upgrade/rollback/restore blocks. Destructive restore steps must follow a successful stop plus a separately checked Compose enumeration and per-container stopped assertion; post-stop failure keeps the app stopped for manual recovery.
 7. Explicit warning that a second app replica must not mount and write the same SQLite file.
+8. Explicit public-readiness blocker for unsupported Node/Next versions and outstanding runtime audit findings; do not claim real deployment or production readiness without the separate migration and live infrastructure drill.
 
 Update README so cloud sharing is documented without claiming that a remote server has already been modified.
 
