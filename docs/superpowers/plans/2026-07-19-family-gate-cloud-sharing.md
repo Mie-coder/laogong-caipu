@@ -107,10 +107,10 @@ Create `tests/unit/family-auth.test.ts` with these concrete cases:
 
 ```ts
 it("hashes and verifies a family password without storing plaintext", async () => {
-  const encoded = await hashFamilyPassword("两个人的长密码", Buffer.alloc(16, 7));
+  const encoded = await hashFamilyPassword("我们两个人的长密码", Buffer.alloc(16, 7));
   expect(encoded).toMatch(/^scrypt\$[A-Za-z0-9_-]+\$[A-Za-z0-9_-]+$/);
-  expect(encoded).not.toContain("两个人的长密码");
-  await expect(verifyFamilyPassword("两个人的长密码", encoded)).resolves.toBe(true);
+  expect(encoded).not.toContain("我们两个人的长密码");
+  await expect(verifyFamilyPassword("我们两个人的长密码", encoded)).resolves.toBe(true);
   await expect(verifyFamilyPassword("错误密码", encoded)).resolves.toBe(false);
   await expect(verifyFamilyPassword("任意", "损坏摘要")).resolves.toBe(false);
 });
@@ -163,7 +163,8 @@ function derive(password: string, salt: Buffer) {
 
 export async function verifyFamilyPassword(password: string, encoded: string) {
   const parsed = parseFamilyPasswordHash(encoded);
-  if (!parsed || password.length < 8 || password.length > 128) return false;
+  const characterCount = Array.from(password).length;
+  if (!parsed || characterCount < 8 || characterCount > 128) return false;
   const actual = await derive(password, parsed.salt);
   return actual.length === parsed.digest.length && timingSafeEqual(actual, parsed.digest);
 }
@@ -193,7 +194,7 @@ Store `{ failures: number; blockedUntil: number; touchedAt: number }` in a `Map`
 
 - [ ] **Step 6: Add the password hash command**
 
-Create `scripts/hash-family-password.mjs` with an interactive TTY prompt that switches stdin to raw mode and prints one mask character per entered character. Reject non-TTY interactive use, restore raw mode in `finally`, reject passwords outside 8–128 characters, write only the final `scrypt$...` value to stdout, and never echo or write the plaintext.
+Create `scripts/hash-family-password.mjs` with an interactive TTY prompt that switches stdin to raw mode and prints one mask character per entered character. Reject non-TTY interactive use, restore raw mode in `finally`, reject passwords outside 8–128 Unicode code points, write only the final `scrypt$...` value to stdout, and never echo or write the plaintext.
 
 Add:
 
@@ -399,9 +400,9 @@ Mock `next/navigation` and API client functions, then add:
 it("submits the family password once and returns to the protected page", async () => {
   unlockFamilyApi.mockResolvedValue({ ok: true });
   render(<UnlockForm returnTo="/recipes/7" />);
-  fireEvent.change(screen.getByLabelText("家庭密码"), { target: { value: "两个人的长密码" } });
+  fireEvent.change(screen.getByLabelText("家庭密码"), { target: { value: "我们两个人的长密码" } });
   fireEvent.click(screen.getByRole("button", { name: "进入老公菜谱" }));
-  await waitFor(() => expect(unlockFamilyApi).toHaveBeenCalledWith("两个人的长密码"));
+  await waitFor(() => expect(unlockFamilyApi).toHaveBeenCalledWith("我们两个人的长密码"));
   expect(replace).toHaveBeenCalledWith("/recipes/7");
   expect(refresh).toHaveBeenCalled();
 });
