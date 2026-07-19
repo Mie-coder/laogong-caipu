@@ -52,7 +52,8 @@ export function createIngredientImageGetHandler(imageService: IngredientImageSer
     const png = await imageService.read(key);
     if (!png) return apiError("not_found", "图片不存在", 404);
 
-    return new Response(png, {
+    const body = Uint8Array.from(png);
+    return new Response(body, {
       headers: {
         "content-type": "image/png",
         "cache-control": "public, max-age=31536000, immutable",
