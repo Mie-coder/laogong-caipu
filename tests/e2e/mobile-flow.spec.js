@@ -327,6 +327,7 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
 
   await page.getByRole("button", { name: /确认图片（3）/ }).click();
   await expect(page.getByRole("heading", { name: "确认菜谱" })).toBeVisible();
+  expect(await page.locator(".recipe-confirm-name").evaluate((element) => getComputedStyle(element).fontFamily)).toContain("Noto Serif SC Variable");
   expect(await page.getByTestId("recipe-time-group").evaluate((element) => getComputedStyle(element).whiteSpace)).toBe("nowrap");
   await expect(page.getByRole("textbox", { name: "菜名" })).toHaveValue(new RegExp(`-${projectWidth(testInfo)}$`));
   await assertNoHorizontalOverflow(page);

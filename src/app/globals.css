@@ -2247,7 +2247,7 @@ select {
     border: 0;
     background: transparent;
     color: #211d1b;
-    font-family: Georgia, "Times New Roman", "Songti SC", serif;
+    font-family: var(--font-cn);
     font-size: 30px;
     font-weight: 700;
     line-height: 42px;
