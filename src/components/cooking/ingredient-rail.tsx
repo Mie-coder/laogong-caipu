@@ -13,7 +13,7 @@ type IngredientItem = {
 };
 
 function IngredientVisual({ ingredient, recipeId, kind, index, checked, railRef }: IngredientItem & { recipeId: number; checked: boolean; railRef: RefObject<HTMLDivElement> }) {
-  const cardRef = useRef<HTMLSpanElement>(null);
+  const avatarRef = useRef<HTMLSpanElement>(null);
   const requestedRef = useRef(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
@@ -31,7 +31,7 @@ function IngredientVisual({ ingredient, recipeId, kind, index, checked, railRef 
         .catch(() => { /* A fallback avatar keeps cooking usable when generation fails. */ });
     };
 
-    const card = cardRef.current;
+    const card = avatarRef.current?.closest<HTMLButtonElement>(".cooking-ingredient");
     const rail = railRef.current;
     if (!card || !rail || typeof IntersectionObserver === "undefined") {
       load();
@@ -52,7 +52,7 @@ function IngredientVisual({ ingredient, recipeId, kind, index, checked, railRef 
     };
   }, [index, kind, railRef, recipeId]);
 
-  return <span ref={cardRef} className={`cooking-ingredient-avatar ${imageUrl ? "has-image" : ""}`}><span className="cooking-ingredient-fallback" aria-hidden="true">{ingredient.name.slice(0, 1)}</span>{imageUrl ? <img data-testid={`ingredient-image-${kind}-${index}`} src={imageUrl} alt="" aria-hidden="true" /> : null}{checked ? <span className="cooking-ingredient-ready"><Check aria-hidden="true" /></span> : null}</span>;
+  return <span ref={avatarRef} className={`cooking-ingredient-avatar ${imageUrl ? "has-image" : ""}`}><span className="cooking-ingredient-fallback" aria-hidden="true">{ingredient.name.slice(0, 1)}</span>{imageUrl ? <img data-testid={`ingredient-image-${kind}-${index}`} src={imageUrl} alt="" aria-hidden="true" /> : null}{checked ? <span className="cooking-ingredient-ready"><Check aria-hidden="true" /></span> : null}</span>;
 }
 
 export function IngredientRail({ recipe }: { recipe: RecipeDetail }) {

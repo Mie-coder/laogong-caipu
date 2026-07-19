@@ -33,6 +33,30 @@ describe("cooking mode", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("observes the complete ingredient card within the horizontal rail", async () => {
+    const observe = vi.fn();
+    let options: IntersectionObserverInit | undefined;
+    const IntersectionObserverMock = vi.fn(function (_callback: IntersectionObserverCallback, nextOptions?: IntersectionObserverInit) {
+      options = nextOptions;
+      return { observe, disconnect: vi.fn(), takeRecords: vi.fn(() => []), unobserve: vi.fn() };
+    });
+    vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);
+
+    try {
+      render(<CookingMode recipeId={7} />);
+      expect(await screen.findByText("里脊肉")).toBeInTheDocument();
+      await waitFor(() => expect(observe).toHaveBeenCalledTimes(1));
+
+      const rail = document.querySelector<HTMLDivElement>(".cooking-ingredient-rail");
+      const card = rail?.querySelector<HTMLButtonElement>(".cooking-ingredient");
+      expect(card).not.toBeNull();
+      expect(observe).toHaveBeenCalledWith(card);
+      expect(options).toEqual({ root: rail, rootMargin: "0px 96px" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("requires an explicit guide confirmation before navigating into cooking mode", () => {
     render(<CookingGuideDrawer open recipe={recipe} onOpenChange={vi.fn()} />);
     expect(screen.getByRole("heading", { name: /准备好了吗？/ })).toBeInTheDocument();
