@@ -22,6 +22,7 @@
 - SQLite 必须启用 `foreign_keys=ON`、`journal_mode=WAL`、`busy_timeout=5000`，并保持单实例写入。
 - 通用交互复用 shadcn/ui；家庭解锁和退出操作保留 `data-press-feedback="apple"`，Reduced Motion 下不增加强动效。
 - 云部署目录必须持久化 SQLite 与 `data/generated`；每日数据库备份保留 7 份，每周图片备份保留 4 份。
+- 反向代理必须传递外部 `Host`/HTTPS 协议，并以连接来源覆盖（而非追加信任）`X-Forwarded-For`，使同源写入校验与登录限流在公网代理后仍成立。
 - 只执行每个任务的定向测试；所有任务完成后才运行一次 lint、一次 build 和一次完整测试集。
 - 保留用户未跟踪的 `DESIGN.md`、`docs/ui-concepts/09-12`、`.playwright-cli/` 与全部 `output/` 证据，不得删除、覆盖或纳入提交。
 
@@ -702,10 +703,10 @@ Adapt the config filename to the repository's real `next.config.mjs`. Compose us
 `docs/deployment/cloud-server.md` must contain exact copy/paste sections for:
 
 1. Creating `/srv/laogong-caipu/{app,data,backups}` with a dedicated system user.
-2. Generating `FAMILY_PASSWORD_HASH` and a 32-byte base64 session secret without echoing them into shell history where possible.
-3. Creating `.env.production` with `DATABASE_PATH=/app/data/laogong-caipu.sqlite` and existing AI variables.
+2. Generating `FAMILY_PASSWORD_HASH` and a 32-byte base64 session secret without echoing them into shell history where possible. Because the scrypt hash contains `$`, its `.env.production` value must be single-quoted so Compose does not interpolate it.
+3. Creating a mode-600 `.env.production` with `DATABASE_PATH=/app/data/laogong-caipu.sqlite` and existing AI variables, without printing secret values.
 4. `docker compose build`, `docker compose up -d`, health check and log commands.
-5. A Caddy and an Nginx reverse-proxy example for HTTPS; both replace `recipes.example.com` with the user's real domain and proxy only to `127.0.0.1:3000`.
+5. A Caddy and an Nginx reverse-proxy example for HTTPS; both replace `recipes.example.com` with the user's real domain, proxy only to `127.0.0.1:3000`, preserve the external host/protocol, and overwrite `X-Forwarded-For` from the trusted connection rather than accepting a client-supplied chain.
 6. Daily/weekly cron commands, predeploy backup, upgrade, rollback and restore validation.
 7. Explicit warning that a second app replica must not mount and write the same SQLite file.
 
