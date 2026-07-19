@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:family": "playwright test --config=playwright.family.config.cjs",
     "auth:hash": "node scripts/hash-family-password.mjs",
     "backup": "node scripts/backup-data.mjs"
   },
