@@ -1,7 +1,11 @@
 node_modules/
 .next/
 .env
+.env.*
+!.env.example
+.env.production
 data/
+backups/
 playwright-report/
 test-results/
 coverage

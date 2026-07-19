@@ -1,0 +1,17 @@
+.git/
+.gitignore
+.dockerignore
+.env*
+data/
+backups/
+output/
+.next/
+node_modules/
+playwright-report/
+test-results/
+coverage/
+.playwright-cli/
+.superpowers/
+docs/ui-concepts/
+*.sqlite
+npm-debug.log*

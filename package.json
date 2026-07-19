@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": ">=20.9 <21"
   },
   "scripts": {
     "dev": "next dev",
@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "auth:hash": "node scripts/hash-family-password.mjs"
+    "auth:hash": "node scripts/hash-family-password.mjs",
+    "backup": "node scripts/backup-data.mjs"
   },
   "dependencies": {
     "@fontsource-variable/noto-serif-sc": "5.2.10",
