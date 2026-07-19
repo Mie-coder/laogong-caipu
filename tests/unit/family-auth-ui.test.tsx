@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import fs from "node:fs";
+import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import UnlockPage from "@/app/unlock/page";
 import { FamilyMenu } from "@/components/auth/family-menu";
@@ -26,6 +28,14 @@ beforeEach(() => {
 });
 
 describe("family unlock UI", () => {
+  it("uses the canonical transaction page-title token instead of a display title", () => {
+    const css = fs.readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    const titleRule = css.match(/\.family-unlock-card h1\s*\{[^}]*\}/)?.[0] ?? "";
+
+    expect(titleRule).toContain("font-size: var(--type-page-title);");
+    expect(titleRule).not.toMatch(/font-size:\s*(?:2rem|var\(--type-display\))/);
+  });
+
   it("submits the family password once from the real form and returns to the protected page", async () => {
     unlockFamilyApi.mockResolvedValue({ ok: true });
     render(<UnlockForm returnTo="/recipes/7" />);
