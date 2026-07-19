@@ -53,6 +53,15 @@
 }
 
 :root {
+  --font-cn: "Noto Serif SC Variable", "Songti SC", STSong, serif;
+  --type-display: 2rem;
+  --type-page-title: 1.5rem;
+  --type-nav-title: 1.125rem;
+  --type-dish-title: 1.5rem;
+  --type-section-title: 1.25rem;
+  --type-body: 1rem;
+  --type-label: 0.875rem;
+  --type-chip: 0.8125rem;
   --color-bg: hsl(var(--canvas));
   --color-surface: hsl(var(--surface));
   --color-ink: hsl(var(--ink));
@@ -129,12 +138,7 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-text);
-  font-family:
-    "PingFang SC",
-    "Hiragino Sans GB",
-    "Microsoft YaHei",
-    system-ui,
-    sans-serif;
+  font-family: var(--font-cn);
   font-weight: 400;
   letter-spacing: 0;
 }
@@ -143,7 +147,7 @@ button,
 input,
 textarea,
 select {
-  font: inherit;
+  font-family: var(--font-cn);
 }
 
 @layer components {
@@ -162,9 +166,9 @@ select {
   .v3-home h1,
   .v3-list h1 {
     margin: 0;
-    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
-    font-size: 34px;
-    line-height: 1.1;
+    font-family: var(--font-cn);
+    font-size: var(--type-display);
+    line-height: 1.15;
     letter-spacing: -0.03em;
   }
 
@@ -1796,16 +1800,6 @@ select {
     background: #fffaf7;
   }
 
-  .import-parsing-step.is-done .import-parsing-step-marker {
-    background: #302520;
-    color: #ffffff;
-  }
-
-  .import-parsing-step.is-current .import-parsing-step-marker {
-    border: 6px solid #ff6258;
-    background: #fffaf7;
-  }
-
   .import-parsing-step-check {
     width: 27px;
     height: 27px;
@@ -2742,9 +2736,6 @@ main:has([data-transaction-screen="true"]) > .v3-bottom-nav { display: none; }
 .import-parsing-step:not(:last-child)::after { position: absolute; left: 1.6rem; top: 2rem; bottom: 0; width: 1px; background: hsl(var(--divider)); content: ""; }
 .import-parsing-step-marker { position: relative; z-index: 1; width: 3.25rem; }
 .import-parsing-step-marker > svg, .import-parsing-step-marker > span { width: 2rem; height: 2rem; border-width: 0.2rem; }
-.import-parsing-step.is-done .import-parsing-step-marker { color: hsl(var(--primary)); }
-.import-parsing-step.is-done .import-parsing-step-marker > svg { border-radius: 9999px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); padding: 0.35rem; }
-.import-parsing-step.is-current strong { color: hsl(var(--primary)); }
 .import-parsing-live-status { margin-top: auto; padding-top: 1rem; text-align: center; }
 .import-parsing-cancel { flex: 0 0 auto; margin-top: 1.5rem; min-height: 3.5rem; border-radius: 9999px; }
 
@@ -2789,24 +2780,37 @@ main:has([data-transaction-screen="true"]) > .v3-bottom-nav { display: none; }
 .recipe-confirm-footer { border-color: hsl(var(--divider)); background: hsl(var(--surface) / 0.96); padding: 0.75rem 1.25rem calc(env(safe-area-inset-bottom) + 0.75rem); }
 .recipe-confirm-submit { min-height: 3.25rem; border-radius: 9999px; background: hsl(var(--primary)); }
 
-/* Final 390px transaction-screen density pass. */
+/* Canonical transaction-screen typography and mobile density. */
+.import-parsing-title, .image-review-title, .recipe-confirm-header h1 { font-size: var(--type-page-title); line-height: 1.3; }
+.cooking-mode-header h1 { font-size: var(--type-nav-title); line-height: 1.35; }
+.recipe-confirm-name, .recipe-detail-v3-summary h1 { font-size: var(--type-dish-title); line-height: 1.3; }
+.recipe-confirm-section-title, .recipe-detail-v3 h2, .cooking-section-heading h2 { font-size: var(--type-section-title); line-height: 1.4; }
+
 .import-parsing-page { min-height: 100dvh; overflow: hidden; padding-top: 3rem; }
 .import-parsing-timeline { margin-top: 1.5rem !important; }
-.import-parsing-step { min-height: 4.75rem; }
-.import-parsing-step:not(:last-child)::after { left: 1.6rem; top: 2rem; }
-.import-parsing-step-marker { display: grid; place-items: start center; }
-.import-parsing-step-marker > svg, .import-parsing-step-marker > span { box-sizing: border-box; width: 2rem; height: 2rem; }
-.import-parsing-step.is-done .import-parsing-step-marker { width: 2rem; height: 2rem; border: 0; border-radius: 0; background: transparent; }
-.import-parsing-step.is-done .import-parsing-step-marker > svg { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); padding: 0.4rem; }
-.import-parsing-step.is-current .import-parsing-step-marker { width: 2rem; height: 2rem; border: 0.2rem solid hsl(var(--primary)); border-radius: 9999px; }
-.import-parsing-step.is-current .import-parsing-step-marker > svg { display: none; }
-.import-parsing-step.is-current .import-parsing-step-marker::after { width: 0.7rem; height: 0.7rem; border-radius: 9999px; background: hsl(var(--primary)); content: ""; }
-.import-parsing-step:not(.is-done):not(.is-current) .import-parsing-step-marker > span { border-color: hsl(var(--divider)); }
+.import-parsing-step { grid-template-columns: 36px minmax(0, 1fr); gap: 12px; min-height: 4.75rem; }
+.import-parsing-step:not(:last-child)::after { left: 18px; top: 32px; }
+.import-parsing-step-marker { display: grid; width: 36px; height: 36px; place-items: start center; border-radius: 0; background: transparent; }
+.import-parsing-step-node { position: relative; z-index: 1; display: grid; box-sizing: border-box; width: 32px; height: 32px; place-items: center; border: 1px solid hsl(var(--divider)); border-radius: 9999px; background: hsl(var(--canvas)); color: hsl(var(--primary)); }
+.import-parsing-step-node > svg { width: 16px; height: 16px; }
+.import-parsing-step.is-done .import-parsing-step-node { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.import-parsing-step.is-current .import-parsing-step-node { border: 3px solid hsl(var(--primary)); }
+.import-parsing-step strong { font-size: var(--type-body); line-height: 1.35; }
+.import-parsing-step small { font-size: var(--type-chip); line-height: 1.45; }
 .import-parsing-live-status { padding-bottom: 4.5rem; }
 .import-parsing-cancel { position: fixed; inset: auto 1.25rem calc(env(safe-area-inset-bottom) + 1.25rem); width: auto; z-index: 40; }
 
 .image-review-header { padding-top: 1.25rem; }
+.image-review-cover-pill { display: flex; align-items: center; justify-content: center; line-height: 1; }
+
 .recipe-confirm-header { padding-top: 1.5rem; }
+.recipe-confirm-summary { grid-template-columns: minmax(0, 1fr) 88px; }
+.recipe-confirm-cover { width: 88px; height: 88px; flex-basis: 88px; }
+.recipe-confirm-tag { min-height: 32px; padding: 4px 10px; font-size: var(--type-chip); line-height: 1.3; }
+.recipe-confirm-inline-metadata, .recipe-confirm-time-group { min-width: 0; }
+.recipe-confirm-time-group { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.recipe-confirm-time-group input { width: 3.5ch; min-width: 3.5ch; text-align: center; font-variant-numeric: tabular-nums; }
+.recipe-confirm-time-group > span { flex: 0 0 auto; }
 .recipe-confirm-section-heading { display: flex; align-items: center; justify-content: space-between; min-height: 2.75rem; }
 .recipe-confirm-section-heading .recipe-confirm-section-title { margin-bottom: 0; }
 .recipe-confirm-section-heading > button { color: hsl(var(--primary)); }

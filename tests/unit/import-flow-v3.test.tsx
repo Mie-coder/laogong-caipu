@@ -130,6 +130,7 @@ describe("ImportFlow V3 screens", () => {
     expect(screen.getByRole("heading", { name: "正在解析" })).toBeInTheDocument();
     expect(screen.getByText("来自小红书 · 丝瓜炒蛋")).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(4);
+    expect(document.querySelectorAll(".import-parsing-step-node")).toHaveLength(4);
     expect(screen.getByRole("status")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "取消解析" }));
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
@@ -165,11 +166,12 @@ describe("ImportFlow V3 screens", () => {
   });
 
   it("preserves confirmation edits and exposes metadata controls", () => {
-    const onChange = vi.fn(); render(<RecipeConfirmForm draft={draft} onChange={onChange} />);
+    const onChange = vi.fn(); render(<RecipeConfirmForm draft={{ ...draft, cookTimeMinutes: 15 }} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText("菜名"), { target: { value: "更新菜名" } });
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ name: "更新菜名" }));
     expect(screen.getByLabelText("烹饪时间")).toBeInTheDocument();
     expect(screen.getByLabelText("难度")).toBeInTheDocument();
+    expect(screen.getByTestId("recipe-time-group")).toHaveTextContent("15分钟");
   });
 
   it("renders closed tag chips with an add action and inline metadata", () => {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/noto-serif-sc/wght.css";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 

@@ -95,6 +95,9 @@ async function stubImport(page, options = {}) {
     }
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ imageUrls: IMAGE_URLS }) });
   });
+  await page.route("**/api/recipes/*/ingredient-images", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ key: "a".repeat(64), imageUrl: IMAGE_URLS[1] }) });
+  });
   return { parseCalls: () => parseCalls, filterCalls: () => filterCalls, releaseParse: () => releaseParse?.() };
 }
 
@@ -279,6 +282,7 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
   }));
   const calls = await stubImport(page, { gateParse: true, delayFilter: true, suffix: `-${projectWidth(testInfo)}` });
   await page.goto("/");
+  expect(await page.locator("body").evaluate((element) => getComputedStyle(element).fontFamily)).toContain("Noto Serif SC Variable");
   await expect(page.getByRole("heading", { name: "老公菜谱" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "底部导航" }).getByRole("link")).toHaveCount(2);
   await expect(page.getByRole("link", { name: "导入" })).toHaveAttribute("aria-current", "page");
@@ -295,6 +299,7 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
 
   await parseButton.click();
   await expect(page.getByRole("heading", { name: "正在解析", exact: true })).toBeVisible();
+  expect(await page.locator(".import-parsing-title").evaluate((element) => getComputedStyle(element).fontSize)).toBe("24px");
   for (const label of ["识别分享内容", "读取菜谱正文", "整理食材和步骤", "筛选菜谱图片"]) {
     await expect(page.getByText(label, { exact: true })).toBeVisible();
   }
@@ -302,6 +307,8 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
   calls.releaseParse();
 
   await expect(page.getByRole("heading", { name: "审核图片", exact: true })).toBeVisible();
+  expect(await page.locator(".image-review-title").evaluate((element) => getComputedStyle(element).fontSize)).toBe("24px");
+  expect(await page.locator(".image-review-cover-pill").evaluate((element) => ({ display: getComputedStyle(element).display, align: getComputedStyle(element).alignItems, justify: getComputedStyle(element).justifyContent }))).toEqual({ display: "flex", align: "center", justify: "center" });
   await expect(page.getByRole("button", { name: /取消选择第 .* 张图片/ })).toHaveCount(3);
   await expect(page.getByRole("button", { name: "关闭大图" })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
@@ -311,6 +318,7 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
 
   await page.getByRole("button", { name: /确认图片（3）/ }).click();
   await expect(page.getByRole("heading", { name: "确认菜谱" })).toBeVisible();
+  expect(await page.getByTestId("recipe-time-group").evaluate((element) => getComputedStyle(element).whiteSpace)).toBe("nowrap");
   await expect(page.getByRole("textbox", { name: "菜名" })).toHaveValue(new RegExp(`-${projectWidth(testInfo)}$`));
   await assertNoHorizontalOverflow(page);
   await screenshot(page, testInfo, "06-recipe-confirm.png");
@@ -353,6 +361,7 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
   await expect(page).toHaveURL(/\/recipes\/\d+\/cook$/);
   await expect(page.getByRole("heading", { name: new RegExp(LONG_NAME) })).toBeVisible();
   await expect(page.getByRole("button", { name: new RegExp(`取消收藏菜谱 .*-${projectWidth(testInfo)}`) })).toBeVisible();
+  await expect(page.getByTestId("ingredient-image-ingredient-0")).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await assertCookingContentGeometry(page);
   await assertCookingStepsClearFooter(page);
@@ -361,20 +370,24 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
   await page.getByRole("button", { name: "暂停计时" }).click();
   await page.getByRole("button", { name: "继续计时" }).click();
   await page.getByRole("button", { name: "结束计时" }).click();
-  const firstStep = page.getByRole("checkbox", { name: /完成第 1 步/ });
+  const firstStep = page.getByRole("button", { name: new RegExp(`完成第 1 步：${LONG_STEP}`) });
   await firstStep.click();
-  await expect(firstStep).toHaveAttribute("data-state", "checked");
+  await expect(firstStep.locator("xpath=..")).toHaveClass(/is-completed/);
+  expect(await firstStep.locator("p").evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe("line-through");
+  await expect(page.getByRole("heading", { name: "制作步骤" }).locator("..").locator("span")).toHaveText("1 / 2");
   await firstStep.click();
-  await expect(firstStep).toHaveAttribute("data-state", "unchecked");
+  await expect(firstStep.locator("xpath=..")).not.toHaveClass(/is-completed/);
   await firstStep.click();
   await page.getByRole("button", { name: "开启语音播报" }).click();
   await page.getByRole("button", { name: "播报第 1 步" }).click();
   expect(await page.evaluate(() => window.__speechCalls.spoken.at(-1))).toMatchObject({ lang: "zh-CN", text: LONG_STEP });
   const cancelBeforeStepChange = await page.evaluate(() => window.__speechCalls.cancel);
-  await page.getByRole("button", { name: "加入热水后继续炖煮，出锅前调味。" }).click();
+  const secondStep = page.getByRole("button", { name: "完成第 2 步：加入热水后继续炖煮，出锅前调味。" });
+  await secondStep.click();
   await expect.poll(() => page.evaluate(() => window.__speechCalls.cancel)).toBeGreaterThan(cancelBeforeStepChange);
-  await page.getByRole("checkbox", { name: /完成第 2 步/ }).click();
+  await expect(page.getByRole("heading", { name: "制作步骤" }).locator("..").locator("span")).toHaveText("2 / 2");
   await assertNoHorizontalOverflow(page);
+  expect(await page.locator(".cooking-mode-footer").evaluate((element) => getComputedStyle(element).flexWrap)).toBe("nowrap");
   await assertCookingContentGeometry(page);
   await assertCookingStepsClearFooter(page);
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -382,6 +395,8 @@ test("imports, favorites, cooks, and reviews with ten Stitch V3 screenshots", as
   await assertCookingStepsClearFooter(page);
   await page.getByRole("button", { name: "完成做菜" }).click();
   const saveReview = page.getByRole("button", { name: "保存复盘" });
+  expect(await page.locator(".cook-review-time-row").evaluate((element) => getComputedStyle(element).borderTopWidth)).toBe("0px");
+  expect(await page.locator(".cook-review-footer").evaluate((element) => getComputedStyle(element).borderTopWidth)).toBe("0px");
   await expect(saveReview).toBeDisabled();
   await page.getByRole("button", { name: "5 星，超好吃" }).click();
   await page.getByRole("textbox", { name: "老婆评价" }).fill("牛腩软烂，汤汁特别下饭");

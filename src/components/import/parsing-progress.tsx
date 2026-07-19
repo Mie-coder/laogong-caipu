@@ -19,7 +19,7 @@ export function ParsingProgress({ step, source, onCancel }: ParsingProgressProps
     <h1 className="import-parsing-title">正在解析</h1><p className="import-parsing-estimate">预计只需几秒钟</p><section className="import-parsing-source-card"><p>解析来源</p><strong>{source}</strong></section>
     <ol aria-label="解析进度" className="import-parsing-timeline mt-12 grid gap-6">
       {labels.map(([label, description], index) => <li key={label} data-testid="import-parsing-step" className={`import-parsing-step ${index < step ? "is-done" : ""} ${index === step ? "is-current" : ""}`}>
-        <span className="import-parsing-step-marker">{index < step ? <Check /> : index === step ? <LoaderCircle className={reduceMotion ? "text-primary" : "animate-spin text-primary"} /> : <span className="h-5 w-5 rounded-full border" />}</span><span><strong>{label}</strong><small>{description}</small></span>
+        <span className="import-parsing-step-marker"><span className="import-parsing-step-node">{index < step ? <Check /> : index === step ? <LoaderCircle className={reduceMotion ? "text-primary" : "animate-spin text-primary"} /> : null}</span></span><span><strong>{label}</strong><small>{description}</small></span>
       </li>)}
     </ol>
     <p role="status" className="import-parsing-live-status">正在安全保存你的输入，请稍候。</p>
