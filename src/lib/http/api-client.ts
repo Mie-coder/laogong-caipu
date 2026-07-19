@@ -38,6 +38,18 @@ export async function getRecipeApi(id: number, signal?: AbortSignal): Promise<{ 
 export function setRecipeFavoriteApi(id: number, isFavorite: boolean) {
   return requestJson(`/api/recipes/${id}/favorite`, RecipeFavoriteResponseSchema, { method: "PATCH", body: JSON.stringify({ isFavorite }) });
 }
+const IngredientImageResponseSchema = z.object({
+  key: z.string().regex(/^[a-f0-9]{64}$/),
+  imageUrl: z.string().min(1)
+});
+export function requestIngredientImageApi(recipeId: number, kind: "ingredient" | "seasoning", index: number, signal?: AbortSignal): Promise<{ key: string; imageUrl: string }> {
+  return requestJson(
+    `/api/recipes/${recipeId}/ingredient-images`,
+    IngredientImageResponseSchema,
+    { method: "POST", body: JSON.stringify({ kind, index }) },
+    signal
+  );
+}
 export function addCookingLogApi(id: number, input: { wifeFeedback: string; husbandImprovementNotes: string; notes: string; wifeRating: number }) { return requestJson(`/api/recipes/${id}/cook`, z.object({ ok: z.literal(true) }), { method: "POST", body: JSON.stringify(input) }); }
 export function deleteRecipeApi(id: number) { return requestJson(`/api/recipes/${id}`, z.object({ ok: z.literal(true) }), { method: "DELETE" }); }
 export async function filterImages(imageUrls: string[], recipeName: string, signal?: AbortSignal): Promise<string[]> {

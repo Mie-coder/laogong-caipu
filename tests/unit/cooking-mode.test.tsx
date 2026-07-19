@@ -3,14 +3,35 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CookingGuideDrawer } from "@/components/cooking/cooking-guide-drawer";
 import { CookingMode } from "@/components/cooking/cooking-mode";
 
-const state = vi.hoisted(() => ({ push: vi.fn(), getRecipe: vi.fn(), addCookingLog: vi.fn(), setFavorite: vi.fn() }));
+const state = vi.hoisted(() => ({ push: vi.fn(), getRecipe: vi.fn(), addCookingLog: vi.fn(), setFavorite: vi.fn(), requestIngredientImage: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: state.push }) }));
-vi.mock("@/lib/http/api-client", () => ({ getRecipeApi: state.getRecipe, addCookingLogApi: state.addCookingLog, setRecipeFavoriteApi: state.setFavorite }));
+vi.mock("@/lib/http/api-client", () => ({ getRecipeApi: state.getRecipe, addCookingLogApi: state.addCookingLog, setRecipeFavoriteApi: state.setFavorite, requestIngredientImageApi: state.requestIngredientImage }));
 
 const recipe = { id: 7, name: "菠萝咕噜肉", mainCategory: "家常菜", coverImageUrl: null, imageUrls: [], cookedCount: 0, cookTimeMinutes: 30, difficulty: "easy", tags: [], latestWifeFeedback: "", wifeRating: 0, isFavorite: false, sourcePlatform: "xhs", sourceUrl: "", originalTitle: "", shareText: "", tips: "趁热吃", ingredients: [{ name: "里脊肉", amount: "500克", type: "ingredient" }], seasonings: [], steps: [{ order: 1, text: "切好里脊肉" }, { order: 2, text: "下锅翻炒" }], cookingLogs: [] };
 
 describe("cooking mode", () => {
-  beforeEach(() => { state.push.mockReset(); state.getRecipe.mockResolvedValue({ recipe }); state.addCookingLog.mockResolvedValue({ ok: true }); state.setFavorite.mockResolvedValue({ isFavorite: true }); window.sessionStorage.clear(); });
+  beforeEach(() => { state.push.mockReset(); state.getRecipe.mockReset(); state.addCookingLog.mockReset(); state.setFavorite.mockReset(); state.requestIngredientImage.mockReset(); state.getRecipe.mockResolvedValue({ recipe }); state.addCookingLog.mockResolvedValue({ ok: true }); state.setFavorite.mockResolvedValue({ isFavorite: true }); state.requestIngredientImage.mockResolvedValue({ key: "a".repeat(64), imageUrl: "/api/ingredient-images/cached" }); window.sessionStorage.clear(); });
+
+  it("loads a server-controlled image for a visible ingredient and keeps the text fallback", async () => {
+    state.requestIngredientImage.mockResolvedValue({ key: "a".repeat(64), imageUrl: "/api/ingredient-images/cached" });
+    render(<CookingMode recipeId={7} />);
+    expect(await screen.findByText("里脊肉")).toBeInTheDocument();
+    await waitFor(() => expect(state.requestIngredientImage).toHaveBeenCalledWith(7, "ingredient", 0, expect.any(AbortSignal)));
+    expect(await screen.findByTestId("ingredient-image-ingredient-0")).toHaveAttribute("src", "/api/ingredient-images/cached");
+    expect(screen.getByText("里")).toBeInTheDocument();
+  });
+
+  it("keeps the ingredient fallback available when image generation fails", async () => {
+    state.requestIngredientImage.mockRejectedValue(new Error("image unavailable"));
+    render(<CookingMode recipeId={7} />);
+
+    expect(await screen.findByText("里脊肉")).toBeInTheDocument();
+    await waitFor(() => expect(state.requestIngredientImage).toHaveBeenCalledWith(7, "ingredient", 0, expect.any(AbortSignal)));
+    expect(screen.getByText("500克")).toBeInTheDocument();
+    expect(screen.getByText("里")).toBeInTheDocument();
+    expect(screen.queryByTestId("ingredient-image-ingredient-0")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 
   it("requires an explicit guide confirmation before navigating into cooking mode", () => {
     render(<CookingGuideDrawer open recipe={recipe} onOpenChange={vi.fn()} />);
