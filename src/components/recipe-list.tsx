@@ -53,22 +53,30 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClick = useRef(false);
   const controller = useRef<AbortController | null>(null);
+  const successfulRequestKey = useRef<string | null>(null);
   const currentUrl = buildListUrl(query, filters, quickFilter);
+  const requestKey = JSON.stringify([query, filters.category, filters.tag, filters.difficulty]);
 
   const load = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
+    const preserveSnapshot = background && successfulRequestKey.current === requestKey;
     controller.current?.abort();
     const next = new AbortController();
     controller.current = next;
-    if (!background) { setLoading(true); setError(""); }
+    if (!preserveSnapshot) {
+      successfulRequestKey.current = null;
+      setLoading(true);
+      setError("");
+    }
     try {
       const result = await listRecipesApi({ query, category: filters.category, tag: filters.tag, difficulty: filters.difficulty }, next.signal);
       if (next.signal.aborted) return;
+      successfulRequestKey.current = requestKey;
       setRecipes(result.recipes);
       setSnapshot((current) => current.length ? current : result.recipes);
       setError("");
     } catch (cause) {
       if (next.signal.aborted) return;
-      if (background) {
+      if (preserveSnapshot) {
         toast.error("同步失败，已保留当前菜谱");
       } else {
         setRecipes([]);
@@ -77,7 +85,7 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
     } finally {
       if (!next.signal.aborted && controller.current === next) setLoading(false);
     }
-  }, [filters.category, filters.difficulty, filters.tag, query]);
+  }, [filters.category, filters.difficulty, filters.tag, query, requestKey]);
 
   useEffect(() => {
     void load();

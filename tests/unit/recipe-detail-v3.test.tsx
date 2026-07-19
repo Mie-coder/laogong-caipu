@@ -22,10 +22,12 @@ vi.mock("@/lib/http/api-client", () => ({
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function makeRecipe(overrides: Record<string, unknown> = {}) {
@@ -148,6 +150,10 @@ describe("Recipe detail V3", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("删除失败");
     expect(screen.getByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
     expect(state.push).not.toHaveBeenCalled();
+
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(state.getRecipe).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("status")).toHaveTextContent("删除失败");
   });
 
   it("marks all detail and review control paths for Apple pointer-down feedback", async () => {
@@ -187,7 +193,8 @@ describe("Recipe detail V3", () => {
     state.getRecipe
       .mockResolvedValueOnce({ recipe: makeRecipe({ cookedCount: 3 }) })
       .mockReturnValueOnce(refreshed.promise)
-      .mockRejectedValueOnce(new Error("offline"));
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ recipe: makeRecipe({ cookedCount: 5 }) });
     render(<RecipeDetail id={7} />);
     await screen.findByText(/做过 3 次/);
 
@@ -204,6 +211,49 @@ describe("Recipe detail V3", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("同步失败，已保留当前菜谱");
     expect(screen.getByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
     expect(screen.getByText(/做过 4 次/)).toBeInTheDocument();
+
+    now += 1_001;
+    act(() => window.dispatchEvent(new Event("focus")));
+    expect(await screen.findByText(/做过 5 次/)).toBeInTheDocument();
+    expect(screen.queryByText("同步失败，已保留当前菜谱")).not.toBeInTheDocument();
+  });
+
+  it("uses initial error semantics when focus replaces a pending first detail request and then fails", async () => {
+    const initial = deferred<{ recipe: ReturnType<typeof makeRecipe> }>();
+    const replacement = deferred<{ recipe: ReturnType<typeof makeRecipe> }>();
+    state.getRecipe.mockReturnValueOnce(initial.promise).mockReturnValueOnce(replacement.promise);
+    render(<RecipeDetail id={7} />);
+    await waitFor(() => expect(state.getRecipe).toHaveBeenCalledTimes(1));
+    const initialSignal = state.getRecipe.mock.calls[0]?.[1] as AbortSignal;
+
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(state.getRecipe).toHaveBeenCalledTimes(2));
+    expect(initialSignal.aborted).toBe(true);
+    act(() => replacement.reject(new Error("详情初始同步失败")));
+
+    expect(await screen.findByRole("heading", { name: "加载失败" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("详情初始同步失败");
+    expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
+  });
+
+  it("does not reuse a successful snapshot from a different recipe id", async () => {
+    const nextId = deferred<{ recipe: ReturnType<typeof makeRecipe> }>();
+    const replacement = deferred<{ recipe: ReturnType<typeof makeRecipe> }>();
+    state.getRecipe
+      .mockResolvedValueOnce({ recipe: makeRecipe({ id: 7, name: "旧详情" }) })
+      .mockReturnValueOnce(nextId.promise)
+      .mockReturnValueOnce(replacement.promise);
+    const { rerender } = render(<RecipeDetail id={7} />);
+    await screen.findByRole("heading", { name: "旧详情" });
+    rerender(<RecipeDetail id={8} />);
+    await waitFor(() => expect(state.getRecipe).toHaveBeenCalledTimes(2));
+
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(state.getRecipe).toHaveBeenCalledTimes(3));
+    act(() => replacement.reject(new Error("新详情同步失败")));
+
+    expect(await screen.findByRole("heading", { name: "加载失败" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("新详情同步失败");
   });
 
   it("ignores an older detail response after the recipe id changes", async () => {

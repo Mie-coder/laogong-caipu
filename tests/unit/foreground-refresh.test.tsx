@@ -34,12 +34,12 @@ describe("useForegroundRefresh", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
-  it("refreshes again after the minimum interval", () => {
+  it("refreshes again at the exact minimum interval boundary", () => {
     const refresh = vi.fn();
     render(<Probe refresh={refresh} minIntervalMs={1_000} />);
 
     act(() => document.dispatchEvent(new Event("visibilitychange")));
-    now += 1_001;
+    now += 1_000;
     act(() => window.dispatchEvent(new Event("focus")));
 
     expect(refresh).toHaveBeenCalledTimes(2);

@@ -314,6 +314,58 @@ describe("Stitch V3 recipe list contract", () => {
     expect(screen.queryByText("offline")).not.toBeInTheDocument();
   });
 
+  it("uses initial error semantics when focus replaces a pending first request and then fails", async () => {
+    const initial = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
+    const replacement = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
+    state.recipes.mockReturnValueOnce(initial.promise).mockReturnValueOnce(replacement.promise);
+    render(<RecipeList />);
+    await waitFor(() => expect(state.recipes).toHaveBeenCalledTimes(1));
+    const initialSignal = state.recipes.mock.calls[0]?.[1] as AbortSignal;
+
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(state.recipes).toHaveBeenCalledTimes(2));
+    expect(initialSignal.aborted).toBe(true);
+    act(() => replacement.reject(new Error("初始同步失败")));
+
+    expect(await screen.findByText("初始同步失败")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
+    expect(screen.queryByText("还没有菜谱")).not.toBeInTheDocument();
+    expect(state.toastError).not.toHaveBeenCalled();
+  });
+
+  it("does not reuse a successful snapshot from a different query for background failure semantics", async () => {
+    const changedQuery = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
+    const replacement = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
+    state.recipes
+      .mockResolvedValueOnce({ recipes: [recipe(1, { name: "旧查询菜谱" })] })
+      .mockReturnValueOnce(changedQuery.promise)
+      .mockReturnValueOnce(replacement.promise);
+    render(<RecipeList />);
+    await screen.findByRole("button", { name: "查看菜谱 旧查询菜谱" });
+    fireEvent.click(screen.getByRole("button", { name: "搜索" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "搜索菜名" }), { target: { value: "新查询" } });
+    await waitFor(() => expect(state.recipes).toHaveBeenCalledTimes(2));
+
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(state.recipes).toHaveBeenCalledTimes(3));
+    act(() => replacement.reject(new Error("新查询同步失败")));
+
+    expect(await screen.findByText("新查询同步失败")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "查看菜谱 旧查询菜谱" })).not.toBeInTheDocument();
+    expect(state.toastError).not.toHaveBeenCalled();
+  });
+
+  it("treats a successful empty list as the current query snapshot", async () => {
+    state.recipes.mockResolvedValueOnce({ recipes: [] }).mockRejectedValueOnce(new Error("offline"));
+    render(<RecipeList />);
+    expect(await screen.findByRole("link", { name: "去导入" })).toBeInTheDocument();
+
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(state.toastError).toHaveBeenCalledWith("同步失败，已保留当前菜谱"));
+    expect(screen.getByRole("link", { name: "去导入" })).toBeInTheDocument();
+    expect(screen.queryByText("offline")).not.toBeInTheDocument();
+  });
+
   it("aborts an older list refresh and ignores its late response", async () => {
     let now = 20_000;
     vi.spyOn(performance, "now").mockImplementation(() => now);

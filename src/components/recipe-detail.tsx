@@ -18,6 +18,7 @@ import type { RecipeDetail as RecipeDetailData } from "@/lib/domain/recipe-api";
 import { ApiError } from "@/lib/http/api-error";
 
 const LIST_RETURN_KEY = "recipe-list-return";
+const SYNC_FAILURE_NOTICE = "同步失败，已保留当前菜谱";
 
 function formatCookTime(minutes: number | null) { return minutes ? `${minutes} 分钟` : "时间未定"; }
 function formatCookedAt(value: string) {
@@ -45,23 +46,30 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
   const [activeTab, setActiveTab] = useState("ingredients");
   const controller = useRef<AbortController | null>(null);
   const loadGeneration = useRef(0);
+  const successfulRecipeId = useRef<number | null>(null);
 
   const load = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
+    const preserveRecipe = background && successfulRecipeId.current === id;
     controller.current?.abort();
     const next = new AbortController();
     controller.current = next;
     const generation = ++loadGeneration.current;
     try {
-      if (!background) setError(null);
+      if (!preserveRecipe) {
+        successfulRecipeId.current = null;
+        setError(null);
+      }
       const result = await getRecipeApi(id, next.signal);
       if (next.signal.aborted || generation !== loadGeneration.current) return;
+      successfulRecipeId.current = id;
       setRecipe(result.recipe);
       setError(null);
+      setNotice((current) => current === SYNC_FAILURE_NOTICE ? "" : current);
       setImageFailed(false);
     } catch (cause) {
       if (next.signal.aborted || generation !== loadGeneration.current) return;
-      if (background) {
-        setNotice("同步失败，已保留当前菜谱");
+      if (preserveRecipe) {
+        setNotice(SYNC_FAILURE_NOTICE);
       } else {
         setError({ message: cause instanceof Error ? cause.message : "加载失败，请重试", notFound: cause instanceof ApiError && (cause.code === "not_found" || cause.status === 404) });
       }
