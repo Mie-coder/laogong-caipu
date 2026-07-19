@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Check, MoreHorizontal, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RecipeCard } from "@/components/recipe-card";
+import { useForegroundRefresh } from "@/hooks/use-foreground-refresh";
 import type { RecipeSummary } from "@/lib/domain/recipe-api";
 import { deleteRecipeApi, listRecipesApi } from "@/lib/http/api-client";
 
@@ -53,31 +55,36 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
   const controller = useRef<AbortController | null>(null);
   const currentUrl = buildListUrl(query, filters, quickFilter);
 
-  async function load(signal?: AbortSignal) {
-    setLoading(true); setError("");
-    try {
-      const result = await listRecipesApi({ query, ...filters }, signal);
-      if (signal?.aborted) return;
-      setRecipes(result.recipes);
-      setSnapshot((current) => current.length ? current : result.recipes);
-    } catch (cause) {
-      if (signal?.aborted) return;
-      setRecipes([]);
-      setError(cause instanceof Error ? cause.message : "加载失败，请重试");
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }
-
-  useEffect(() => {
+  const load = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
     controller.current?.abort();
     const next = new AbortController();
     controller.current = next;
-    void load(next.signal);
-    return () => next.abort();
-  // Query and server filters deliberately trigger a new, cancellable request.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, filters.category, filters.tag, filters.difficulty]);
+    if (!background) { setLoading(true); setError(""); }
+    try {
+      const result = await listRecipesApi({ query, category: filters.category, tag: filters.tag, difficulty: filters.difficulty }, next.signal);
+      if (next.signal.aborted) return;
+      setRecipes(result.recipes);
+      setSnapshot((current) => current.length ? current : result.recipes);
+      setError("");
+    } catch (cause) {
+      if (next.signal.aborted) return;
+      if (background) {
+        toast.error("同步失败，已保留当前菜谱");
+      } else {
+        setRecipes([]);
+        setError(cause instanceof Error ? cause.message : "加载失败，请重试");
+      }
+    } finally {
+      if (!next.signal.aborted && controller.current === next) setLoading(false);
+    }
+  }, [filters.category, filters.difficulty, filters.tag, query]);
+
+  useEffect(() => {
+    void load();
+    return () => controller.current?.abort();
+  }, [load]);
+
+  useForegroundRefresh(() => { void load({ background: true }); });
 
   useEffect(() => { restored.current = false; }, [query, filters.category, filters.tag, filters.difficulty]);
   useEffect(() => { if (pathname === "/recipes") router.replace(buildListUrl(query, filters, quickFilter), { scroll: false }); }, [pathname, query, filters, quickFilter, router]);
@@ -132,7 +139,7 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
     <div className="v3-segmented" role="tablist" aria-label="菜谱分段"><Button role="tab" variant={view === "recipes" ? "secondary" : "ghost"} aria-selected={view === "recipes"} onClick={() => setView("recipes")}>菜谱</Button><Button role="tab" variant={view === "categories" ? "secondary" : "ghost"} aria-selected={view === "categories"} onClick={() => setView("categories")}>分类</Button></div>
     {view === "categories" ? <section className="v3-category-view" aria-label="菜谱分类">{categories.slice(1).map((item) => <Button key={item} variant="ghost" onClick={() => { setFilter("category", item); setView("recipes"); }}><span>{item}</span><span>{snapshot.filter((recipe) => recipe.mainCategory === item).length}</span></Button>)}</section> : <div className="v3-chips" aria-label="分类筛选"><Button variant="ghost" aria-pressed={quickFilter === "" && !filters.category && !filters.tag && !filters.difficulty && !query} className={!filters.category && !filters.tag && !filters.difficulty && !query ? "is-active" : ""} onClick={() => { setQuery(""); setQuickFilter(""); setFilters({ category: "", tag: "", difficulty: "" }); }}>全部</Button><Button variant="ghost" aria-pressed={quickFilter === "cooked"} className={quickFilter === "cooked" ? "is-active" : ""} onClick={() => setQuickFilter((value) => value === "cooked" ? "" : "cooked")}>最近做过</Button>{categories.slice(1).map((item) => <Button key={item} variant="ghost" aria-pressed={filters.category === item} className={filters.category === item ? "is-active" : ""} onClick={() => setFilter("category", item)}>{item}</Button>)}</div>}
     {loading && <div className="v3-list-loading">{[0, 1, 2].map((key) => <Skeleton key={key} aria-label="菜谱加载中" className="h-28 w-full" />)}</div>}
-    {!loading && error && <section className="v3-state"><p>{error}</p><Button variant="link" onClick={() => { controller.current?.abort(); const next = new AbortController(); controller.current = next; void load(next.signal); }}>重试</Button></section>}
+    {!loading && error && <section className="v3-state"><p>{error}</p><Button variant="link" onClick={() => void load()}>重试</Button></section>}
     {!loading && !error && visible.length === 0 && <section className="v3-state"><p>还没有菜谱</p><Button variant="link" asChild><Link href="/">去导入</Link></Button></section>}
     {!loading && !error && view === "recipes" && visible.length > 0 && <section className="v3-list-results" aria-label="菜谱列表">{visible.map((recipe, index) => <div key={recipe.id} className="v3-recipe-wrap" onPointerDown={() => startLongPress(recipe.id)} onPointerUp={clearLongPress} onPointerCancel={clearLongPress} onPointerLeave={clearLongPress}><RecipeCard recipe={recipe} fallbackImageUrl={`/stitch-v3/stitch-image-${["15", "14", "26", "01"][index % 4]}.jpg`} onOpen={() => openRecipe(recipe)} onFavoriteChanged={(isFavorite) => updateFavorite(recipe.id, isFavorite)} selected={selected.has(recipe.id)} onSelect={manage ? () => { if (suppressClick.current) { suppressClick.current = false; return; } toggleSelected(recipe.id); } : undefined} /></div>)}</section>}
     {deleteError && <p className="v3-delete-error" role="status">{deleteError}</p>}

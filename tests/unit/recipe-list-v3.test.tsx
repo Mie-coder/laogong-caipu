@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RecipeListResponseSchema } from "@/lib/domain/recipe-api";
 import { RecipeCard } from "@/components/recipe-card";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -11,7 +11,8 @@ const state = vi.hoisted(() => ({
   pathname: "/recipes",
   recipes: vi.fn(),
   remove: vi.fn(),
-  setFavorite: vi.fn()
+  setFavorite: vi.fn(),
+  toastError: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
@@ -25,6 +26,17 @@ vi.mock("@/lib/http/api-client", () => ({
   deleteRecipeApi: state.remove,
   setRecipeFavoriteApi: state.setFavorite
 }));
+vi.mock("sonner", () => ({ toast: { error: state.toastError } }));
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 function recipe(id: number, overrides: Record<string, unknown> = {}) {
   return { id, name: `菜谱 ${id}`, mainCategory: "家常菜", coverImageUrl: null, cookedCount: id, cookTimeMinutes: 30, difficulty: "easy", tags: ["快手"], latestWifeFeedback: "", wifeRating: 4, isFavorite: false, ...overrides };
@@ -38,8 +50,13 @@ beforeEach(() => {
   state.recipes.mockReset().mockResolvedValue({ recipes: [] });
   state.remove.mockReset().mockResolvedValue({ ok: true });
   state.setFavorite.mockReset().mockResolvedValue({ isFavorite: true });
+  state.toastError.mockReset();
   window.sessionStorage.clear();
   window.scrollTo = vi.fn();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("Stitch V3 recipe list contract", () => {
@@ -269,5 +286,58 @@ describe("Stitch V3 recipe list contract", () => {
       { query: "排骨", category: "", tag: "", difficulty: "easy" },
       expect.any(AbortSignal)
     );
+  });
+
+  it("refreshes in the foreground without hiding cards and keeps the last success on failure", async () => {
+    let now = 10_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const refreshed = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
+    state.recipes
+      .mockResolvedValueOnce({ recipes: [recipe(1, { name: "旧菜谱" })] })
+      .mockReturnValueOnce(refreshed.promise)
+      .mockRejectedValueOnce(new Error("offline"));
+    render(<RecipeList />);
+    await screen.findByRole("button", { name: "查看菜谱 旧菜谱" });
+
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    await waitFor(() => expect(state.recipes).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "查看菜谱 旧菜谱" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("菜谱加载中")).not.toBeInTheDocument();
+
+    act(() => refreshed.resolve({ recipes: [recipe(2, { name: "共享新菜谱" })] }));
+    expect(await screen.findByRole("button", { name: "查看菜谱 共享新菜谱" })).toBeInTheDocument();
+
+    now += 1_001;
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(state.toastError).toHaveBeenCalledWith("同步失败，已保留当前菜谱"));
+    expect(screen.getByRole("button", { name: "查看菜谱 共享新菜谱" })).toBeInTheDocument();
+    expect(screen.queryByText("offline")).not.toBeInTheDocument();
+  });
+
+  it("aborts an older list refresh and ignores its late response", async () => {
+    let now = 20_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const older = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
+    const latest = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
+    state.recipes
+      .mockResolvedValueOnce({ recipes: [recipe(1, { name: "初始菜谱" })] })
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(latest.promise);
+    render(<RecipeList />);
+    await screen.findByRole("button", { name: "查看菜谱 初始菜谱" });
+
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    await waitFor(() => expect(state.recipes).toHaveBeenCalledTimes(2));
+    const olderSignal = state.recipes.mock.calls[1]?.[1] as AbortSignal;
+    now += 1_001;
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(state.recipes).toHaveBeenCalledTimes(3));
+    expect(olderSignal.aborted).toBe(true);
+
+    act(() => latest.resolve({ recipes: [recipe(3, { name: "最新菜谱" })] }));
+    await screen.findByRole("button", { name: "查看菜谱 最新菜谱" });
+    act(() => older.resolve({ recipes: [recipe(2, { name: "过期菜谱" })] }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "查看菜谱 过期菜谱" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "查看菜谱 最新菜谱" })).toBeInTheDocument();
   });
 });

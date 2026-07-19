@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Ellipsis, PencilLine, Star, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -12,6 +12,7 @@ import { CookingGuideDrawer } from "@/components/cooking/cooking-guide-drawer";
 import { DIFFICULTY_LABELS } from "@/components/difficulty-stars";
 import { FavoriteButton } from "@/components/recipe/favorite-button";
 import { SkeletonCard } from "@/components/skeleton-card";
+import { useForegroundRefresh } from "@/hooks/use-foreground-refresh";
 import { addCookingLogApi, deleteRecipeApi, getRecipeApi } from "@/lib/http/api-client";
 import type { RecipeDetail as RecipeDetailData } from "@/lib/domain/recipe-api";
 import { ApiError } from "@/lib/http/api-error";
@@ -42,19 +43,40 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [activeTab, setActiveTab] = useState("ingredients");
+  const controller = useRef<AbortController | null>(null);
+  const loadGeneration = useRef(0);
 
-  async function load() {
+  const load = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
+    controller.current?.abort();
+    const next = new AbortController();
+    controller.current = next;
+    const generation = ++loadGeneration.current;
     try {
-      setError(null);
-      const result = await getRecipeApi(id);
+      if (!background) setError(null);
+      const result = await getRecipeApi(id, next.signal);
+      if (next.signal.aborted || generation !== loadGeneration.current) return;
       setRecipe(result.recipe);
+      setError(null);
       setImageFailed(false);
     } catch (cause) {
-      setError({ message: cause instanceof Error ? cause.message : "加载失败，请重试", notFound: cause instanceof ApiError && (cause.code === "not_found" || cause.status === 404) });
+      if (next.signal.aborted || generation !== loadGeneration.current) return;
+      if (background) {
+        setNotice("同步失败，已保留当前菜谱");
+      } else {
+        setError({ message: cause instanceof Error ? cause.message : "加载失败，请重试", notFound: cause instanceof ApiError && (cause.code === "not_found" || cause.status === 404) });
+      }
     }
-  }
+  }, [id]);
 
-  useEffect(() => { void load(); }, [id]);
+  useEffect(() => {
+    void load();
+    return () => {
+      loadGeneration.current += 1;
+      controller.current?.abort();
+    };
+  }, [load]);
+
+  useForegroundRefresh(() => { void load({ background: true }); });
 
   const heroImage = useMemo(() => recipe?.coverImageUrl ?? recipe?.imageUrls[0] ?? null, [recipe]);
   const prepItems = useMemo(() => recipe ? [...recipe.ingredients, ...recipe.seasonings] : [], [recipe]);

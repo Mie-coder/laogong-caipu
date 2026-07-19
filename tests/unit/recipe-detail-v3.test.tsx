@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FavoriteButton } from "@/components/recipe/favorite-button";
 import { RecipeDetail } from "@/components/recipe-detail";
 import { ApiError } from "@/lib/http/api-error";
@@ -20,6 +20,14 @@ vi.mock("@/lib/http/api-client", () => ({
   setRecipeFavoriteApi: state.setFavorite
 }));
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 function makeRecipe(overrides: Record<string, unknown> = {}) {
   return {
     id: 7, name: "番茄炖牛腩", mainCategory: "家常菜", coverImageUrl: "https://images.example/cover.jpg",
@@ -37,6 +45,10 @@ beforeEach(() => {
   window.sessionStorage.clear();
   state.getRecipe.mockResolvedValue({ recipe: makeRecipe() }); state.addCookingLog.mockResolvedValue({ ok: true }); state.deleteRecipe.mockResolvedValue({ ok: true }); state.setFavorite.mockResolvedValue({ isFavorite: true });
   Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("Recipe detail V3", () => {
@@ -166,5 +178,45 @@ describe("Recipe detail V3", () => {
     await waitFor(() => expect(state.getRecipe).toHaveBeenCalledTimes(3));
     expect(await screen.findByText("更下饭了")).toBeInTheDocument();
     expect(screen.getByText(/做过 4 次/)).toBeInTheDocument();
+  });
+
+  it("refreshes a visible detail without a skeleton and retains it with a notice on failure", async () => {
+    let now = 30_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const refreshed = deferred<{ recipe: ReturnType<typeof makeRecipe> }>();
+    state.getRecipe
+      .mockResolvedValueOnce({ recipe: makeRecipe({ cookedCount: 3 }) })
+      .mockReturnValueOnce(refreshed.promise)
+      .mockRejectedValueOnce(new Error("offline"));
+    render(<RecipeDetail id={7} />);
+    await screen.findByText(/做过 3 次/);
+
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    await waitFor(() => expect(state.getRecipe).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
+    expect(screen.getByText(/做过 3 次/)).toBeInTheDocument();
+
+    act(() => refreshed.resolve({ recipe: makeRecipe({ cookedCount: 4 }) }));
+    expect(await screen.findByText(/做过 4 次/)).toBeInTheDocument();
+
+    now += 1_001;
+    act(() => window.dispatchEvent(new Event("focus")));
+    expect(await screen.findByRole("status")).toHaveTextContent("同步失败，已保留当前菜谱");
+    expect(screen.getByRole("heading", { name: "番茄炖牛腩" })).toBeInTheDocument();
+    expect(screen.getByText(/做过 4 次/)).toBeInTheDocument();
+  });
+
+  it("ignores an older detail response after the recipe id changes", async () => {
+    const older = deferred<{ recipe: ReturnType<typeof makeRecipe> }>();
+    const latest = deferred<{ recipe: ReturnType<typeof makeRecipe> }>();
+    state.getRecipe.mockReturnValueOnce(older.promise).mockReturnValueOnce(latest.promise);
+    const { rerender } = render(<RecipeDetail id={7} />);
+    rerender(<RecipeDetail id={8} />);
+
+    act(() => latest.resolve({ recipe: makeRecipe({ id: 8, name: "新菜谱" }) }));
+    await screen.findByRole("heading", { name: "新菜谱" });
+    act(() => older.resolve({ recipe: makeRecipe({ id: 7, name: "过期菜谱" }) }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "过期菜谱" })).not.toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: "新菜谱" })).toBeInTheDocument();
   });
 });
