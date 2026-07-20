@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { RecipeListResponseSchema } from "@/lib/domain/recipe-api";
 import { RecipeCard } from "@/components/recipe-card";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -60,6 +62,14 @@ afterEach(() => {
 });
 
 describe("Stitch V3 recipe list contract", () => {
+  it("layers management controls above the fixed bottom navigation", () => {
+    const css = fs.readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    const manageZIndex = Number(css.match(/\.v3-manage\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
+    const navigationZIndex = Number(css.match(/\.v3-bottom-nav\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
+
+    expect(manageZIndex).toBeGreaterThan(navigationZIndex);
+  });
+
   it("normalizes a legacy list response to an explicit favorite state", () => {
     const result = RecipeListResponseSchema.parse({ recipes: [{
       id: 1, name: "菠萝咕噜肉", mainCategory: "家常菜", coverImageUrl: null,
