@@ -165,16 +165,24 @@ export function usePullToRefresh(options: {
       }
     };
 
+    const cancelGesture = () => {
+      resetGesture();
+      if (phaseRef.current === "pulling" || phaseRef.current === "ready") {
+        setCurrentPhase("idle");
+        springToZero();
+      }
+    };
+
     element.addEventListener("touchstart", onTouchStart);
     element.addEventListener("touchmove", onTouchMove, { passive: false });
     element.addEventListener("touchend", finishGesture);
-    element.addEventListener("touchcancel", finishGesture);
+    element.addEventListener("touchcancel", cancelGesture);
     return () => {
       unmounted.current = true;
       element.removeEventListener("touchstart", onTouchStart);
       element.removeEventListener("touchmove", onTouchMove);
       element.removeEventListener("touchend", finishGesture);
-      element.removeEventListener("touchcancel", finishGesture);
+      element.removeEventListener("touchcancel", cancelGesture);
       document.documentElement.classList.remove("has-pull-to-refresh");
       if (acknowledgement.current) clearTimeout(acknowledgement.current);
       acknowledgement.current = null;

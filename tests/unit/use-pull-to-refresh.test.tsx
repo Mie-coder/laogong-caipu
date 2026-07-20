@@ -104,6 +104,19 @@ describe("usePullToRefresh", () => {
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("success"));
   });
 
+  it("cancels an above-threshold pull without refreshing", () => {
+    const refresh = vi.fn().mockResolvedValue(true);
+    render(<Harness onRefresh={refresh} />);
+    const root = screen.getByTestId("pull-root");
+    fireEvent.touchStart(root, { touches: [{ clientX: 120, clientY: 100 }] });
+    fireEvent.touchMove(root, { touches: [{ clientX: 120, clientY: 180 }], cancelable: true });
+    expect(root).not.toHaveAttribute("data-pull-y", "0");
+    fireEvent.touchCancel(root, { changedTouches: [{ clientX: 120, clientY: 180 }] });
+    expect(refresh).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("idle");
+    expect(root).toHaveAttribute("data-pull-y", "0");
+  });
+
   it("shows an error acknowledgement when refresh returns false", async () => {
     vi.useFakeTimers();
     render(<Harness onRefresh={vi.fn().mockResolvedValue(false)} />);
