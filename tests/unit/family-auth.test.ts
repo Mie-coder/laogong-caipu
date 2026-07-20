@@ -88,6 +88,13 @@ describe("family auth primitives", () => {
     await expect(verifyFamilyPassword("任意", "损坏摘要")).resolves.toBe(false);
   });
 
+  it("hashes and verifies a five-character family password", async () => {
+    const password = "abcde";
+    const encoded = await hashFamilyPassword(password, Buffer.alloc(16, 5));
+
+    await expect(verifyFamilyPassword(password, encoded)).resolves.toBe(true);
+  });
+
   it("uses Unicode code points for password length and rejects malformed hashes", async () => {
     const fourEmoji = "😀😀😀😀";
     expect(fourEmoji.length).toBe(8);
@@ -230,6 +237,17 @@ describe("family auth primitives", () => {
     expect(stdout.read().trim().split("\n")).toHaveLength(1);
   });
 
+  it("hashes a five-character password through the CLI", async () => {
+    const input = new FakeTty(["abcde\r"]);
+    const stdout = createCapture();
+    const stderr = createCapture();
+
+    await runHashFamilyPassword({ input, stdout: stdout.stream, stderr: stderr.stream });
+
+    expect(stdout.read()).toMatch(/^scrypt\$[A-Za-z0-9_-]+\$[A-Za-z0-9_-]+\n$/);
+    expect(stdout.read()).not.toContain("abcde");
+  });
+
   it("restores raw mode when masked TTY input is cancelled", async () => {
     const input = new FakeTty(["\u0003"]);
     const stderr = createCapture();
@@ -251,7 +269,7 @@ describe("family auth primitives", () => {
 
     await expect(
       runHashFamilyPassword({ input, stdout: stdout.stream, stderr: stderr.stream }),
-    ).rejects.toThrow("家庭密码必须为 8–128 个字符");
+    ).rejects.toThrow("家庭密码必须为 5–128 个字符");
     expect(stderr.read()).toContain("****");
     expect(stderr.read()).not.toContain(fourEmoji);
     expect(stdout.read()).toBe("");

@@ -14,7 +14,7 @@ function derive(password: string, salt: Buffer) {
 
 function hasValidPasswordLength(password: string) {
   const length = Array.from(password).length;
-  return length >= 8 && length <= 128;
+  return length >= 5 && length <= 128;
 }
 
 function parseFamilyPasswordHash(encoded: string) {

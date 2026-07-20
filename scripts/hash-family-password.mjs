@@ -1,7 +1,7 @@
 import { randomBytes, scrypt } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 5;
 const MAX_PASSWORD_LENGTH = 128;
 const SCRYPT_SALT_LENGTH = 16;
 const SCRYPT_KEY_LENGTH = 64;
@@ -86,7 +86,7 @@ export async function runHashFamilyPassword({
   const password = await readMaskedPassword({ input, stderr });
   const passwordLength = Array.from(password).length;
   if (passwordLength < MIN_PASSWORD_LENGTH || passwordLength > MAX_PASSWORD_LENGTH) {
-    throw new Error("家庭密码必须为 8–128 个字符");
+    throw new Error("家庭密码必须为 5–128 个字符");
   }
 
   const salt = randomBytes(SCRYPT_SALT_LENGTH);
