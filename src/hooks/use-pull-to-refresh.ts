@@ -188,7 +188,7 @@ export function usePullToRefresh(options: {
       acknowledgement.current = null;
       stopAnimation();
     };
-  }, [refresh, setCurrentPhase, springToZero, stopAnimation]);
+  }, [pullY, refresh, setCurrentPhase, springToZero, stopAnimation]);
 
   return { containerRef, pullY, phase, refreshing, refresh };
 }
