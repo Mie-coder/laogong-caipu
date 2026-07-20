@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Check, MoreHorizontal, Plus, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowDown, Check, CircleAlert, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RecipeCard } from "@/components/recipe-card";
 import { useForegroundRefresh } from "@/hooks/use-foreground-refresh";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import type { RecipeSummary } from "@/lib/domain/recipe-api";
 import { deleteRecipeApi, listRecipesApi } from "@/lib/http/api-client";
 
@@ -69,19 +71,21 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
     }
     try {
       const result = await listRecipesApi({ query, category: filters.category, tag: filters.tag, difficulty: filters.difficulty }, next.signal);
-      if (next.signal.aborted) return;
+      if (next.signal.aborted) return false;
       successfulRequestKey.current = requestKey;
       setRecipes(result.recipes);
       setSnapshot((current) => current.length ? current : result.recipes);
       setError("");
+      return true;
     } catch (cause) {
-      if (next.signal.aborted) return;
+      if (next.signal.aborted) return false;
       if (preserveSnapshot) {
         toast.error("同步失败，已保留当前菜谱");
       } else {
         setRecipes([]);
         setError(cause instanceof Error ? cause.message : "加载失败，请重试");
       }
+      return false;
     } finally {
       if (!next.signal.aborted && controller.current === next) setLoading(false);
     }
@@ -93,6 +97,11 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
   }, [load]);
 
   useForegroundRefresh(() => { void load({ background: true }); });
+  const pull = usePullToRefresh({
+    disabled: loading,
+    onRefresh: () => load({ background: true }),
+    onEngage: clearLongPress
+  });
 
   useEffect(() => { restored.current = false; }, [query, filters.category, filters.tag, filters.difficulty]);
   useEffect(() => { if (pathname === "/recipes") router.replace(buildListUrl(query, filters, quickFilter), { scroll: false }); }, [pathname, query, filters, quickFilter, router]);
@@ -118,6 +127,14 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
   const categories = useMemo(() => ["全部", ...Array.from(new Set(snapshot.map((recipe) => recipe.mainCategory).filter(Boolean)))], [snapshot]);
   const tags = useMemo(() => ["全部", ...Array.from(new Set(snapshot.flatMap((recipe) => recipe.tags).filter(Boolean)))], [snapshot]);
   const difficulties = [["", "全部"], ["easy", "简单"], ["medium", "中等"], ["hard", "困难"]] as const;
+  const pullStatus = {
+    idle: { label: "下拉刷新", Icon: ArrowDown },
+    pulling: { label: "下拉刷新", Icon: ArrowDown },
+    ready: { label: "松开刷新", Icon: ArrowDown },
+    refreshing: { label: "正在同步", Icon: RefreshCw },
+    success: { label: "已更新", Icon: Check },
+    error: { label: "同步失败", Icon: CircleAlert }
+  }[pull.phase];
 
   function openRecipe(recipe: RecipeSummary) {
     if (suppressClick.current) { suppressClick.current = false; return; }
@@ -141,8 +158,10 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
   }
   function setFilter<K extends keyof Filters>(key: K, value: Filters[K]) { setFilters((old) => ({ ...old, [key]: value })); setDrawerOpen(false); }
 
-  return <main className="v3-list" data-testid="recipe-list-v3">
-    <header className="v3-list-header"><div><h1>我的菜谱</h1><p>收藏的每一道，都能认真做完</p><span className="sr-only">{`共 ${visible.length} 道`}</span></div><div className="v3-list-header-actions"><Button variant="ghost" size="icon" aria-label="搜索" className="v3-list-header-button" onClick={() => setSearchOpen((open) => !open)}><Search aria-hidden="true" /></Button><DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="更多" className="v3-list-header-button" onClick={() => setMoreOpen(true)}><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={() => { setManage(true); setMoreOpen(false); }}>管理菜谱</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></header>
+  return <main ref={pull.containerRef} className="v3-list" data-testid="recipe-list-v3" aria-busy={pull.refreshing}>
+    <div className={`v3-pull-indicator is-${pull.phase}`} role="status" aria-live="polite"><pullStatus.Icon aria-hidden="true" className={pull.phase === "refreshing" ? "is-spinning" : ""} /><span>{pullStatus.label}</span></div>
+    <motion.div className="v3-pull-surface" style={{ y: pull.pullY }}>
+    <header className="v3-list-header"><div><h1>我的菜谱</h1><p>收藏的每一道，都能认真做完</p><span className="sr-only">{`共 ${visible.length} 道`}</span></div><div className="v3-list-header-actions"><Button variant="ghost" size="icon" aria-label="搜索" className="v3-list-header-button" onClick={() => setSearchOpen((open) => !open)}><Search aria-hidden="true" /></Button><DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="更多" className="v3-list-header-button" onClick={() => setMoreOpen(true)}><MoreHorizontal aria-hidden="true" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem disabled={loading || pull.refreshing} onSelect={() => { setMoreOpen(false); void pull.refresh(); }}>刷新菜谱</DropdownMenuItem><DropdownMenuItem onSelect={() => { setManage(true); setMoreOpen(false); }}>管理菜谱</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></header>
     <div className={`v3-list-search ${searchOpen ? "is-open" : ""}`} aria-hidden={!searchOpen}><Search aria-hidden="true" /><Input aria-label="搜索菜名" placeholder="搜索菜名" value={query} onChange={(event) => setQuery(event.target.value)} /><Button variant="ghost" size="icon" aria-label="筛选" onClick={() => setDrawerOpen(true)}><SlidersHorizontal aria-hidden="true" /></Button></div>
     <div className="v3-segmented" role="tablist" aria-label="菜谱分段"><Button role="tab" variant={view === "recipes" ? "secondary" : "ghost"} aria-selected={view === "recipes"} onClick={() => setView("recipes")}>菜谱</Button><Button role="tab" variant={view === "categories" ? "secondary" : "ghost"} aria-selected={view === "categories"} onClick={() => setView("categories")}>分类</Button></div>
     {view === "categories" ? <section className="v3-category-view" aria-label="菜谱分类">{categories.slice(1).map((item) => <Button key={item} variant="ghost" onClick={() => { setFilter("category", item); setView("recipes"); }}><span>{item}</span><span>{snapshot.filter((recipe) => recipe.mainCategory === item).length}</span></Button>)}</section> : <div className="v3-chips" aria-label="分类筛选"><Button variant="ghost" aria-pressed={quickFilter === "" && !filters.category && !filters.tag && !filters.difficulty && !query} className={!filters.category && !filters.tag && !filters.difficulty && !query ? "is-active" : ""} onClick={() => { setQuery(""); setQuickFilter(""); setFilters({ category: "", tag: "", difficulty: "" }); }}>全部</Button><Button variant="ghost" aria-pressed={quickFilter === "cooked"} className={quickFilter === "cooked" ? "is-active" : ""} onClick={() => setQuickFilter((value) => value === "cooked" ? "" : "cooked")}>最近做过</Button>{categories.slice(1).map((item) => <Button key={item} variant="ghost" aria-pressed={filters.category === item} className={filters.category === item ? "is-active" : ""} onClick={() => setFilter("category", item)}>{item}</Button>)}</div>}
@@ -151,6 +170,7 @@ export function RecipeList({ category = "", tag = "" }: { category?: string; tag
     {!loading && !error && visible.length === 0 && <section className="v3-state"><p>还没有菜谱</p><Button variant="link" asChild><Link href="/">去导入</Link></Button></section>}
     {!loading && !error && view === "recipes" && visible.length > 0 && <section className="v3-list-results" aria-label="菜谱列表">{visible.map((recipe, index) => <div key={recipe.id} className="v3-recipe-wrap" onPointerDown={() => startLongPress(recipe.id)} onPointerUp={clearLongPress} onPointerCancel={clearLongPress} onPointerLeave={clearLongPress}><RecipeCard recipe={recipe} fallbackImageUrl={`/stitch-v3/stitch-image-${["15", "14", "26", "01"][index % 4]}.jpg`} onOpen={() => openRecipe(recipe)} onFavoriteChanged={(isFavorite) => updateFavorite(recipe.id, isFavorite)} selected={selected.has(recipe.id)} onSelect={manage ? () => { if (suppressClick.current) { suppressClick.current = false; return; } toggleSelected(recipe.id); } : undefined} /></div>)}</section>}
     {deleteError && <p className="v3-delete-error" role="status">{deleteError}</p>}
+    </motion.div>
     <Button asChild variant="outline" size="icon" className="v3-list-fab" aria-label="导入新菜谱"><Link href="/"><Plus aria-hidden="true" /></Link></Button>
     {manage && <aside className="v3-manage" aria-label="菜谱管理"><Checkbox aria-label="全选" checked={selected.size === recipes.length && recipes.length > 0} onCheckedChange={() => setSelected(selected.size === recipes.length ? new Set() : new Set(recipes.map((recipe) => recipe.id)))} /><span>{`已选 ${selected.size} 道`}</span><Button variant="ghost" size="icon" aria-label="退出管理" onClick={exitManagement}><X aria-hidden="true" /></Button><Button variant="destructive" disabled={selected.size === 0} onClick={() => setConfirmDelete(true)}><Trash2 aria-hidden="true" />删除已选</Button></aside>}
     <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>删除已选菜谱？</AlertDialogTitle><AlertDialogDescription>删除后无法恢复。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>取消</AlertDialogCancel><AlertDialogAction onClick={() => void deleteSelected()}>删除</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

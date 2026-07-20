@@ -133,6 +133,8 @@ html {
   background: var(--color-bg);
 }
 
+html.has-pull-to-refresh { overscroll-behavior-y: none; }
+
 body {
   min-height: 100%;
   margin: 0;
@@ -216,6 +218,14 @@ select {
   .v3-state p { margin: 0; }
 
   .v3-list { padding-top: 48px; }
+  .v3-pull-indicator { position: absolute; top: 10px; left: 50%; z-index: 1; display: inline-flex; min-height: 44px; align-items: center; gap: 6px; color: hsl(var(--on-surface-variant)); font-size: 13px; font-weight: 650; pointer-events: none; transform: translateX(-50%); }
+  .v3-pull-indicator svg { width: 18px; height: 18px; }
+  .v3-pull-indicator.is-ready { color: hsl(var(--primary)); }
+  .v3-pull-indicator.is-success { color: hsl(var(--primary)); }
+  .v3-pull-indicator.is-error { color: hsl(var(--destructive)); }
+  .v3-pull-indicator .is-spinning { animation: v3-pull-spin 0.35s linear infinite; }
+  .v3-pull-surface { position: relative; z-index: 2; }
+  @keyframes v3-pull-spin { to { transform: rotate(360deg); } }
   .v3-list-header p { margin-top: 8px; }
   .v3-eyebrow { margin: 0 0 8px; color: hsl(var(--primary)); font-weight: 650; }
   .v3-list-header-actions { display: flex; gap: 16px; }
@@ -271,6 +281,8 @@ select {
     .v3-recipe-row:active,
     .v3-bottom-nav a:active { transform: none; }
     .v3-manage, .v3-bottom-nav { backdrop-filter: none; background: hsl(var(--surface)); }
+    .v3-pull-surface { transform: none !important; }
+    .v3-pull-indicator svg { animation: none !important; }
   }
   .bottom-sheet {
     padding-top: 8px;

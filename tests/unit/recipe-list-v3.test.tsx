@@ -314,6 +314,50 @@ describe("Stitch V3 recipe list contract", () => {
     expect(screen.queryByText("offline")).not.toBeInTheDocument();
   });
 
+  it("refreshes from the shadcn menu without hiding current cards", async () => {
+    const refreshed = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
+    state.recipes
+      .mockResolvedValueOnce({ recipes: [recipe(1, { name: "旧菜谱" })] })
+      .mockReturnValueOnce(refreshed.promise);
+    render(<RecipeList />);
+    await screen.findByRole("button", { name: "查看菜谱 旧菜谱" });
+    fireEvent.click(screen.getByRole("button", { name: "更多" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "刷新菜谱" }));
+    expect(screen.getByRole("button", { name: "查看菜谱 旧菜谱" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("菜谱加载中")).not.toBeInTheDocument();
+    expect(screen.getByTestId("recipe-list-v3")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("正在同步");
+    act(() => refreshed.resolve({ recipes: [recipe(2, { name: "共享新菜谱" })] }));
+    expect(await screen.findByRole("button", { name: "查看菜谱 共享新菜谱" })).toBeInTheDocument();
+  });
+
+  it("keeps current cards and toasts when menu refresh fails", async () => {
+    state.recipes
+      .mockResolvedValueOnce({ recipes: [recipe(1, { name: "旧菜谱" })] })
+      .mockRejectedValueOnce(new Error("offline"));
+    render(<RecipeList />);
+    await screen.findByRole("button", { name: "查看菜谱 旧菜谱" });
+    fireEvent.click(screen.getByRole("button", { name: "更多" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "刷新菜谱" }));
+    await waitFor(() => expect(state.toastError).toHaveBeenCalledWith("同步失败，已保留当前菜谱"));
+    expect(screen.getByRole("button", { name: "查看菜谱 旧菜谱" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("同步失败");
+  });
+
+  it("cancels a card long press when a valid pull engages", async () => {
+    state.recipes.mockResolvedValue({ recipes: [recipe(1)] });
+    render(<RecipeList />);
+    await screen.findByRole("button", { name: "查看菜谱 菜谱 1" });
+    vi.useFakeTimers();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "查看菜谱 菜谱 1" }));
+    const root = screen.getByTestId("recipe-list-v3");
+    fireEvent.touchStart(root, { touches: [{ clientX: 120, clientY: 100 }] });
+    fireEvent.touchMove(root, { touches: [{ clientX: 120, clientY: 180 }], cancelable: true });
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.queryByLabelText("菜谱管理")).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
   it("uses initial error semantics when focus replaces a pending first request and then fails", async () => {
     const initial = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
     const replacement = deferred<{ recipes: ReturnType<typeof recipe>[] }>();
