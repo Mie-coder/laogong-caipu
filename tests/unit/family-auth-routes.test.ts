@@ -166,6 +166,17 @@ describe("family auth route handlers", () => {
     expect(verifyPassword).not.toHaveBeenCalled();
   });
 
+  it("allows a correct five-character password to reach verification", async () => {
+    const password = "abcde";
+    const verifyPassword = vi.fn().mockResolvedValue(true);
+    const POST = workingLogin({ verifyPassword });
+
+    const response = await POST(loginRequest(password));
+
+    expect(response.status).toBe(200);
+    expect(verifyPassword).toHaveBeenCalledWith(password, "encoded");
+  });
+
   it("allows 65 emoji code points to reach password verification", async () => {
     const password = "😀".repeat(65);
     const verifyPassword = vi.fn().mockResolvedValue(true);

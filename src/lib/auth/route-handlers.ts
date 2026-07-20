@@ -10,7 +10,7 @@ import { resolvePublicRequestOrigin } from "@/lib/auth/request-origin";
 
 const PasswordSchema = z.string().refine((password) => {
   const length = Array.from(password).length;
-  return length >= 8 && length <= 128;
+  return length >= 5 && length <= 128;
 });
 
 const LoginSchema = z.object({ password: PasswordSchema }).strict();
