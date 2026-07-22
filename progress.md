@@ -470,15 +470,15 @@
 
 已完成：
 
-- 创建并使用分支 `codex-node24-next16-cloud-deploy`；迁移和部署代码均已本地提交，服务器当前运行版本为 `6392ab5`。
+- 创建并使用分支 `codex-node24-next16-cloud-deploy`；迁移和部署代码均已本地提交，生产运行代码对应历史脱敏后的 commit 为 `170018f`。
 - 生产运行时迁移到 Node.js 24、Next.js 16.2.11、React 19、`better-sqlite3` 13；Docker builder 可按需使用区域 Debian 镜像，runner 不包含编译器。
 - 最终完整测试 33 files / 273 tests、production build、`npm run lint -- --quiet`、`npm audit --omit=dev`（0 vulnerabilities）通过；完整开发依赖审计仍有 5 项 dev-only findings。
-- 腾讯云服务器 `<SERVER_IP>` 的 `/srv/laogong-caipu/current` 已原子切换至 `/srv/laogong-caipu/releases/6392ab5`；共享数据库、AI 图片、备份和 mode-600 生产 env 均在 release 外。
+- 腾讯云生产服务器的 `/srv/laogong-caipu/current` 已原子切换；实际公网地址和 release 目录标签仅保存在私有运维配置中，不写入 Git；共享数据库、AI 图片、备份和 mode-600 生产 env 均在 release 外。
 - Node 24 容器内 native smoke 通过：`better-sqlite3` 读取 2 条真实菜谱，Sharp 生成 64-byte WebP；预部署备份成功。
 - 生产容器已启动且只绑定 `127.0.0.1:3000`；`/api/health` 返回 `{"ok":true}`。
 - 家庭密码摘要、会话密钥、DeepSeek 和 Micu 配置已以 root:root 0600 安装，秘密未写入仓库或部署日志。
 - systemd 每日/每周备份 timer 已启用；首次每日备份执行成功，并通过 `PRAGMA integrity_check`，包含 2 条菜谱。
-- Let’s Encrypt 已签发 IP SAN 短期证书，公网 `https://<SERVER_IP>/api/health` 返回 `{"ok":true}`；HTTP 自动跳转 HTTPS，Caddy 安全响应头与 10 MiB 请求限制已生效。
+- Let’s Encrypt 已签发 IP SAN 短期证书，公网健康接口返回 `{"ok":true}`；HTTP 自动跳转 HTTPS，Caddy 安全响应头与 10 MiB 请求限制已生效。
 - Certbot `webroot` 续期 timer 与 Caddy deploy hook 已启用；`certbot renew --dry-run` 成功。原 Caddy 静态站点对非 IP Host 保留。
 - 390×844 双手机公网验收通过：匿名门禁、HttpOnly/Secure/SameSite=Lax Cookie、2 条共享菜谱、下拉刷新、跨设备收藏写入与恢复、全选/取消全选、步骤完成/撤销、AI 食材图均通过，真实 HTTP/控制台/网络异常为 0。
 - 历史小红书封面会返回 403；列表、做菜指引与详情 Hero 已统一使用本地成品图降级。相关 26 项聚焦测试、lint 与生产容器 build 通过。
