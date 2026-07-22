@@ -374,7 +374,7 @@ describe("persistent deployment contract", () => {
     expect(dockerfile).toContain('CMD ["npm", "run", "start"]');
     expect(dockerfile).not.toContain("next dev");
 
-    expect(compose).toMatch(/^services:\n  app:\n/m);
+    expect(compose).toMatch(/^name: laogong-caipu\n\n?services:\n  app:\n/m);
     expect(compose).toContain("127.0.0.1:3000:3000");
     expect(compose).toContain("./data:/app/data");
     expect(compose).toContain("./backups:/app/backups");

@@ -1,3 +1,5 @@
+name: laogong-caipu
+
 services:
   app:
     build:
