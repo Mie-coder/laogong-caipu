@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/http/api-error";
 import { unlockFamilyApi } from "@/lib/http/api-client";
 
-export function UnlockForm({ returnTo }: { returnTo: string }): JSX.Element {
+export function UnlockForm({ returnTo }: { returnTo: string }) {
   const router = useRouter();
   const submittingRef = useRef(false);
   const [password, setPassword] = useState("");

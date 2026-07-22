@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { logoutFamilyApi } from "@/lib/http/api-client";
 
-export function FamilyMenu(): JSX.Element {
+export function FamilyMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);

@@ -4,11 +4,12 @@ import { PageTransition } from "@/components/page-transition";
 import { sanitizeReturnPath } from "@/lib/auth/family-gate";
 
 type UnlockPageProps = {
-  searchParams?: { next?: string | string[] };
+  searchParams?: Promise<{ next?: string | string[] }>;
 };
 
-export default function UnlockPage({ searchParams }: UnlockPageProps): JSX.Element {
-  const next = typeof searchParams?.next === "string" ? searchParams.next : null;
+export default async function UnlockPage({ searchParams }: UnlockPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const next = typeof resolvedSearchParams?.next === "string" ? resolvedSearchParams.next : null;
   const returnTo = sanitizeReturnPath(next);
 
   return (

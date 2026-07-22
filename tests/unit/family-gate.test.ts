@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { FAMILY_COOKIE_NAME } from "@/lib/auth/constants";
 import { applyFamilyGate, sanitizeReturnPath } from "@/lib/auth/family-gate";
 import { createFamilySession } from "@/lib/auth/session";
-import * as middlewareModule from "@/middleware";
+import * as proxyModule from "@/proxy";
 
 const ORIGIN = "https://recipes.example";
 const SECRET = "s".repeat(32);
@@ -273,18 +273,18 @@ describe("family gate", () => {
   );
 });
 
-describe("Next middleware contract", () => {
-  it("exports only middleware and config with a matcher covering extensionless business APIs", () => {
-    expect(Object.keys(middlewareModule).sort()).toEqual(["config", "middleware"]);
-    expect(middlewareModule.config.matcher).toHaveLength(1);
+describe("Next proxy contract", () => {
+  it("exports only proxy and config with a matcher covering extensionless business APIs", () => {
+    expect(Object.keys(proxyModule).sort()).toEqual(["config", "proxy"]);
+    expect(proxyModule.config.matcher).toHaveLength(1);
 
-    const matcher = new RegExp(middlewareModule.config.matcher[0]);
+    const matcher = new RegExp(proxyModule.config.matcher[0]);
     expect(matcher.test("/api/ingredient-images/generated-key")).toBe(true);
     expect(matcher.test("/api/recipes/7/ingredient-images")).toBe(true);
   });
 
-  it("routes _next/data through the real middleware gate", async () => {
-    const response = await middlewareModule.middleware(
+  it("routes _next/data through the real proxy gate", async () => {
+    const response = await proxyModule.proxy(
       gatedRequest("/_next/data/build-id/recipes.json"),
     );
 

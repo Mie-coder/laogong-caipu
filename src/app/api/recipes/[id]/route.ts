@@ -10,8 +10,8 @@ function error(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
-export async function GET(_request: Request, context: { params: { id: string } }) {
-  const { id } = context.params;
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   const recipeId = parseRecipeId(id);
   if (recipeId === null) return error("invalid_id", "菜谱编号无效", 400);
   const repo = createRecipeRepository();
@@ -24,8 +24,8 @@ export async function GET(_request: Request, context: { params: { id: string } }
   return NextResponse.json({ recipe });
 }
 
-export async function DELETE(_request: Request, context: { params: { id: string } }) {
-  const { id } = context.params;
+export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
   const recipeId = parseRecipeId(id);
   if (recipeId === null) return error("invalid_id", "菜谱编号无效", 400);
   const repo = createRecipeRepository();

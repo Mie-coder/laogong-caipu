@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { applyFamilyGate } from "@/lib/auth/family-gate";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return applyFamilyGate(request, process.env.FAMILY_SESSION_SECRET);
 }
 

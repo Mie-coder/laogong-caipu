@@ -8,8 +8,9 @@ function error(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
-export async function PATCH(request: Request, context: { params: { id: string } }) {
-  const id = Number(context.params.id);
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id: rawId } = await context.params;
+  const id = Number(rawId);
   if (!Number.isSafeInteger(id) || id <= 0) return error("invalid_id", "菜谱编号无效", 400);
 
   let payload: unknown;

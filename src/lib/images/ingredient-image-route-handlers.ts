@@ -20,8 +20,9 @@ type PostHandlerDependencies = {
 };
 
 export function createIngredientImagePostHandler(deps: PostHandlerDependencies) {
-  return async function POST(request: Request, context: { params: { id: string } }) {
-    const recipeId = parseRecipeId(context.params.id);
+  return async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+    const { id } = await context.params;
+    const recipeId = parseRecipeId(id);
     if (recipeId === null) return apiError("invalid_id", "菜谱编号无效", 400);
 
     const parsed = RequestSchema.safeParse(await request.json().catch(() => null));
@@ -45,8 +46,8 @@ export function createIngredientImagePostHandler(deps: PostHandlerDependencies) 
 }
 
 export function createIngredientImageGetHandler(imageService: IngredientImageService) {
-  return async function GET(_request: Request, context: { params: { key: string } }) {
-    const { key } = context.params;
+  return async function GET(_request: Request, context: { params: Promise<{ key: string }> }) {
+    const { key } = await context.params;
     if (!CACHE_KEY_PATTERN.test(key)) return apiError("invalid_key", "图片标识无效", 400);
 
     const image = await imageService.read(key);

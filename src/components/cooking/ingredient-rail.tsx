@@ -15,7 +15,7 @@ type IngredientItem = {
 
 type ImagePhase = "idle" | "requesting" | "loading" | "ready" | "failed";
 
-function IngredientVisual({ ingredient, recipeId, kind, index, checked, railRef }: IngredientItem & { recipeId: number; checked: boolean; railRef: RefObject<HTMLDivElement> }) {
+function IngredientVisual({ ingredient, recipeId, kind, index, checked, railRef }: IngredientItem & { recipeId: number; checked: boolean; railRef: RefObject<HTMLDivElement | null> }) {
   const avatarRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<ImagePhase>("idle");
   const [imageUrl, setImageUrl] = useState<string | null>(null);

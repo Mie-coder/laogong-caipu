@@ -13,7 +13,7 @@ const ACK_MS = 450;
 export type PullRefreshPhase = "idle" | "pulling" | "ready" | "refreshing" | "success" | "error";
 
 export type UsePullToRefreshResult = {
-  containerRef: React.RefObject<HTMLElement>;
+  containerRef: React.RefObject<HTMLElement | null>;
   pullY: MotionValue<number>;
   phase: PullRefreshPhase;
   refreshing: boolean;

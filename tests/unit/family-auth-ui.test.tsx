@@ -86,7 +86,7 @@ describe("family unlock UI", () => {
 
   it("sanitizes the unlock page return path before submitting", async () => {
     unlockFamilyApi.mockResolvedValue({ ok: true });
-    render(<UnlockPage searchParams={{ next: "//evil.example/steal" }} />);
+    render(await UnlockPage({ searchParams: Promise.resolve({ next: "//evil.example/steal" }) }));
 
     fireEvent.change(screen.getByLabelText("家庭密码"), { target: { value: "我们两个人的长密码" } });
     fireEvent.click(screen.getByRole("button", { name: "进入老公菜谱" }));

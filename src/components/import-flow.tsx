@@ -19,7 +19,7 @@ const emptyDraft = (): RecipeDraft => ({ name: "", mainCategory: "未分类", ta
 const validSteps = (draft: RecipeDraft) => draft.steps.some((step) => step.text.trim());
 const normalized = (draft: RecipeDraft) => ({ ...draft, steps: draft.steps.map((step, index) => ({ ...step, order: index + 1 })) });
 
-export function ImportFlow(): JSX.Element {
+export function ImportFlow() {
   const router = useRouter();
   const controllerRef = useRef<AbortController | null>(null);
   const [state, dispatch] = useReducer(importFlowReducer, initialImportFlowState);

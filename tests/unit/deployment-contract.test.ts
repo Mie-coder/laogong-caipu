@@ -342,11 +342,11 @@ describe("persistent deployment contract", () => {
     }
   });
 
-  it("pins the Node 20 deployment engine in package metadata and its npm lock", async () => {
+  it("pins the Node 24 deployment engine in package metadata and its npm lock", async () => {
     const packageJson = JSON.parse(await readFile(join(projectRoot, "package.json"), "utf8"));
     const packageLock = JSON.parse(await readFile(join(projectRoot, "package-lock.json"), "utf8"));
 
-    expect(packageJson.engines).toEqual({ node: ">=20.9 <21" });
+    expect(packageJson.engines).toEqual({ node: ">=24 <25" });
     expect(packageJson.scripts).toMatchObject({
       dev: "next dev",
       build: "next build",
@@ -354,7 +354,7 @@ describe("persistent deployment contract", () => {
       backup: "node scripts/backup-data.mjs",
       "auth:hash": "node scripts/hash-family-password.mjs"
     });
-    expect(packageLock.packages[""].engines).toEqual({ node: ">=20.9 <21" });
+    expect(packageLock.packages[""].engines).toEqual({ node: ">=24 <25" });
     expect(packageLock.packages[""].dependencies).toEqual(packageJson.dependencies);
   });
 
@@ -362,7 +362,7 @@ describe("persistent deployment contract", () => {
     const dockerfile = await readFile(join(projectRoot, "Dockerfile"), "utf8");
     const compose = await readFile(join(projectRoot, "compose.yaml"), "utf8");
 
-    expect(dockerfile.match(/FROM node:20-bookworm-slim/g)).toHaveLength(3);
+    expect(dockerfile.match(/FROM node:24-bookworm-slim/g)).toHaveLength(3);
     expect(dockerfile).toContain("RUN npm run build");
     expect(dockerfile).toContain("RUN npm ci --omit=dev");
     expect(dockerfile).toContain("ENV NODE_ENV=production");
