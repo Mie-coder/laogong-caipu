@@ -2,7 +2,7 @@
 
 本手册提供可复制的 Docker Compose 部署、HTTPS 反向代理、备份、升级、回滚和恢复命令。除“已验证实例”小节外，其余命令仍应先在受控环境演练。
 
-> 迁移状态（2026-07-22）：原公网阻断条件已经解决。此前锁文件中的 Next.js 14.2.35 已是 **unsupported**，Node.js 20 也已 EOL，因此原计划要求迁移到受支持 LTS 运行时；当前生产契约已迁移到 Node.js 24、Next.js 16.2.11、React 19 和 `better-sqlite3` 13。默认隔离的完整测试为 33 files / 271 tests，production build、`npm run lint -- --quiet`、`npm audit --omit=dev`（0 vulnerabilities）均通过。Node 24 容器内又以真实 SQLite（2 条菜谱）和 Sharp WebP 做过 native smoke；完整开发依赖审计仍有 5 项 dev-only findings，不能误写成全量审计为零。
+> 迁移状态（2026-07-22）：原公网阻断条件已经解决。此前锁文件中的 Next.js 14.2.35 已是 **unsupported**，Node.js 20 也已 EOL，因此原计划要求迁移到受支持 LTS 运行时；当前生产契约已迁移到 Node.js 24、Next.js 16.2.11、React 19 和 `better-sqlite3` 13。最终完整测试为 33 files / 273 tests，production build、`npm run lint -- --quiet`、`npm audit --omit=dev`（0 vulnerabilities）均通过。Node 24 容器内又以真实 SQLite（2 条菜谱）和 Sharp WebP 做过 native smoke；完整开发依赖审计仍有 5 项 dev-only findings，不能误写成全量审计为零。
 
 ### 已验证实例：<SERVER_IP>
 
@@ -10,7 +10,9 @@
 - 共享持久化：`data/`、`backups/`、`config/.env.production` 均位于发布版本之外；容器 UID/GID 固定为 `10001`。
 - 应用只绑定 `127.0.0.1:3000`；Caddy 是唯一公网入口。
 - 每日数据库备份和每周数据库+图片备份由 systemd timers 执行；2026-07-22 的首次每日备份已通过 `PRAGMA integrity_check`，包含 2 条菜谱。
-- 当前待完成项：腾讯云安全组需允许公网入站 TCP 80/443；放行后签发短期 IP 证书、启用续期 timer，并执行公网手机全流程验收。
+- 当前运行版本：`6392ab5`；公网入口为 `https://<SERVER_IP>`，HTTP 自动跳转 HTTPS，安全组仅需公开 TCP 80/443。
+- Let’s Encrypt IP SAN 短期证书由 Certbot `webroot` 模式签发；`snap.certbot.renew.timer` 已启用，deploy hook 会原子复制证书并 reload Caddy，`certbot renew --dry-run` 已成功。
+- 2026-07-22 已完成 390×844 双手机公网验收：家庭门禁、安全 Cookie、共享菜谱、跨设备收藏同步、下拉刷新、做菜交互、AI 食材图与外部封面降级全部通过。
 
 ## 1. 准备专用用户和持久化目录
 
