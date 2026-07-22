@@ -363,6 +363,8 @@ describe("persistent deployment contract", () => {
     const compose = await readFile(join(projectRoot, "compose.yaml"), "utf8");
 
     expect(dockerfile.match(/FROM node:24-bookworm-slim/g)).toHaveLength(3);
+    expect(dockerfile.match(/ARG DEBIAN_MIRROR=deb\.debian\.org/g)).toHaveLength(2);
+    expect(dockerfile.match(/sed -i "s\|deb\.debian\.org\|\$\{DEBIAN_MIRROR\}\|g"/g)).toHaveLength(2);
     expect(dockerfile.match(/apt-get install -y --no-install-recommends python3 make g\+\+/g)).toHaveLength(2);
     const runnerStage = dockerfile.slice(dockerfile.indexOf("FROM node:24-bookworm-slim AS runner"));
     expect(runnerStage).not.toContain("apt-get");
