@@ -465,3 +465,29 @@
 - 未提交改动：无。
 - 未跟踪验收产物：`output/playwright-v2/`、`output/playwright/home-393.png`、`output/playwright/home-430.png`。
 - 真实导入预览服务当前由后台 `screen` 会话 `laogong-deepseek-preview` 提供。
+
+## Node 24 / Next.js 16 云部署（2026-07-22，进行中）
+
+已完成：
+
+- 创建并使用分支 `codex-node24-next16-cloud-deploy`；迁移和部署代码已本地提交，运行版本 commit 为 `347ba66`。
+- 生产运行时迁移到 Node.js 24、Next.js 16.2.11、React 19、`better-sqlite3` 13；Docker builder 可按需使用区域 Debian 镜像，runner 不包含编译器。
+- 默认隔离完整测试 33 files / 271 tests、production build、`npm run lint -- --quiet`、`npm audit --omit=dev`（0 vulnerabilities）通过；完整开发依赖审计仍有 5 项 dev-only findings。
+- 腾讯云服务器 `<SERVER_IP>` 已创建 `/srv/laogong-caipu/releases/347ba66`，`current` 原子链接已切换；共享数据库、备份和 mode-600 生产 env 均在 release 外。
+- Node 24 容器内 native smoke 通过：`better-sqlite3` 读取 2 条真实菜谱，Sharp 生成 64-byte WebP；预部署备份成功。
+- 生产容器已启动且只绑定 `127.0.0.1:3000`；`/api/health` 返回 `{"ok":true}`。
+- 家庭密码摘要、会话密钥、DeepSeek 和 Micu 配置已以 root:root 0600 安装，秘密未写入仓库或部署日志。
+- systemd 每日/每周备份 timer 已启用；首次每日备份执行成功，并通过 `PRAGMA integrity_check`，包含 2 条菜谱。
+- Certbot 5.7.0、acme.sh 3.1.5 与证书续期 service/timer 已准备；续期 timer 尚未启用，等待初次证书签发。
+- Caddy 原 `/usr/share/caddy` 静态站点已保留；IP 专用 ACME 临时规则采用增量合并，最终 HTTPS 配置已用临时 IP SAN 证书通过 `caddy validate`。
+
+当前阻断：
+
+- Let’s Encrypt 从公网连接 `<SERVER_IP>:80` 和 `:443` 均超时；服务器本机 Caddy、Docker 与 loopback 服务正常，腾讯云安全组/云防火墙尚未允许公开 Web 入站。
+- 用户需在腾讯云为该实例添加 IPv4 入站允许规则：来源 `0.0.0.0/0`，`TCP:80` 和 `TCP:443`。规则生效后继续正式 IP 证书签发、Caddy HTTPS 切换、自动续期启用和手机端公网全流程验收。
+
+回滚点：
+
+- 原 Caddyfile：`/etc/caddy/Caddyfile.before-laogong-20260722`。
+- 发布目录保留旧 release；`/srv/laogong-caipu/current` 可原子切回。
+- 数据库已有 predeploy 和 daily 两类备份，不随 release 回滚而删除。

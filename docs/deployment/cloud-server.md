@@ -1,8 +1,16 @@
 # 单实例云服务器部署手册
 
-本手册提供可复制的 Docker Compose 部署、HTTPS 反向代理、备份、升级、回滚和恢复命令。它只是部署契约，**不表示任何服务器已经被修改**。
+本手册提供可复制的 Docker Compose 部署、HTTPS 反向代理、备份、升级、回滚和恢复命令。除“已验证实例”小节外，其余命令仍应先在受控环境演练。
 
-> 公网阻断条件：当前锁文件中的 Next.js 版本是 14.2.35，按照官方 support policy，14.x 已是 **unsupported**；部署契约锁定的 Node.js 20 也已在 2026-03-24 EOL；`npm install --package-lock-only` 还报告了未处置的 dependency audit findings。三项都必须在实际公网部署前解决：另开迁移任务升级到仍受支持的 Node.js 22 或 Node.js 24 与受支持 LTS 版 Next.js，验证 `better-sqlite3`、`sharp` 等 native dependencies，重新完成回归与镜像验证。本任务遵守原契约，不擅自升级 Node 或框架，也不声称它们仍获安全维护。在迁移完成前，只能在受控、非公网环境验证本手册。
+> 迁移状态（2026-07-22）：原公网阻断条件已经解决。此前锁文件中的 Next.js 14.2.35 已是 **unsupported**，Node.js 20 也已 EOL，因此原计划要求迁移到受支持 LTS 运行时；当前生产契约已迁移到 Node.js 24、Next.js 16.2.11、React 19 和 `better-sqlite3` 13。默认隔离的完整测试为 33 files / 271 tests，production build、`npm run lint -- --quiet`、`npm audit --omit=dev`（0 vulnerabilities）均通过。Node 24 容器内又以真实 SQLite（2 条菜谱）和 Sharp WebP 做过 native smoke；完整开发依赖审计仍有 5 项 dev-only findings，不能误写成全量审计为零。
+
+### 已验证实例：<SERVER_IP>
+
+- 发布根目录：`/srv/laogong-caipu`；不可变版本在 `releases/<commit>`，`current` 原子链接指向当前版本。
+- 共享持久化：`data/`、`backups/`、`config/.env.production` 均位于发布版本之外；容器 UID/GID 固定为 `10001`。
+- 应用只绑定 `127.0.0.1:3000`；Caddy 是唯一公网入口。
+- 每日数据库备份和每周数据库+图片备份由 systemd timers 执行；2026-07-22 的首次每日备份已通过 `PRAGMA integrity_check`，包含 2 条菜谱。
+- 当前待完成项：腾讯云安全组需允许公网入站 TCP 80/443；放行后签发短期 IP 证书、启用续期 timer，并执行公网手机全流程验收。
 
 ## 1. 准备专用用户和持久化目录
 
