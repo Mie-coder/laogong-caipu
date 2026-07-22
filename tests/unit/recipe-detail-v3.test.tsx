@@ -79,8 +79,9 @@ describe("Recipe detail V3", () => {
     expect(screen.getByRole("tab", { name: "食材" })).toHaveAttribute("aria-selected", "true");
     fireEvent.click(screen.getByRole("tab", { name: "步骤" }));
     expect(screen.getByRole("tab", { name: "步骤" })).toHaveAttribute("aria-selected", "true");
-    fireEvent.error(screen.getByRole("img", { name: "番茄炖牛腩 菜谱封面" }));
-    expect(screen.getByText("图片加载失败")).toBeInTheDocument();
+    const heroImage = screen.getByRole("img", { name: "番茄炖牛腩 菜谱封面" });
+    fireEvent.error(heroImage);
+    expect(heroImage).toHaveAttribute("src", "/stitch-v3/stitch-image-20.jpg");
     fireEvent.click(screen.getByRole("button", { name: "开始做菜" }));
     expect(startCooking).toHaveBeenCalledWith(7);
 

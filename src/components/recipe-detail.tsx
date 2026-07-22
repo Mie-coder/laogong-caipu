@@ -19,6 +19,7 @@ import { ApiError } from "@/lib/http/api-error";
 
 const LIST_RETURN_KEY = "recipe-list-return";
 const SYNC_FAILURE_NOTICE = "同步失败，已保留当前菜谱";
+const DETAIL_FALLBACK_IMAGE = "/stitch-v3/stitch-image-20.jpg";
 
 function formatCookTime(minutes: number | null) { return minutes ? `${minutes} 分钟` : "时间未定"; }
 function formatCookedAt(value: string) {
@@ -42,7 +43,7 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
   const [reviewOpen, setReviewOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
+  const [heroImageSource, setHeroImageSource] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("ingredients");
   const controller = useRef<AbortController | null>(null);
   const loadGeneration = useRef(0);
@@ -63,9 +64,9 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
       if (next.signal.aborted || generation !== loadGeneration.current) return;
       successfulRecipeId.current = id;
       setRecipe(result.recipe);
+      setHeroImageSource(result.recipe.coverImageUrl ?? result.recipe.imageUrls[0] ?? DETAIL_FALLBACK_IMAGE);
       setError(null);
       setNotice((current) => current === SYNC_FAILURE_NOTICE ? "" : current);
-      setImageFailed(false);
     } catch (cause) {
       if (next.signal.aborted || generation !== loadGeneration.current) return;
       if (preserveRecipe) {
@@ -86,7 +87,6 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
 
   useForegroundRefresh(() => { void load({ background: true }); });
 
-  const heroImage = useMemo(() => recipe?.coverImageUrl ?? recipe?.imageUrls[0] ?? null, [recipe]);
   const prepItems = useMemo(() => recipe ? [...recipe.ingredients, ...recipe.seasonings] : [], [recipe]);
 
   async function deleteRecipe() {
@@ -112,7 +112,7 @@ export function RecipeDetail({ id, onStartCooking, onEditRecipe }: { id: number;
 
     <section className="recipe-detail-v3-hero">
       <span aria-hidden="true" className="recipe-detail-v3-numeral">02</span>
-      {heroImage && !imageFailed ? <img src={heroImage} alt={`${recipe.name} 菜谱封面`} className="recipe-detail-v3-hero-image" onError={() => setImageFailed(true)} /> : <div className="recipe-detail-v3-image-fallback" role="status">图片加载失败</div>}
+      {heroImageSource ? <img src={heroImageSource} alt={`${recipe.name} 菜谱封面`} className="recipe-detail-v3-hero-image" onError={() => setHeroImageSource((current) => current === DETAIL_FALLBACK_IMAGE ? null : DETAIL_FALLBACK_IMAGE)} /> : <div className="recipe-detail-v3-image-fallback" role="status">暂无图片</div>}
       <div className="recipe-detail-v3-summary"><h1>{recipe.name}</h1><p>{recipe.mainCategory} · {formatCookTime(recipe.cookTimeMinutes)} · {DIFFICULTY_LABELS[recipe.difficulty] ?? "未知"} · 做过 {recipe.cookedCount} 次</p>{latestReview?.wifeRating ? <p className="recipe-detail-v3-rating"><Star aria-hidden="true" fill="currentColor" />老婆评分 {latestReview.wifeRating.toFixed(1)}</p> : null}</div>
     </section>
 
