@@ -162,6 +162,14 @@ describe("cooking mode", () => {
     expect(state.push).toHaveBeenCalledWith("/recipes/7/cook");
   });
 
+  it("replaces a rejected remote guide cover with the bundled fallback", () => {
+    render(<CookingGuideDrawer open recipe={{ ...recipe, coverImageUrl: "https://sns-webpic-qc.xhscdn.com/expired.jpg" }} onOpenChange={vi.fn()} />);
+    const image = screen.getByRole("img", { name: "菠萝咕噜肉 成品图" });
+    expect(image).toHaveAttribute("src", "https://sns-webpic-qc.xhscdn.com/expired.jpg");
+    fireEvent.error(image);
+    expect(image).toHaveAttribute("src", "/stitch-v3/stitch-image-20.jpg");
+  });
+
   it("loads typed recipe detail, supports undoable step completion, and opens shared review only after finish", async () => {
     render(<CookingMode recipeId={7} />);
     expect(await screen.findByRole("heading", { name: "菠萝咕噜肉" })).toBeInTheDocument();

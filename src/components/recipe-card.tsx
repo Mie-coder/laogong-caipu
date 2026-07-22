@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { ChevronRight, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FavoriteButton } from "@/components/recipe/favorite-button";
@@ -13,8 +14,9 @@ function meta(recipe: RecipeSummary) {
 
 export function RecipeCard({ recipe, fallbackImageUrl, onOpen = () => undefined, selected, onSelect, onFavoriteChanged, variant = "list" }: { recipe: RecipeSummary; fallbackImageUrl?: string; onOpen?: () => void; selected?: boolean; onSelect?: () => void; onFavoriteChanged?: (isFavorite: boolean) => void; variant?: "list" | "default"; disableLink?: boolean; showChevron?: boolean }) {
   const details = meta(recipe);
+  const [imageSource, setImageSource] = useState<string | null>(recipe.coverImageUrl ?? fallbackImageUrl ?? null);
   return <article className={`v3-recipe-row ${variant === "default" ? "v3-recipe-default" : ""}`}>
-    <div className="v3-recipe-image">{recipe.coverImageUrl || fallbackImageUrl ? <img src={recipe.coverImageUrl ?? fallbackImageUrl} alt="" /> : <span className="v3-no-image"><ImageIcon aria-hidden="true" />无图</span>}</div>
+    <div className="v3-recipe-image">{imageSource ? <img src={imageSource} alt="" onError={() => setImageSource((current) => fallbackImageUrl && current !== fallbackImageUrl ? fallbackImageUrl : null)} /> : <span className="v3-no-image"><ImageIcon aria-hidden="true" />无图</span>}</div>
     <div className="min-w-0 flex-1"><h2>{recipe.name}</h2><p className="v3-recipe-meta">{details}</p></div>
     {onSelect ? <Button variant="ghost" size="icon" aria-label={`选择菜谱 ${recipe.name}`} aria-pressed={selected} onClick={onSelect}>{selected ? "已选" : "选择"}</Button> : <><FavoriteButton recipeId={recipe.id} recipeName={recipe.name} isFavorite={recipe.isFavorite} onChanged={(isFavorite) => onFavoriteChanged?.(isFavorite)} /><Button variant="ghost" size="icon" aria-label={`查看菜谱 ${recipe.name}`} onClick={onOpen}><ChevronRight aria-hidden="true" /></Button></>}
   </article>;

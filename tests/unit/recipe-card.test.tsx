@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { RecipeCard } from "@/components/recipe-card";
 
@@ -54,5 +54,30 @@ describe("RecipeCard", () => {
 
     expect(screen.getByText("无图")).toBeInTheDocument();
     expect(screen.getByText("时间未定 · 做过 0 次")).toBeInTheDocument();
+  });
+
+  it("replaces a rejected remote cover with the bundled fallback", () => {
+    const { container } = render(
+      <RecipeCard
+        fallbackImageUrl="/stitch-v3/stitch-image-15.jpg"
+        recipe={{
+          id: 3,
+          name: "潮汕牛肉汤",
+          mainCategory: "汤羹",
+          coverImageUrl: "https://sns-webpic-qc.xhscdn.com/expired.jpg",
+          cookedCount: 0,
+          difficulty: "easy",
+          tags: [],
+          latestWifeFeedback: "",
+          wifeRating: 0
+        }}
+      />
+    );
+
+    const image = container.querySelector(".v3-recipe-image img");
+    expect(image).not.toBeNull();
+    expect(image).toHaveAttribute("src", "https://sns-webpic-qc.xhscdn.com/expired.jpg");
+    fireEvent.error(image);
+    expect(image).toHaveAttribute("src", "/stitch-v3/stitch-image-15.jpg");
   });
 });
